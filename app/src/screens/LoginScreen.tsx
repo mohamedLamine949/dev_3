@@ -13,11 +13,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 
+import { Alert } from 'react-native';
+import { useAuth } from '../contexts/AuthContext';
+
 interface Props {
   navigation: any;
 }
 
 export default function LoginScreen({ navigation }: Props) {
+  const { signInWithOtp, verifyOtp } = useAuth();
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
@@ -27,32 +31,47 @@ export default function LoginScreen({ navigation }: Props) {
   const handleSendOtp = async () => {
     if (phone.length < 8) return;
     setIsLoading(true);
-    // TODO: Appeler supabase.auth.signInWithOtp
-    setTimeout(() => {
-      setIsLoading(false);
+
+    const fullPhone = '+223' + phone;
+    const { error } = await signInWithOtp(fullPhone);
+
+    setIsLoading(false);
+
+    if (error) {
+      Alert.alert('Erreur', error.message || 'Impossible d\'envoyer le code SMS.');
+      return;
+    }
+
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(() => {
+      setStep('otp');
       Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
+        toValue: 1,
+        duration: 300,
         useNativeDriver: true,
-      }).start(() => {
-        setStep('otp');
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }).start();
-      });
-    }, 1500);
+      }).start();
+    });
   };
 
   const handleVerifyOtp = async () => {
     if (otp.length < 6) return;
     setIsLoading(true);
-    // TODO: Appeler supabase.auth.verifyOtp
-    setTimeout(() => {
-      setIsLoading(false);
-      // Navigation sur succès
-    }, 1500);
+
+    const fullPhone = '+223' + phone;
+    const { error } = await verifyOtp(fullPhone, otp);
+
+    setIsLoading(false);
+
+    if (error) {
+      Alert.alert('Code invalide', 'Le code renseigné est incorrect ou expiré.');
+      return;
+    }
+
+    // Navigation sur succès
+    navigation.goBack();
   };
 
   return (
