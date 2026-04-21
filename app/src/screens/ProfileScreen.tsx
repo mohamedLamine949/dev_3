@@ -120,6 +120,7 @@ export default function ProfileScreen({ navigation }: Props) {
                       }
                     }
                   }}
+                >
                   <View style={styles.menuItemLeft}>
                     <View style={styles.menuIconContainer}>
                       <Feather name={item.icon as any} size={18} color={COLORS.primary} />
