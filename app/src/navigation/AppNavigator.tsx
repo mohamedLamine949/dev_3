@@ -9,6 +9,7 @@ import { COLORS, FONTS, RADIUS, SHADOWS } from '../constants/theme';
 
 // Screens
 import HomeScreen from '../screens/HomeScreen';
+import SearchScreen from '../screens/SearchScreen';
 import AnnonceDetailScreen from '../screens/AnnonceDetailScreen';
 import PostAnnonceScreen from '../screens/PostAnnonceScreen';
 import MessagesScreen from '../screens/MessagesScreen';
@@ -24,6 +25,20 @@ function HomeStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="HomeMain" component={HomeScreen} />
+      <Stack.Screen
+        name="AnnonceDetail"
+        component={AnnonceDetailScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+    </Stack.Navigator>
+  );
+}
+
+// Stack pour l'onglet Recherche
+function SearchStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="SearchMain" component={SearchScreen} />
       <Stack.Screen
         name="AnnonceDetail"
         component={AnnonceDetailScreen}
@@ -88,7 +103,7 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Accueil" component={HomeStack} />
-      <Tab.Screen name="Recherche" component={HomeStack} />
+      <Tab.Screen name="Recherche" component={SearchStack} />
       <Tab.Screen
         name="Publier"
         component={PostAnnonceScreen}
