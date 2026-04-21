@@ -44,18 +44,8 @@ export default function LoginScreen({ navigation }: Props) {
       }
 
       setIsLoading(false);
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => {
-        setStep('otp');
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }).start();
-      });
+      setStep('otp');
+      fadeAnim.setValue(1);
     } catch (err: any) {
       setIsLoading(false);
       Alert.alert('Erreur système', err.message || 'Une erreur est survenue.');
