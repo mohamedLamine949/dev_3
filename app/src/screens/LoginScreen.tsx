@@ -29,49 +29,61 @@ export default function LoginScreen({ navigation }: Props) {
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const handleSendOtp = async () => {
-    if (phone.length < 8) return;
+    const cleanPhone = phone.replace(/\s+/g, '');
+    if (cleanPhone.length < 8) return;
     setIsLoading(true);
 
-    const fullPhone = '+223' + phone;
-    const { error } = await signInWithOtp(fullPhone);
+    try {
+      const fullPhone = cleanPhone.startsWith('+') ? cleanPhone : '+223' + cleanPhone;
+      const { error } = await signInWithOtp(fullPhone);
 
-    setIsLoading(false);
+      if (error) {
+        setIsLoading(false);
+        Alert.alert('Erreur', error.message || 'Impossible d\'envoyer le code SMS.');
+        return;
+      }
 
-    if (error) {
-      Alert.alert('Erreur', error.message || 'Impossible d\'envoyer le code SMS.');
-      return;
-    }
-
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      setStep('otp');
+      setIsLoading(false);
       Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
+        toValue: 0,
+        duration: 200,
         useNativeDriver: true,
-      }).start();
-    });
+      }).start(() => {
+        setStep('otp');
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      });
+    } catch (err: any) {
+      setIsLoading(false);
+      Alert.alert('Erreur système', err.message || 'Une erreur est survenue.');
+    }
   };
 
   const handleVerifyOtp = async () => {
-    if (otp.length < 6) return;
+    const cleanOtp = otp.replace(/\s+/g, '');
+    if (cleanOtp.length < 6) return;
     setIsLoading(true);
 
-    const fullPhone = '+223' + phone;
-    const { error } = await verifyOtp(fullPhone, otp);
+    try {
+      const cleanPhone = phone.replace(/\s+/g, '');
+      const fullPhone = cleanPhone.startsWith('+') ? cleanPhone : '+223' + cleanPhone;
+      const { error } = await verifyOtp(fullPhone, cleanOtp);
 
-    setIsLoading(false);
+      setIsLoading(false);
+      if (error) {
+        Alert.alert('Code invalide', 'Le code renseigné est incorrect ou expiré.');
+        return;
+      }
 
-    if (error) {
-      Alert.alert('Code invalide', 'Le code renseigné est incorrect ou expiré.');
-      return;
+      // Navigation sur succès
+      navigation.goBack();
+    } catch (err: any) {
+      setIsLoading(false);
+      Alert.alert('Erreur', err.message || 'La vérification a échoué.');
     }
-
-    // Navigation sur succès
-    navigation.goBack();
   };
 
   return (
