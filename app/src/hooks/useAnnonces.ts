@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, Annonce, ImageAnnonce } from '../lib/supabase';
+import * as FileSystem from 'expo-file-system';
+import { decode } from 'base64-arraybuffer';
 
 /**
  * Hook pour récupérer les annonces actives avec filtrage
@@ -120,13 +122,17 @@ export async function createAnnonce(
         const fileExt = 'jpg';
         const fileName = `${annonce.id}/${i}.${fileExt}`;
 
-        // Upload vers Supabase Storage
-        const response = await fetch(uri);
-        const blob = await response.blob();
+        // Upload vers Supabase Storage via Base64 pour React Native
+        const base64 = await FileSystem.readAsStringAsync(uri, { 
+          encoding: FileSystem.EncodingType.Base64 
+        });
 
         const { error: uploadError } = await supabase.storage
           .from('annonces-images')
-          .upload(fileName, blob, { contentType: 'image/jpeg' });
+          .upload(fileName, decode(base64), { 
+            contentType: 'image/jpeg',
+            upsert: true
+          });
 
         if (uploadError) {
           console.error('Erreur upload image:', uploadError);
