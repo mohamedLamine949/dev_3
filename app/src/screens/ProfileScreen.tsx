@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Props {
   navigation: any;
@@ -19,9 +20,9 @@ const MENU_ITEMS = [
   {
     section: 'Mon compte',
     items: [
-      { icon: 'list', label: 'Mes annonces', screen: 'MesAnnonces', badge: '3' },
-      { icon: 'heart', label: 'Mes favoris', screen: 'Favoris' },
-      { icon: 'clock', label: 'Historique', screen: 'Historique' },
+      { icon: 'list', label: 'Mes annonces', screen: 'MesAnnonces', private: true },
+      { icon: 'heart', label: 'Mes favoris', screen: 'Favoris', private: true },
+      { icon: 'clock', label: 'Historique', screen: 'Historique', private: true },
     ],
   },
   {
@@ -43,15 +44,37 @@ const MENU_ITEMS = [
 ];
 
 export default function ProfileScreen({ navigation }: Props) {
-  const handleLogout = () => {
+  const { session, user, signOut } = useAuth();
+
+  const handleAuthAction = () => {
+    if (!session) {
+      navigation.navigate('Login');
+      return;
+    }
+
     Alert.alert(
       'Déconnexion',
       'Êtes-vous sûr de vouloir vous déconnecter ?',
       [
         { text: 'Annuler', style: 'cancel' },
-        { text: 'Déconnexion', style: 'destructive', onPress: () => console.log('Logout') },
+        { text: 'Déconnexion', style: 'destructive', onPress: signOut },
       ]
     );
+  };
+
+  const onMenuItemPress = (item: any) => {
+    if (item.private && !session) {
+      navigation.navigate('Login');
+      return;
+    }
+
+    if (item.screen) {
+      if (item.screen === 'MesAnnonces' || item.screen === 'Favoris') {
+        navigation.navigate(item.screen);
+      } else {
+        navigation.navigate('Placeholder', { title: item.label });
+      }
+    }
   };
 
   return (
@@ -65,36 +88,52 @@ export default function ProfileScreen({ navigation }: Props) {
         </View>
 
         {/* Avatar & Infos */}
-        <View style={styles.profileCard}>
+        <TouchableOpacity 
+          style={styles.profileCard} 
+          activeOpacity={0.8}
+          onPress={!session ? () => navigation.navigate('Login') : undefined}
+        >
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>ML</Text>
+            <Text style={styles.avatarText}>
+              {session ? user?.prenom?.charAt(0) || '👤' : '👤'}
+            </Text>
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>Mohamed Lamine</Text>
-            <Text style={styles.profilePhone}>+223 76 XX XX XX</Text>
+            <Text style={styles.profileName}>
+              {session ? `${user?.prenom || 'Nouveau'} ${user?.nom || 'Client'}` : 'Invité'}
+            </Text>
+            <Text style={styles.profilePhone}>
+              {session ? user?.phone || session.user.phone : 'Connectez-vous pour continuer'}
+            </Text>
           </View>
-          <TouchableOpacity style={styles.editButton} activeOpacity={0.7}>
-            <Feather name="edit-2" size={16} color={COLORS.primary} />
-          </TouchableOpacity>
-        </View>
+          {session ? (
+            <TouchableOpacity style={styles.editButton} activeOpacity={0.7}>
+              <Feather name="edit-2" size={16} color={COLORS.primary} />
+            </TouchableOpacity>
+          ) : (
+            <Ionicons name="chevron-forward" size={24} color={COLORS.textMuted} />
+          )}
+        </TouchableOpacity>
 
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>3</Text>
-            <Text style={styles.statLabel}>Annonces</Text>
+        {/* Stats (Visible que si connecté) */}
+        {session && (
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>0</Text>
+              <Text style={styles.statLabel}>Annonces</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>0</Text>
+              <Text style={styles.statLabel}>Ventes</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statValue}>-</Text>
+              <Text style={styles.statLabel}>Note ⭐</Text>
+            </View>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>12</Text>
-            <Text style={styles.statLabel}>Ventes</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>4.8</Text>
-            <Text style={styles.statLabel}>Note ⭐</Text>
-          </View>
-        </View>
+        )}
 
         {/* Menu Sections */}
         {MENU_ITEMS.map((section) => (
@@ -109,17 +148,7 @@ export default function ProfileScreen({ navigation }: Props) {
                     index < section.items.length - 1 && styles.menuItemBorder,
                   ]}
                   activeOpacity={0.7}
-                  onPress={() => {
-                    if (item.screen) {
-                      // Pour les écrans existants, on navigue normalement
-                      if (item.screen === 'MesAnnonces' || item.screen === 'Favoris') {
-                        navigation.navigate(item.screen);
-                      } else {
-                        // Pour les autres, on envoie vers le Placeholder
-                        navigation.navigate('Placeholder', { title: item.label });
-                      }
-                    }
-                  }}
+                  onPress={() => onMenuItemPress(item)}
                 >
                   <View style={styles.menuItemLeft}>
                     <View style={styles.menuIconContainer}>
@@ -131,7 +160,7 @@ export default function ProfileScreen({ navigation }: Props) {
                     {'value' in item && (
                       <Text style={styles.menuItemValue}>{(item as any).value}</Text>
                     )}
-                    {'badge' in item && (
+                    {session && 'badge' in item && (
                       <View style={styles.menuBadge}>
                         <Text style={styles.menuBadgeText}>{(item as any).badge}</Text>
                       </View>
@@ -144,10 +173,16 @@ export default function ProfileScreen({ navigation }: Props) {
           </View>
         ))}
 
-        {/* Déconnexion */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7}>
-          <Feather name="log-out" size={18} color={COLORS.error} />
-          <Text style={styles.logoutText}>Déconnexion</Text>
+        {/* Action Auth */}
+        <TouchableOpacity 
+          style={styles.logoutButton} 
+          onPress={handleAuthAction} 
+          activeOpacity={0.7}
+        >
+          <Feather name={session ? "log-out" : "log-in"} size={18} color={session ? COLORS.error : COLORS.primary} />
+          <Text style={[styles.logoutText, !session && { color: COLORS.primary }]}>
+            {session ? 'Déconnexion' : 'Se connecter'}
+          </Text>
         </TouchableOpacity>
 
         {/* Version */}
