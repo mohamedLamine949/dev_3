@@ -124,7 +124,7 @@ export async function createAnnonce(
 
         // Upload vers Supabase Storage via Base64 pour React Native
         const base64 = await FileSystem.readAsStringAsync(uri, { 
-          encoding: FileSystem.EncodingType.Base64 
+          encoding: 'base64' as any
         });
 
         const { error: uploadError } = await supabase.storage

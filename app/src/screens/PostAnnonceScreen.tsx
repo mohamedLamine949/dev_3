@@ -46,7 +46,7 @@ export default function PostAnnonceScreen({ navigation }: Props) {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'] as any,
       allowsMultipleSelection: true,
       quality: 0.7,
       selectionLimit: MAX_IMAGES - images.length,
