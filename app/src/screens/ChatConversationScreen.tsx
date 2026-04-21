@@ -9,58 +9,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { Message } from '../lib/supabase';
-
-const MY_USER_ID = 'u1'; // Simulé
-
-// Données de démo
-const DEMO_MESSAGES: Message[] = [
-  {
-    id: 'm1',
-    conversation_id: 'c1',
-    expediteur_id: 'u2',
-    contenu: 'Bonjour ! Je suis intéressé par votre iPhone 15 Pro.',
-    date_envoi: new Date(Date.now() - 600000).toISOString(),
-    lu: true,
-  },
-  {
-    id: 'm2',
-    conversation_id: 'c1',
-    expediteur_id: MY_USER_ID,
-    contenu: 'Bonjour, oui il est toujours disponible. Vous êtes à Bamako ?',
-    date_envoi: new Date(Date.now() - 540000).toISOString(),
-    lu: true,
-  },
-  {
-    id: 'm3',
-    conversation_id: 'c1',
-    expediteur_id: 'u2',
-    contenu: 'Oui, je suis à Bamako. On peut se retrouver au marché ?',
-    date_envoi: new Date(Date.now() - 420000).toISOString(),
-    lu: true,
-  },
-  {
-    id: 'm4',
-    conversation_id: 'c1',
-    expediteur_id: MY_USER_ID,
-    contenu: 'Bien sûr ! Passez-moi votre numéro WhatsApp, je vous enverrai ma localisation.',
-    date_envoi: new Date(Date.now() - 300000).toISOString(),
-    lu: true,
-  },
-  {
-    id: 'm5',
-    conversation_id: 'c1',
-    expediteur_id: 'u2',
-    contenu: 'Mon numéro c\'est 76 XX XX XX. Par contre, c\'est négociable le prix ?',
-    date_envoi: new Date(Date.now() - 180000).toISOString(),
-    lu: false,
-  },
-];
+import { useAuth } from '../contexts/AuthContext';
+import { useChat, getOrCreateConversation } from '../hooks/useChat';
 
 function formatTime(dateStr: string): string {
+  if (!dateStr) return '';
   const d = new Date(dateStr);
   return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
@@ -71,24 +29,43 @@ interface Props {
 }
 
 export default function ChatConversationScreen({ route, navigation }: Props) {
-  const { titrAnnonce } = route.params || {};
-  const [messages, setMessages] = useState<Message[]>(DEMO_MESSAGES);
+  const { conversationId: initialConvId, titrAnnonce, vendeurId, annonceId } = route.params || {};
+  const { session } = useAuth();
+  const currentUserId = session?.user?.id;
+  
+  const [activeConversationId, setActiveConversationId] = useState<string | undefined>(initialConvId);
+  const [resolving, setResolving] = useState(!initialConvId);
+  
+  const { messages, loading, sendMessage } = useChat(activeConversationId, currentUserId);
+  
   const [inputText, setInputText] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
-  const sendMessage = () => {
-    if (!inputText.trim()) return;
+  // Initialize conversation if needed
+  useEffect(() => {
+    async function initConv() {
+      if (!initialConvId && vendeurId && annonceId && currentUserId) {
+        if (currentUserId === vendeurId) {
+          // Si l'utilisateur clique sur sa propre annonce pour la contacter
+          setResolving(false);
+          return;
+        }
+        const conv = await getOrCreateConversation(currentUserId, vendeurId, annonceId);
+        if (conv) setActiveConversationId(conv.id);
+      }
+      setResolving(false);
+    }
+    
+    initConv();
+  }, [initialConvId, vendeurId, annonceId, currentUserId]);
 
-    const newMsg: Message = {
-      id: `m${Date.now()}`,
-      conversation_id: 'c1',
-      expediteur_id: MY_USER_ID,
-      contenu: inputText.trim(),
-      date_envoi: new Date().toISOString(),
-      lu: false,
-    };
-    setMessages([...messages, newMsg]);
-    setInputText('');
+  const handleSend = async () => {
+    if (!inputText.trim() || !activeConversationId) return;
+
+    const textToSend = inputText;
+    setInputText(''); // Optimistic clear
+    
+    await sendMessage(textToSend);
 
     // Scroll to bottom
     setTimeout(() => {
@@ -97,7 +74,7 @@ export default function ChatConversationScreen({ route, navigation }: Props) {
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
-    const isMe = item.expediteur_id === MY_USER_ID;
+    const isMe = item.expediteur_id === currentUserId;
 
     return (
       <View style={[styles.messageRow, isMe && styles.messageRowMe]}>
@@ -123,6 +100,14 @@ export default function ChatConversationScreen({ route, navigation }: Props) {
     );
   };
 
+  if (resolving || loading && messages.length === 0) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
@@ -136,7 +121,7 @@ export default function ChatConversationScreen({ route, navigation }: Props) {
           <Text style={styles.headerTitle} numberOfLines={1}>
             {titrAnnonce || 'Conversation'}
           </Text>
-          <Text style={styles.headerSubtitle}>En ligne</Text>
+          <Text style={styles.headerSubtitle}>{activeConversationId ? 'En ligne' : 'Nouvelle discussion'}</Text>
         </View>
         <TouchableOpacity activeOpacity={0.7}>
           <Ionicons name="call-outline" size={22} color={COLORS.primary} />
@@ -174,7 +159,7 @@ export default function ChatConversationScreen({ route, navigation }: Props) {
           </View>
           <TouchableOpacity
             style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
-            onPress={sendMessage}
+            onPress={handleSend}
             disabled={!inputText.trim()}
             activeOpacity={0.7}
           >

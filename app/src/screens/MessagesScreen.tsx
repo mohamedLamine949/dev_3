@@ -7,64 +7,15 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
-import { Conversation } from '../lib/supabase';
-
-// Données de démo
-const DEMO_CONVERSATIONS: (Conversation & { unread?: number })[] = [
-  {
-    id: 'c1',
-    acheteur_id: 'u1',
-    vendeur_id: 'u2',
-    annonce_id: '1',
-    dernier_message: 'Bonjour, est-ce que le téléphone est encore disponible ?',
-    date_dernier_message: new Date(Date.now() - 300000).toISOString(),
-    unread: 2,
-    annonce: {
-      id: '1', user_id: 'u2', titre: 'iPhone 15 Pro Max 256GB',
-      description: '', prix: 650000, categorie: 'telephonie',
-      etat_article: 'comme_neuf', statut: 'active', est_payee: true,
-      ville: 'Bamako', date_creation: new Date().toISOString(),
-      images: [{ id: 'i1', annonce_id: '1', image_url: 'https://picsum.photos/100/100?random=10', ordre: 0 }],
-    },
-  },
-  {
-    id: 'c2',
-    acheteur_id: 'u3',
-    vendeur_id: 'u1',
-    annonce_id: '3',
-    dernier_message: 'D\'accord, on peut se retrouver demain au marché ?',
-    date_dernier_message: new Date(Date.now() - 3600000).toISOString(),
-    unread: 0,
-    annonce: {
-      id: '3', user_id: 'u1', titre: 'Appartement 3 pièces - ACI 2000',
-      description: '', prix: 350000, categorie: 'immobilier',
-      etat_article: 'bon_etat', statut: 'active', est_payee: true,
-      ville: 'Bamako', date_creation: new Date().toISOString(),
-      images: [{ id: 'i3', annonce_id: '3', image_url: 'https://picsum.photos/100/100?random=11', ordre: 0 }],
-    },
-  },
-  {
-    id: 'c3',
-    acheteur_id: 'u4',
-    vendeur_id: 'u1',
-    annonce_id: '5',
-    dernier_message: 'C\'est mon dernier prix 700 000. Intéressé ?',
-    date_dernier_message: new Date(Date.now() - 86400000).toISOString(),
-    unread: 1,
-    annonce: {
-      id: '5', user_id: 'u1', titre: 'MacBook Air M2 2023',
-      description: '', prix: 750000, categorie: 'electronique',
-      etat_article: 'comme_neuf', statut: 'active', est_payee: true,
-      ville: 'Sikasso', date_creation: new Date().toISOString(),
-      images: [{ id: 'i5', annonce_id: '5', image_url: 'https://picsum.photos/100/100?random=12', ordre: 0 }],
-    },
-  },
-];
+import { useAuth } from '../contexts/AuthContext';
+import { useConversations } from '../hooks/useChat';
 
 function timeAgo(dateStr: string): string {
+  if (!dateStr) return '';
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
   if (diff < 60) return 'Maint.';
   if (diff < 3600) return `${Math.floor(diff / 60)}min`;
@@ -77,11 +28,15 @@ interface Props {
 }
 
 export default function MessagesScreen({ navigation }: Props) {
-  const [conversations] = useState(DEMO_CONVERSATIONS);
+  const { session } = useAuth();
+  const userId = session?.user?.id;
+  
+  const { conversations, loading, refetch } = useConversations(userId);
 
-  const renderConversation = ({ item }: { item: typeof DEMO_CONVERSATIONS[0] }) => {
+  const renderConversation = ({ item }: { item: any }) => {
     const imageUrl = item.annonce?.images?.[0]?.image_url || 'https://picsum.photos/100/100';
-    const hasUnread = (item.unread ?? 0) > 0;
+    // MOCK hasUnread based on fake field (in real app, requires joining messages)
+    const hasUnread = false; 
 
     return (
       <TouchableOpacity
@@ -101,7 +56,7 @@ export default function MessagesScreen({ navigation }: Props) {
         <View style={styles.conversationContent}>
           <View style={styles.conversationTop}>
             <Text style={[styles.conversationTitle, hasUnread && styles.textBold]} numberOfLines={1}>
-              {item.annonce?.titre || 'Annonce'}
+              {item.annonce?.titre || 'Annonce supprimée'}
             </Text>
             <Text style={[styles.conversationTime, hasUnread && { color: COLORS.primary }]}>
               {timeAgo(item.date_dernier_message)}
@@ -114,16 +69,27 @@ export default function MessagesScreen({ navigation }: Props) {
             >
               {item.dernier_message}
             </Text>
-            {hasUnread && (
-              <View style={styles.unreadBadge}>
-                <Text style={styles.unreadText}>{item.unread}</Text>
-              </View>
-            )}
           </View>
         </View>
       </TouchableOpacity>
     );
   };
+
+  if (!userId) {
+    return (
+      <View style={[styles.container, styles.emptyContainer]}>
+        <Ionicons name="log-in-outline" size={56} color={COLORS.textMuted} />
+        <Text style={styles.emptyTitle}>Non connecté</Text>
+        <Text style={styles.emptyText}>Connectez-vous pour voir vos messages.</Text>
+        <TouchableOpacity 
+          style={{ marginTop: 20, backgroundColor: COLORS.primary, padding: 12, borderRadius: 8 }}
+          onPress={() => navigation.navigate('Profile')}
+        >
+          <Text style={{ color: 'white', fontWeight: 'bold' }}>Se connecter</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -137,23 +103,31 @@ export default function MessagesScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={conversations}
-        renderItem={renderConversation}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="chatbubbles-outline" size={56} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>Pas encore de messages</Text>
-            <Text style={styles.emptyText}>
-              Contactez un vendeur pour commencer une conversation
-            </Text>
-          </View>
-        }
-      />
+      {loading && conversations.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={conversations}
+          renderItem={renderConversation}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          onRefresh={refetch}
+          refreshing={loading}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="chatbubbles-outline" size={56} color={COLORS.textMuted} />
+              <Text style={styles.emptyTitle}>Pas encore de messages</Text>
+              <Text style={styles.emptyText}>
+                Contactez un vendeur pour commencer une conversation
+              </Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
