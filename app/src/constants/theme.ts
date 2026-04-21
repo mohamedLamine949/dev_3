@@ -123,12 +123,12 @@ export const CATEGORIES = [
   { id: 'electronique', label: 'Électronique', icon: 'monitor' },
   { id: 'vehicules', label: 'Véhicules', icon: 'truck' },
   { id: 'immobilier', label: 'Immobilier', icon: 'home' },
-  { id: 'mode', label: 'Mode', icon: 'shirt' },
-  { id: 'maison', label: 'Maison', icon: 'sofa' },
+  { id: 'mode', label: 'Mode', icon: 'shopping-bag' },
+  { id: 'maison', label: 'Maison', icon: 'box' },
   { id: 'emploi', label: 'Emploi', icon: 'briefcase' },
-  { id: 'services', label: 'Services', icon: 'wrench' },
-  { id: 'loisirs', label: 'Loisirs', icon: 'gamepad-2' },
-  { id: 'autres', label: 'Autres', icon: 'grid-2x2' },
+  { id: 'services', label: 'Services', icon: 'tool' },
+  { id: 'loisirs', label: 'Loisirs', icon: 'play-circle' },
+  { id: 'autres', label: 'Autres', icon: 'grid' },
 ];
 
 export const ETAT_ARTICLE = [
