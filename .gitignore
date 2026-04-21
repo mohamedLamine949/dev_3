@@ -1,0 +1,27 @@
+# Dependencies
+app/node_modules/
+node_modules/
+
+# Expo
+app/.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Metro
+app/.metro-health-check*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+
+# Build
+app/dist/
+app/web-build/

@@ -1,0 +1,139 @@
+/**
+ * Chap Chap - Design System & Theme
+ * Palette vibrante, moderne, inspirée de l'Afrique de l'Ouest
+ */
+
+export const COLORS = {
+  // Couleur principale - Orange chaleureux (vitaux pour le Mali)
+  primary: '#FF6B35',
+  primaryLight: '#FF8C5A',
+  primaryDark: '#E05520',
+  primaryFaded: 'rgba(255, 107, 53, 0.12)',
+
+  // Couleur secondaire - Vert confiance
+  secondary: '#00B894',
+  secondaryLight: '#55EFC4',
+  secondaryDark: '#00A381',
+
+  // Couleur d'accent - Doré premium
+  accent: '#FDCB6E',
+  accentDark: '#E1A844',
+
+  // Arrière-plans
+  background: '#FAFBFD',
+  surface: '#FFFFFF',
+  surfaceElevated: '#FFFFFF',
+  surfaceMuted: '#F4F5F7',
+
+  // Textes
+  textPrimary: '#1A1D26',
+  textSecondary: '#6B7280',
+  textMuted: '#9CA3AF',
+  textInverse: '#FFFFFF',
+
+  // États
+  success: '#00B894',
+  warning: '#FDCB6E',
+  error: '#FF6B6B',
+  info: '#74B9FF',
+
+  // Bordures & séparateurs
+  border: '#E8ECF1',
+  borderLight: '#F0F2F5',
+  divider: '#F0F2F5',
+
+  // Overlay
+  overlay: 'rgba(0, 0, 0, 0.5)',
+  overlayLight: 'rgba(0, 0, 0, 0.2)',
+};
+
+export const FONTS = {
+  // Tailles
+  xs: 11,
+  sm: 13,
+  md: 15,
+  lg: 17,
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
+  hero: 40,
+
+  // Poids
+  regular: '400' as const,
+  medium: '500' as const,
+  semibold: '600' as const,
+  bold: '700' as const,
+  extrabold: '800' as const,
+};
+
+export const SPACING = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
+  section: 40,
+};
+
+export const RADIUS = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  full: 999,
+};
+
+export const SHADOWS = {
+  sm: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  md: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  lg: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  colored: {
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+};
+
+export const CATEGORIES = [
+  { id: 'telephonie', label: 'Téléphones', icon: 'smartphone' },
+  { id: 'electronique', label: 'Électronique', icon: 'monitor' },
+  { id: 'vehicules', label: 'Véhicules', icon: 'truck' },
+  { id: 'immobilier', label: 'Immobilier', icon: 'home' },
+  { id: 'mode', label: 'Mode', icon: 'shirt' },
+  { id: 'maison', label: 'Maison', icon: 'sofa' },
+  { id: 'emploi', label: 'Emploi', icon: 'briefcase' },
+  { id: 'services', label: 'Services', icon: 'wrench' },
+  { id: 'loisirs', label: 'Loisirs', icon: 'gamepad-2' },
+  { id: 'autres', label: 'Autres', icon: 'grid-2x2' },
+];
+
+export const ETAT_ARTICLE = [
+  { id: 'neuf', label: 'Neuf' },
+  { id: 'comme_neuf', label: 'Comme neuf' },
+  { id: 'bon_etat', label: 'Bon état' },
+  { id: 'etat_moyen', label: 'État moyen' },
+];

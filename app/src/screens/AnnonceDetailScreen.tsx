@@ -1,0 +1,483 @@
+import React, { useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+  Dimensions,
+  StatusBar,
+  Animated,
+  Share,
+  FlatList,
+} from 'react-native';
+import { Ionicons, Feather } from '@expo/vector-icons';
+import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, ETAT_ARTICLE } from '../constants/theme';
+import { Annonce } from '../lib/supabase';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+function formatPrix(prix: number): string {
+  return prix.toLocaleString('fr-FR') + ' FCFA';
+}
+
+interface Props {
+  route: any;
+  navigation: any;
+}
+
+export default function AnnonceDetailScreen({ route, navigation }: Props) {
+  const { annonce } = route.params as { annonce: Annonce };
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const scrollX = useRef(new Animated.Value(0)).current;
+
+  const images = annonce.images?.length
+    ? annonce.images.map((img) => img.image_url)
+    : ['https://picsum.photos/600/600?random=99'];
+
+  const categoryLabel =
+    CATEGORIES.find((c) => c.id === annonce.categorie)?.label || annonce.categorie;
+  const etatLabel =
+    ETAT_ARTICLE.find((e) => e.id === annonce.etat_article)?.label || annonce.etat_article;
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `${annonce.titre} - ${formatPrix(annonce.prix)} sur Chap Chap 🇲🇱`,
+      });
+    } catch {}
+  };
+
+  const handleContact = () => {
+    // TODO: Ouvrir le chat ou demander la connexion
+    navigation.navigate('ChatConversation', {
+      annonceId: annonce.id,
+      vendeurId: annonce.user_id,
+      titrAnnonce: annonce.titre,
+    });
+  };
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+
+      <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+        {/* Carrousel d'images */}
+        <View style={styles.imageCarousel}>
+          <FlatList
+            data={images}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+              { useNativeDriver: false }
+            )}
+            onMomentumScrollEnd={(e) => {
+              const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+              setCurrentImageIndex(index);
+            }}
+            renderItem={({ item }) => (
+              <Image source={{ uri: item }} style={styles.carouselImage} />
+            )}
+            keyExtractor={(_, i) => String(i)}
+          />
+          {/* Dots indicateur */}
+          {images.length > 1 && (
+            <View style={styles.dotsContainer}>
+              {images.map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    i === currentImageIndex && styles.dotActive,
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+          {/* Photo count badge */}
+          <View style={styles.photoCountBadge}>
+            <Ionicons name="camera-outline" size={14} color="#fff" />
+            <Text style={styles.photoCountText}>
+              {currentImageIndex + 1}/{images.length}
+            </Text>
+          </View>
+        </View>
+
+        {/* Boutons retour / partage / favori - flottants */}
+        <View style={styles.floatingHeader}>
+          <TouchableOpacity
+            style={styles.floatingButton}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="arrow-back" size={22} color="#fff" />
+          </TouchableOpacity>
+          <View style={styles.floatingRight}>
+            <TouchableOpacity
+              style={styles.floatingButton}
+              onPress={handleShare}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="share-outline" size={22} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.floatingButton}
+              onPress={() => setIsFavorite(!isFavorite)}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name={isFavorite ? 'heart' : 'heart-outline'}
+                size={22}
+                color={isFavorite ? COLORS.error : '#fff'}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Contenu détail */}
+        <View style={styles.detailContainer}>
+          {/* Prix et titre */}
+          <View style={styles.priceRow}>
+            <Text style={styles.price}>{formatPrix(annonce.prix)}</Text>
+            <View style={styles.negotiableBadge}>
+              <Text style={styles.negotiableText}>Négociable</Text>
+            </View>
+          </View>
+          <Text style={styles.title}>{annonce.titre}</Text>
+
+          {/* Tags */}
+          <View style={styles.tagsRow}>
+            <View style={styles.tag}>
+              <Feather name="tag" size={12} color={COLORS.primary} />
+              <Text style={styles.tagText}>{categoryLabel}</Text>
+            </View>
+            <View style={styles.tag}>
+              <Feather name="check-circle" size={12} color={COLORS.secondary} />
+              <Text style={styles.tagText}>{etatLabel}</Text>
+            </View>
+            <View style={styles.tag}>
+              <Ionicons name="location-outline" size={13} color={COLORS.textSecondary} />
+              <Text style={styles.tagText}>{annonce.ville}</Text>
+            </View>
+          </View>
+
+          {/* Séparateur */}
+          <View style={styles.divider} />
+
+          {/* Description */}
+          <Text style={styles.sectionTitle}>Description</Text>
+          <Text style={styles.description}>{annonce.description}</Text>
+
+          {/* Séparateur */}
+          <View style={styles.divider} />
+
+          {/* Vendeur */}
+          <Text style={styles.sectionTitle}>Vendeur</Text>
+          <TouchableOpacity style={styles.sellerCard} activeOpacity={0.7}>
+            <View style={styles.sellerAvatar}>
+              <Text style={styles.sellerAvatarText}>V</Text>
+            </View>
+            <View style={styles.sellerInfo}>
+              <Text style={styles.sellerName}>Vendeur</Text>
+              <Text style={styles.sellerMeta}>Membre depuis 2024</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+          </TouchableOpacity>
+
+          {/* Sécurité */}
+          <View style={styles.securityCard}>
+            <Ionicons name="shield-checkmark" size={20} color={COLORS.secondary} />
+            <View style={styles.securityInfo}>
+              <Text style={styles.securityTitle}>Conseils de sécurité</Text>
+              <Text style={styles.securityText}>
+                Rencontrez le vendeur dans un lieu public. Ne payez jamais avant d'avoir vu l'article.
+              </Text>
+            </View>
+          </View>
+
+          {/* Espacement pour le CTA */}
+          <View style={{ height: 100 }} />
+        </View>
+      </ScrollView>
+
+      {/* CTA fixe en bas */}
+      <View style={styles.ctaContainer}>
+        <TouchableOpacity style={styles.ctaPhoneButton} activeOpacity={0.8}>
+          <Ionicons name="call-outline" size={22} color={COLORS.primary} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.ctaMessageButton}
+          onPress={handleContact}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="chatbubble-outline" size={20} color={COLORS.textInverse} />
+          <Text style={styles.ctaMessageText}>Contacter le vendeur</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+
+  // Image carousel
+  imageCarousel: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH * 0.85,
+    backgroundColor: COLORS.surfaceMuted,
+    position: 'relative',
+  },
+  carouselImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH * 0.85,
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    position: 'absolute',
+    bottom: SPACING.lg,
+    alignSelf: 'center',
+    gap: 6,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+  },
+  dotActive: {
+    backgroundColor: '#fff',
+    width: 20,
+  },
+  photoCountBadge: {
+    position: 'absolute',
+    bottom: SPACING.lg,
+    right: SPACING.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+  },
+  photoCountText: {
+    color: '#fff',
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.semibold,
+  },
+
+  // Floating header
+  floatingHeader: {
+    position: 'absolute',
+    top: 50,
+    left: SPACING.lg,
+    right: SPACING.lg,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    zIndex: 10,
+  },
+  floatingRight: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  floatingButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Detail
+  detailContainer: {
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.xl,
+    backgroundColor: COLORS.background,
+    borderTopLeftRadius: RADIUS.xxl,
+    borderTopRightRadius: RADIUS.xxl,
+    marginTop: -SPACING.xl,
+  },
+
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  price: {
+    fontSize: FONTS.xxl,
+    fontWeight: FONTS.extrabold,
+    color: COLORS.primary,
+  },
+  negotiableBadge: {
+    backgroundColor: COLORS.primaryFaded,
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
+  },
+  negotiableText: {
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.semibold,
+    color: COLORS.primary,
+  },
+
+  title: {
+    fontSize: FONTS.xl,
+    fontWeight: FONTS.bold,
+    color: COLORS.textPrimary,
+    lineHeight: 26,
+    marginBottom: SPACING.lg,
+  },
+
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    marginBottom: SPACING.xl,
+  },
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: COLORS.surfaceMuted,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+  },
+  tagText: {
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.medium,
+    color: COLORS.textSecondary,
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.divider,
+    marginVertical: SPACING.xl,
+  },
+
+  sectionTitle: {
+    fontSize: FONTS.lg,
+    fontWeight: FONTS.bold,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.md,
+  },
+  description: {
+    fontSize: FONTS.md,
+    color: COLORS.textSecondary,
+    lineHeight: 24,
+  },
+
+  // Vendeur
+  sellerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    ...SHADOWS.sm,
+  },
+  sellerAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.primaryFaded,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: SPACING.md,
+  },
+  sellerAvatarText: {
+    fontSize: FONTS.lg,
+    fontWeight: FONTS.bold,
+    color: COLORS.primary,
+  },
+  sellerInfo: {
+    flex: 1,
+  },
+  sellerName: {
+    fontSize: FONTS.md,
+    fontWeight: FONTS.semibold,
+    color: COLORS.textPrimary,
+  },
+  sellerMeta: {
+    fontSize: FONTS.sm,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+
+  // Sécurité
+  securityCard: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0, 184, 148, 0.08)',
+    padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    marginTop: SPACING.xl,
+    gap: SPACING.md,
+  },
+  securityInfo: {
+    flex: 1,
+  },
+  securityTitle: {
+    fontSize: FONTS.sm,
+    fontWeight: FONTS.semibold,
+    color: COLORS.textPrimary,
+    marginBottom: 4,
+  },
+  securityText: {
+    fontSize: FONTS.sm,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
+  },
+
+  // CTA
+  ctaContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.lg,
+    paddingBottom: 34,
+    backgroundColor: COLORS.surface,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+    gap: SPACING.md,
+    ...SHADOWS.lg,
+  },
+  ctaPhoneButton: {
+    width: 52,
+    height: 52,
+    borderRadius: RADIUS.lg,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ctaMessageButton: {
+    flex: 1,
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.lg,
+    gap: SPACING.sm,
+    ...SHADOWS.colored,
+  },
+  ctaMessageText: {
+    fontSize: FONTS.md,
+    fontWeight: FONTS.bold,
+    color: COLORS.textInverse,
+  },
+});
