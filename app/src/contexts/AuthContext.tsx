@@ -9,6 +9,7 @@ interface AuthContextType {
   signInWithOtp: (phone: string) => Promise<{ error: any }>;
   verifyOtp: (phone: string, token: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,6 +74,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
+  async function refreshUser() {
+    if (session?.user) {
+      await fetchUserProfile(session.user.id);
+    }
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -82,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithOtp,
         verifyOtp,
         signOut,
+        refreshUser,
       }}
     >
       {children}

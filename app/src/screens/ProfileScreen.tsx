@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,17 @@ import {
   ScrollView,
   StatusBar,
   Alert,
+  Image,
+  Modal,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
+import * as ImagePicker from 'expo-image-picker';
+import { decode } from 'base64-arraybuffer';
 
 interface Props {
   navigation: any;
@@ -44,7 +51,90 @@ const MENU_ITEMS = [
 ];
 
 export default function ProfileScreen({ navigation }: Props) {
-  const { session, user, signOut } = useAuth();
+  const { session, user, signOut, refreshUser } = useAuth();
+  
+  // States pour l'édition
+  const [isEditing, setIsEditing] = useState(false);
+  const [editPrenom, setEditPrenom] = useState('');
+  const [editNom, setEditNom] = useState('');
+  const [editAvatarBase64, setEditAvatarBase64] = useState<string | null>(null);
+  const [editAvatarUri, setEditAvatarUri] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const openEditModal = () => {
+    if (!session || !user) return;
+    setEditPrenom(user.prenom || '');
+    setEditNom(user.nom || '');
+    setEditAvatarUri(user.avatar_url || null);
+    setEditAvatarBase64(null);
+    setIsEditing(true);
+  };
+
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission', 'Permission requise pour accéder aux photos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0].base64) {
+      setEditAvatarUri(result.assets[0].uri);
+      setEditAvatarBase64(result.assets[0].base64);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!session || !user) return;
+    try {
+      setIsSaving(true);
+      
+      let avatarUrlToSave = user.avatar_url;
+
+      // Upload de l'image si elle a changé
+      if (editAvatarBase64) {
+        const filePath = `${user.id}/${Date.now()}.png`;
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, decode(editAvatarBase64), {
+            contentType: 'image/png',
+          });
+
+        if (uploadError) {
+          console.error('Erreur upload avatar:', uploadError);
+        } else {
+          const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+          avatarUrlToSave = data.publicUrl;
+        }
+      }
+
+      // Mise à jour de la table users
+      const { error } = await supabase
+        .from('users')
+        .update({
+          prenom: editPrenom.trim(),
+          nom: editNom.trim(),
+          avatar_url: avatarUrlToSave,
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      await refreshUser();
+      setIsEditing(false);
+    } catch (error: any) {
+      Alert.alert('Erreur', error.message || 'Impossible de sauvegarder le profil.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleAuthAction = () => {
     if (!session) {
@@ -91,23 +181,27 @@ export default function ProfileScreen({ navigation }: Props) {
         <TouchableOpacity 
           style={styles.profileCard} 
           activeOpacity={0.8}
-          onPress={!session ? () => navigation.navigate('Login') : undefined}
+          onPress={session ? openEditModal : () => navigation.navigate('Login')}
         >
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {session ? user?.prenom?.charAt(0) || '👤' : '👤'}
-            </Text>
+          <View style={[styles.avatar, user?.avatar_url && { backgroundColor: 'transparent' }]}>
+            {user?.avatar_url ? (
+              <Image source={{ uri: user.avatar_url }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarText}>
+                {session ? user?.prenom?.charAt(0) || '👤' : '👤'}
+              </Text>
+            )}
           </View>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>
-              {session ? `${user?.prenom || 'Nouveau'} ${user?.nom || 'Client'}` : 'Invité'}
+              {session ? `${user?.prenom || 'Nouveau'} ${user?.nom || 'Client'}`.trim() : 'Invité'}
             </Text>
             <Text style={styles.profilePhone}>
               {session ? user?.phone || session.user.phone : 'Connectez-vous pour continuer'}
             </Text>
           </View>
           {session ? (
-            <TouchableOpacity style={styles.editButton} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.editButton} onPress={openEditModal} activeOpacity={0.7}>
               <Feather name="edit-2" size={16} color={COLORS.primary} />
             </TouchableOpacity>
           ) : (
@@ -190,6 +284,61 @@ export default function ProfileScreen({ navigation }: Props) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Modal d'édition de profil */}
+      <Modal visible={isEditing} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setIsEditing(false)}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setIsEditing(false)}>
+              <Ionicons name="close" size={28} color={COLORS.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Modifier le profil</Text>
+            <TouchableOpacity onPress={handleSaveProfile} disabled={isSaving}>
+              {isSaving ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : (
+                <Text style={styles.modalSaveButton}>Valider</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            
+            <View style={styles.editAvatarContainer}>
+              <TouchableOpacity style={styles.editAvatarButton} onPress={pickImage}>
+                {editAvatarUri ? (
+                  <Image source={{ uri: editAvatarUri }} style={styles.editAvatarImage} />
+                ) : (
+                  <Ionicons name="camera" size={32} color={COLORS.textInverse} />
+                )}
+                <View style={styles.editAvatarOverlay}>
+                  <Ionicons name="pencil" size={16} color={COLORS.textInverse} />
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Prénom</Text>
+              <TextInput
+                style={styles.textInput}
+                value={editPrenom}
+                onChangeText={setEditPrenom}
+                placeholder="Votre prénom"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Nom</Text>
+              <TextInput
+                style={styles.textInput}
+                value={editNom}
+                onChangeText={setEditNom}
+                placeholder="Votre nom"
+              />
+            </View>
+
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -378,5 +527,85 @@ const styles = StyleSheet.create({
     fontSize: FONTS.xs,
     color: COLORS.textMuted,
     marginTop: SPACING.md,
+  },
+
+  // Modal Editing Styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 60,
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING.lg,
+    backgroundColor: COLORS.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  modalTitle: {
+    fontSize: FONTS.lg,
+    fontWeight: FONTS.bold,
+    color: COLORS.textPrimary,
+  },
+  modalSaveButton: {
+    fontSize: FONTS.md,
+    fontWeight: FONTS.bold,
+    color: COLORS.primary,
+  },
+  modalContent: {
+    padding: SPACING.xl,
+  },
+  editAvatarContainer: {
+    alignItems: 'center',
+    marginVertical: SPACING.xl,
+  },
+  editAvatarButton: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: COLORS.primaryFaded,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  editAvatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  editAvatarOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  inputGroup: {
+    marginBottom: SPACING.lg,
+  },
+  inputLabel: {
+    fontSize: FONTS.sm,
+    fontWeight: FONTS.semibold,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.xs,
+  },
+  textInput: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    fontSize: FONTS.md,
+    color: COLORS.textPrimary,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
 });
