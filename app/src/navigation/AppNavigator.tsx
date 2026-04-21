@@ -16,6 +16,8 @@ import MessagesScreen from '../screens/MessagesScreen';
 import ChatConversationScreen from '../screens/ChatConversationScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import LoginScreen from '../screens/LoginScreen';
+import FavorisScreen from '../screens/FavorisScreen';
+import PlaceholderScreen from '../screens/PlaceholderScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -56,6 +58,35 @@ function MessagesStack() {
       <Stack.Screen
         name="ChatConversation"
         component={ChatConversationScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+    </Stack.Navigator>
+  );
+}
+
+// Stack pour l'onglet Profil
+function ProfileStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="ProfileMain" component={ProfileScreen} />
+      <Stack.Screen 
+        name="MesAnnonces" 
+        component={MesAnnoncesScreen} 
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen 
+        name="Favoris" 
+        component={FavorisScreen} 
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen 
+        name="Placeholder" 
+        component={PlaceholderScreen} 
+        options={{ animation: 'slide_from_right' }}
+      />
+      <Stack.Screen
+        name="AnnonceDetail"
+        component={AnnonceDetailScreen}
         options={{ animation: 'slide_from_right' }}
       />
     </Stack.Navigator>
@@ -131,7 +162,7 @@ function MainTabs() {
           },
         }}
       />
-      <Tab.Screen name="Profil" component={ProfileScreen} />
+      <Tab.Screen name="Profil" component={ProfileStack} />
     </Tab.Navigator>
   );
 }

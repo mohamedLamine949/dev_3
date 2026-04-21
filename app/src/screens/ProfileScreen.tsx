@@ -109,7 +109,17 @@ export default function ProfileScreen({ navigation }: Props) {
                     index < section.items.length - 1 && styles.menuItemBorder,
                   ]}
                   activeOpacity={0.7}
-                >
+                  onPress={() => {
+                    if (item.screen) {
+                      // Pour les écrans existants, on navigue normalement
+                      if (item.screen === 'MesAnnonces' || item.screen === 'Favoris') {
+                        navigation.navigate(item.screen);
+                      } else {
+                        // Pour les autres, on envoie vers le Placeholder
+                        navigation.navigate('Placeholder', { title: item.label });
+                      }
+                    }
+                  }}
                   <View style={styles.menuItemLeft}>
                     <View style={styles.menuIconContainer}>
                       <Feather name={item.icon as any} size={18} color={COLORS.primary} />
