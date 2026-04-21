@@ -11,102 +11,15 @@ import {
   Dimensions,
   Animated,
   StatusBar,
-  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES } from '../constants/theme';
-import { supabase, Annonce } from '../lib/supabase';
+import { Annonce } from '../lib/supabase';
+import { useAnnonces } from '../hooks/useAnnonces';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - SPACING.lg * 2 - SPACING.md) / 2;
-
-// Données de démo pour un affichage immédiat
-const DEMO_ANNONCES: Annonce[] = [
-  {
-    id: '1',
-    user_id: 'u1',
-    titre: 'iPhone 15 Pro Max 256GB',
-    description: 'iPhone en excellent état, tous les accessoires inclus. Batterie à 96%.',
-    prix: 650000,
-    categorie: 'telephonie',
-    etat_article: 'comme_neuf',
-    statut: 'active',
-    est_payee: true,
-    ville: 'Bamako',
-    date_creation: new Date().toISOString(),
-    images: [{ id: 'i1', annonce_id: '1', image_url: 'https://picsum.photos/400/400?random=1', ordre: 0 }],
-  },
-  {
-    id: '2',
-    user_id: 'u2',
-    titre: 'Toyota Corolla 2019',
-    description: 'Voiture en très bon état, climatisation, boîte automatique.',
-    prix: 12500000,
-    categorie: 'vehicules',
-    etat_article: 'bon_etat',
-    statut: 'active',
-    est_payee: true,
-    ville: 'Bamako',
-    date_creation: new Date().toISOString(),
-    images: [{ id: 'i2', annonce_id: '2', image_url: 'https://picsum.photos/400/400?random=2', ordre: 0 }],
-  },
-  {
-    id: '3',
-    user_id: 'u3',
-    titre: 'Appartement 3 pièces - ACI 2000',
-    description: 'Bel appartement meublé, 3 pièces avec salon, cuisine équipée.',
-    prix: 350000,
-    categorie: 'immobilier',
-    etat_article: 'bon_etat',
-    statut: 'active',
-    est_payee: true,
-    ville: 'Bamako',
-    date_creation: new Date().toISOString(),
-    images: [{ id: 'i3', annonce_id: '3', image_url: 'https://picsum.photos/400/400?random=3', ordre: 0 }],
-  },
-  {
-    id: '4',
-    user_id: 'u4',
-    titre: 'Samsung Galaxy S24 Ultra',
-    description: 'Neuf sous emballage, garantie 1 an. Couleur Titanium Black.',
-    prix: 580000,
-    categorie: 'telephonie',
-    etat_article: 'neuf',
-    statut: 'active',
-    est_payee: true,
-    ville: 'Bamako',
-    date_creation: new Date().toISOString(),
-    images: [{ id: 'i4', annonce_id: '4', image_url: 'https://picsum.photos/400/400?random=4', ordre: 0 }],
-  },
-  {
-    id: '5',
-    user_id: 'u5',
-    titre: 'MacBook Air M2 2023',
-    description: 'MacBook Air M2, 8GB RAM, 256GB SSD. Parfait état.',
-    prix: 750000,
-    categorie: 'electronique',
-    etat_article: 'comme_neuf',
-    statut: 'active',
-    est_payee: true,
-    ville: 'Sikasso',
-    date_creation: new Date().toISOString(),
-    images: [{ id: 'i5', annonce_id: '5', image_url: 'https://picsum.photos/400/400?random=5', ordre: 0 }],
-  },
-  {
-    id: '6',
-    user_id: 'u6',
-    titre: 'Canapé 3 places en cuir',
-    description: 'Canapé en cuir véritable, couleur marron, très confortable.',
-    prix: 180000,
-    categorie: 'maison',
-    etat_article: 'bon_etat',
-    statut: 'active',
-    est_payee: true,
-    ville: 'Bamako',
-    date_creation: new Date().toISOString(),
-    images: [{ id: 'i6', annonce_id: '6', image_url: 'https://picsum.photos/400/400?random=6', ordre: 0 }],
-  },
-];
 
 function formatPrix(prix: number): string {
   if (prix >= 1000000) {
@@ -116,10 +29,11 @@ function formatPrix(prix: number): string {
 }
 
 function timeAgo(dateStr: string): string {
+  if (!dateStr) return '';
   const now = new Date();
   const date = new Date(dateStr);
   const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
-  if (diff < 60) return 'À l\'instant';
+  if (diff < 60) return "À l'instant";
   if (diff < 3600) return `${Math.floor(diff / 60)} min`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
   if (diff < 604800) return `${Math.floor(diff / 86400)}j`;
@@ -131,23 +45,21 @@ interface Props {
 }
 
 export default function HomeScreen({ navigation }: Props) {
-  const [annonces, setAnnonces] = useState<Annonce[]>(DEMO_ANNONCES);
-  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const scrollY = new Animated.Value(0);
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    // TODO: Fetch real data from Supabase
-    setTimeout(() => setRefreshing(false), 1000);
-  }, []);
+  // Debounce search query to avoid spamming Supabase
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
-  const filteredAnnonces = annonces.filter((a) => {
-    const matchSearch = !searchQuery ||
-      a.titre.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchCategory = !selectedCategory || a.categorie === selectedCategory;
-    return matchSearch && matchCategory;
+  const { annonces, loading, refetch } = useAnnonces({
+    categorie: selectedCategory,
+    search: debouncedSearch,
   });
 
   const renderCategoryItem = ({ item }: { item: typeof CATEGORIES[0] }) => {
@@ -271,29 +183,35 @@ export default function HomeScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
-      <FlatList
-        data={filteredAnnonces}
-        renderItem={renderAnnonceCard}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        ListHeaderComponent={ListHeader}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[COLORS.primary]}
-            tintColor={COLORS.primary}
-          />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Feather name="inbox" size={48} color={COLORS.textMuted} />
-            <Text style={styles.emptyText}>Aucune annonce trouvée</Text>
-          </View>
-        }
-      />
+      {loading && annonces.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={annonces}
+          renderItem={renderAnnonceCard}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          ListHeaderComponent={ListHeader}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={loading}
+              onRefresh={refetch}
+              colors={[COLORS.primary]}
+              tintColor={COLORS.primary}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Feather name="inbox" size={48} color={COLORS.textMuted} />
+              <Text style={styles.emptyText}>Aucune annonce trouvée</Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
