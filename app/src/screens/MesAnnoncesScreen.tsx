@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -7,42 +7,14 @@ import {
   TouchableOpacity,
   Image,
   StatusBar,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { Annonce } from '../lib/supabase';
-
-// On utilise de la fausse donnée en attendant l'Auth et l'insertion dans Supabase
-const DEMO_MES_ANNONCES: Annonce[] = [
-  {
-    id: 'a1',
-    user_id: 'u1',
-    titre: 'iPhone 15 Pro Max',
-    description: 'Neuf, jamais utilisé.',
-    prix: 650000,
-    categorie: 'telephonie',
-    etat_article: 'neuf',
-    statut: 'active',
-    est_payee: true,
-    ville: 'Bamako',
-    date_creation: new Date().toISOString(),
-    images: [{ id: 'i1', annonce_id: 'a1', image_url: 'https://picsum.photos/200/200?random=20', ordre: 0 }],
-  },
-  {
-    id: 'a2',
-    user_id: 'u1',
-    titre: 'Canapé en cuir',
-    description: 'Très bon état',
-    prix: 180000,
-    categorie: 'maison',
-    etat_article: 'bon_etat',
-    statut: 'en_attente',
-    est_payee: false,
-    ville: 'Bamako',
-    date_creation: new Date(Date.now() - 86400000).toISOString(),
-    images: [{ id: 'i2', annonce_id: 'a2', image_url: 'https://picsum.photos/200/200?random=21', ordre: 0 }],
-  },
-];
+import { useAuth } from '../contexts/AuthContext';
+import { useMesAnnonces, updateAnnonceStatus, deleteAnnonceById } from '../hooks/useAnnonces';
 
 function formatPrix(prix: number): string {
   return prix.toLocaleString('fr-FR') + ' FCFA';
@@ -56,7 +28,38 @@ function getStatusBadge(statut: string, est_payee: boolean) {
 }
 
 export default function MesAnnoncesScreen({ navigation }: any) {
-  const [annonces, setAnnonces] = useState<Annonce[]>(DEMO_MES_ANNONCES);
+  const { session } = useAuth();
+  const { annonces, loading, refetch } = useMesAnnonces(session?.user?.id);
+
+  const handleManage = (annonce: Annonce) => {
+    Alert.alert(
+      'Gérer l\'annonce',
+      `Que souhaitez-vous faire avec "${annonce.titre}" ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { 
+          text: 'Marquer comme vendu', 
+          onPress: async () => {
+            await updateAnnonceStatus(annonce.id, 'vendu');
+            refetch();
+          } 
+        },
+        { 
+          text: 'Supprimer', 
+          style: 'destructive', 
+          onPress: () => {
+            Alert.alert('Confirmer', 'La suppression est définitive.', [
+              { text: 'Annuler', style: 'cancel' },
+              { text: 'Oui, supprimer', style: 'destructive', onPress: async () => {
+                 await deleteAnnonceById(annonce.id);
+                 refetch();
+              }}
+            ])
+          } 
+        },
+      ]
+    );
+  };
 
   const renderItem = ({ item }: { item: Annonce }) => {
     const imageUrl = item.images?.[0]?.image_url || 'https://picsum.photos/200';
@@ -67,6 +70,7 @@ export default function MesAnnoncesScreen({ navigation }: any) {
         style={styles.card}
         activeOpacity={0.8}
         onPress={() => navigation.navigate('AnnonceDetail', { annonce: item })}
+        onLongPress={() => handleManage(item)}
       >
         <Image source={{ uri: imageUrl }} style={styles.image} />
         <View style={styles.info}>
@@ -80,11 +84,12 @@ export default function MesAnnoncesScreen({ navigation }: any) {
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <Ionicons name="eye-outline" size={14} color={COLORS.textMuted} />
-              <Text style={styles.statText}>12</Text>
+              <Text style={styles.statText}>0</Text>
             </View>
             <View style={styles.stat}>
-              <Ionicons name="heart-outline" size={14} color={COLORS.textMuted} />
-              <Text style={styles.statText}>3</Text>
+              <TouchableOpacity onPress={() => handleManage(item)}>
+                <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.textMuted} />
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -102,15 +107,30 @@ export default function MesAnnoncesScreen({ navigation }: any) {
           <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mes Annonces</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity onPress={refetch} style={styles.backButton}>
+           <Ionicons name="refresh" size={20} color={COLORS.primary} />
+        </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={annonces}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.list}
-      />
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+           <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : annonces.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: SPACING.xl }}>
+           <Ionicons name="albums-outline" size={60} color={COLORS.textMuted} style={{ marginBottom: SPACING.md }} />
+           <Text style={{ fontSize: FONTS.md, color: COLORS.textSecondary, textAlign: 'center' }}>Vous n'avez publié aucune annonce pour le moment.</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={annonces}
+          keyExtractor={item => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.list}
+          refreshing={loading}
+          onRefresh={refetch}
+        />
+      )}
     </View>
   );
 }

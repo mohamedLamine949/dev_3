@@ -18,6 +18,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, ETAT_ARTICLE } from '../constants/theme';
 import { createAnnonce } from '../hooks/useAnnonces';
+import { useAuth } from '../contexts/AuthContext';
 
 const MAX_IMAGES = 5;
 
@@ -25,7 +26,8 @@ interface Props {
   navigation: any;
 }
 
-export default function PostAnnonceScreen({ navigation }: Props) {
+export default function PostAnnonceScreen({ navigation }: any) {
+  const { session } = useAuth();
   const [images, setImages] = useState<string[]>([]);
   const [titre, setTitre] = useState('');
   const [prix, setPrix] = useState('');
@@ -73,6 +75,14 @@ export default function PostAnnonceScreen({ navigation }: Props) {
   };
 
   const handlePreSubmit = () => {
+    if (!session?.user) {
+      Alert.alert('Connexion requise', 'Vous devez être connecté pour publier une annonce.', [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Se connecter', onPress: () => navigation.navigate('Login') }
+      ]);
+      return;
+    }
+
     if (!titre || !prix || !selectedCategory || !selectedEtat || images.length === 0) {
       Alert.alert(
         'Champs manquants',
@@ -108,7 +118,7 @@ export default function PostAnnonceScreen({ navigation }: Props) {
       est_payee: true, // Payé !
       statut: 'active',
       id_transaction_paiement: `OM-${Math.floor(Math.random() * 1000000)}`,
-      user_id: undefined, // Sans l'authentification active, on laisse Supabase le mettre à null (autorisé par notre schéma) ou on l'ignore si la RLS bloque pas
+      user_id: session?.user.id, 
     };
 
     const { error } = await createAnnonce(annonceData as any, images);

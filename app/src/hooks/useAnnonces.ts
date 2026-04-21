@@ -173,6 +173,38 @@ export async function markAsSold(annonceId: string) {
 /**
  * Supprimer une annonce
  */
+export async function toggleFavori(annonceId: string, userId: string): Promise<boolean> {
+  // TODO: Implémenter logic favoris
+  return false;
+}
+
+export async function updateAnnonceStatus(id: string, statut: 'active' | 'vendu' | 'inactive'): Promise<{ error: any }> {
+  try {
+    const { error } = await supabase
+      .from('annonces')
+      .update({ statut })
+      .eq('id', id);
+    return { error };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+
+export async function deleteAnnonceById(id: string): Promise<{ error: any }> {
+  try {
+    const { error } = await supabase
+      .from('annonces')
+      .delete()
+      .eq('id', id);
+    return { error };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+
+/**
+ * Supprimer une annonce
+ */
 export async function deleteAnnonce(annonceId: string) {
   // Les images seront supprimées par CASCADE
   const { error } = await supabase
