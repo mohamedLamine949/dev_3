@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,27 +6,54 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
+  ScrollView,
   StatusBar,
   Image,
+  ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, CATEGORIES, SHADOWS } from '../constants/theme';
 import { Annonce } from '../lib/supabase';
+import { useAnnonces } from '../hooks/useAnnonces';
+import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
+
+const { width: W } = Dimensions.get('window');
+const TILE_SIZE = (W - SPACING.lg * 2 - SPACING.md) / 2;
 
 function formatPrix(prix: number): string {
-  if (prix >= 1000000) {
-    return (prix / 1000000).toFixed(prix % 1000000 === 0 ? 0 : 1) + 'M FCFA';
-  }
+  if (prix >= 1000000) return (prix / 1000000).toFixed(prix % 1000000 === 0 ? 0 : 1) + 'M FCFA';
   return prix.toLocaleString('fr-FR') + ' FCFA';
 }
 
-function timeAgo(dateStr: string): string {
-  const diff = Math.floor((new Date().getTime() - new Date(dateStr).getTime()) / 1000);
-  if (diff < 60) return 'Maint.';
-  if (diff < 3600) return `${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-  return `${Math.floor(diff / 86400)}j`;
-}
+// Couleur par catégorie
+const CAT_COLORS: Record<string, string> = {
+  telephonie:  '#2563eb',
+  electronique:'#7c3aed',
+  vehicules:   '#d97706',
+  immobilier:  '#0891b2',
+  nourriture:  '#dc2626',
+  mode:        '#db2777',
+  maison:      '#92400e',
+  emploi:      '#1e40af',
+  services:    '#15803d',
+  loisirs:     '#ea580c',
+  autres:      '#475569',
+};
+
+const CAT_EMOJIS: Record<string, string> = {
+  telephonie:  '📱',
+  electronique:'💻',
+  vehicules:   '🚗',
+  immobilier:  '🏠',
+  nourriture:  '🍽️',
+  mode:        '👕',
+  maison:      '🛋️',
+  emploi:      '💼',
+  services:    '🔧',
+  loisirs:     '🎮',
+  autres:      '📦',
+};
 
 interface Props {
   navigation: any;
@@ -34,22 +61,39 @@ interface Props {
 
 export default function SearchScreen({ navigation }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  // Pour l'instant on utilise des données vides / nulles pour la recherche
-  // TODO: Remplacer par const { annonces, loading } = useAnnonces({ search: searchQuery, categorie: selectedCategory });
-  const searchResults: Annonce[] = [];
+  const { location } = useLocation();
+  const inResultsMode = debouncedSearch.length > 0 || selectedCategory !== null;
 
-  const handleSearch = () => {
-    // Action de recherche si nécessaire
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  const { annonces, loading } = useAnnonces({
+    categorie: selectedCategory,
+    search: debouncedSearch || undefined,
+  });
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedCategory(null);
   };
 
-  const renderResultItem = ({ item }: { item: Annonce }) => {
-    const imageUrl = item.images?.[0]?.image_url || 'https://picsum.photos/200/200';
+  // ---- Rendu carte résultat ----
+  const renderResult = ({ item }: { item: Annonce }) => {
+    const imageUrl = item.images?.[0]?.image_url || `https://picsum.photos/seed/${item.id}/200/200`;
+    const dist =
+      location && (item as any).latitude && (item as any).longitude
+        ? getDistance(location.latitude, location.longitude, (item as any).latitude, (item as any).longitude)
+        : null;
+
     return (
       <TouchableOpacity
         style={styles.resultCard}
-        activeOpacity={0.7}
+        activeOpacity={0.75}
         onPress={() => navigation.navigate('AnnonceDetail', { annonce: item })}
       >
         <Image source={{ uri: imageUrl }} style={styles.resultImage} />
@@ -58,109 +102,209 @@ export default function SearchScreen({ navigation }: Props) {
           <Text style={styles.resultPrice}>{formatPrix(item.prix)}</Text>
           <View style={styles.resultMeta}>
             <Ionicons name="location-outline" size={12} color={COLORS.textMuted} />
-            <Text style={styles.resultMetaText}>{item.ville}</Text>
-            <Text style={styles.resultMetaDot}>•</Text>
-            <Text style={styles.resultMetaText}>{timeAgo(item.date_creation)}</Text>
+            <Text style={styles.resultMetaText}>
+              {item.quartier ? `${item.quartier}, ` : ''}{item.ville}
+            </Text>
+            {dist !== null && (
+              <>
+                <Text style={styles.dot}>·</Text>
+                <Ionicons name="navigate-outline" size={11} color={COLORS.primary} />
+                <Text style={[styles.resultMetaText, { color: COLORS.primary }]}>
+                  {formatDistance(dist)}
+                </Text>
+              </>
+            )}
           </View>
         </View>
+        <Ionicons name="chevron-forward" size={18} color={COLORS.borderLight} />
       </TouchableOpacity>
     );
   };
+
+  // ---- Rendu tuile catégorie ----
+  const renderCategoryTile = (cat: typeof CATEGORIES[0]) => {
+    const color = CAT_COLORS[cat.id] || COLORS.primary;
+    const emoji = CAT_EMOJIS[cat.id] || '📦';
+    return (
+      <TouchableOpacity
+        key={cat.id}
+        style={[styles.tile, { backgroundColor: color }]}
+        activeOpacity={0.8}
+        onPress={() => setSelectedCategory(cat.id)}
+      >
+        <Text style={styles.tileEmoji}>{emoji}</Text>
+        <Text style={styles.tileLabel}>{cat.label}</Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const activeCatLabel = selectedCategory
+    ? CATEGORIES.find(c => c.id === selectedCategory)?.label
+    : null;
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
-      {/* Header / Search Bar */}
+      {/* Header */}
       <View style={styles.header}>
-        <View style={styles.searchContainer}>
-          <Feather name="search" size={20} color={COLORS.textMuted} />
+        <Text style={styles.title}>Recherche</Text>
+
+        {/* Localisation */}
+        {location && (
+          <View style={styles.locationBadge}>
+            <Ionicons name="location" size={13} color={COLORS.primary} />
+            <Text style={styles.locationText}>
+              {location.quartier ? `${location.quartier}, ` : ''}{location.ville || 'Mali'}
+            </Text>
+          </View>
+        )}
+
+        {/* Barre de recherche */}
+        <View style={styles.searchBar}>
+          <Feather name="search" size={18} color={COLORS.textMuted} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Que cherchez-vous ?"
+            placeholder={activeCatLabel ? `Rechercher dans ${activeCatLabel}…` : 'Que cherchez-vous ?'}
             placeholderTextColor={COLORS.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
             returnKeyType="search"
-            onSubmitEditing={handleSearch}
-            autoFocus={false}
+            autoCorrect={false}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
+              <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
             </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity style={styles.filterButton} activeOpacity={0.7}>
-          <Ionicons name="options-outline" size={24} color={COLORS.primary} />
-        </TouchableOpacity>
-      </View>
 
-      {/* Categories Filter Horizontally */}
-      <View style={styles.categoriesWrapper}>
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          data={CATEGORIES}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.categoriesList}
-          renderItem={({ item }) => {
-            const isSelected = selectedCategory === item.id;
-            return (
-              <TouchableOpacity
-                style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
-                onPress={() => setSelectedCategory(isSelected ? null : item.id)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.categoryText, isSelected && styles.categoryTextSelected]}>
-                  {item.label}
-                </Text>
+        {/* Chip catégorie active */}
+        {selectedCategory && (
+          <View style={styles.activeFilter}>
+            <View style={[styles.activeCatChip, { backgroundColor: CAT_COLORS[selectedCategory] + '22', borderColor: CAT_COLORS[selectedCategory] }]}>
+              <Text style={[styles.activeCatText, { color: CAT_COLORS[selectedCategory] }]}>
+                {CAT_EMOJIS[selectedCategory]} {activeCatLabel}
+              </Text>
+              <TouchableOpacity onPress={() => setSelectedCategory(null)}>
+                <Ionicons name="close" size={15} color={CAT_COLORS[selectedCategory]} />
               </TouchableOpacity>
-            );
-          }}
-        />
+            </View>
+            {!inResultsMode || (
+              <Text style={styles.resultCount}>
+                {loading ? '…' : `${annonces.length} résultat${annonces.length !== 1 ? 's' : ''}`}
+              </Text>
+            )}
+          </View>
+        )}
       </View>
 
-      {/* Results List */}
-      <FlatList
-        data={searchResults}
-        keyExtractor={(item) => item.id}
-        renderItem={renderResultItem}
-        contentContainerStyle={styles.resultsList}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Feather name="search" size={48} color={COLORS.border} />
-            <Text style={styles.emptyTitle}>Effectuez une recherche</Text>
-            <Text style={styles.emptyText}>Utilisez la barre ci-dessus pour trouver des biens pertinents.</Text>
+      {/* MODE GRILLE CATÉGORIES */}
+      {!inResultsMode ? (
+        <ScrollView
+          contentContainerStyle={styles.gridContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.browseTitle}>Parcourir par catégorie</Text>
+          <View style={styles.grid}>
+            {CATEGORIES.map(renderCategoryTile)}
           </View>
-        }
-      />
+
+          {/* Annonces près de moi si GPS dispo */}
+          {location && (
+            <View style={styles.nearbySection}>
+              <View style={styles.nearbySectionHeader}>
+                <Ionicons name="navigate" size={16} color={COLORS.primary} />
+                <Text style={styles.nearbyTitle}>Près de moi</Text>
+              </View>
+              <Text style={styles.nearbySubtitle}>
+                {location.quartier || location.ville} · Toutes catégories
+              </Text>
+              <TouchableOpacity
+                style={styles.nearbyBtn}
+                onPress={() => setDebouncedSearch(' ')}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.nearbyBtnText}>Voir les annonces à proximité</Text>
+                <Ionicons name="arrow-forward" size={16} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <View style={{ height: 100 }} />
+        </ScrollView>
+      ) : (
+        /* MODE RÉSULTATS */
+        loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+          </View>
+        ) : (
+          <FlatList
+            data={annonces}
+            keyExtractor={(item) => item.id}
+            renderItem={renderResult}
+            contentContainerStyle={styles.resultsList}
+            showsVerticalScrollIndicator={false}
+            ListHeaderComponent={
+              annonces.length > 0 ? (
+                <Text style={styles.resultCount}>
+                  {annonces.length} résultat{annonces.length !== 1 ? 's' : ''}
+                  {activeCatLabel ? ` · ${activeCatLabel}` : ''}
+                </Text>
+              ) : null
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Feather name="search" size={48} color={COLORS.border} />
+                <Text style={styles.emptyTitle}>Aucun résultat</Text>
+                <Text style={styles.emptyText}>
+                  Essayez avec d'autres mots-clés ou une autre catégorie.
+                </Text>
+                <TouchableOpacity style={styles.emptyBackBtn} onPress={clearFilters}>
+                  <Text style={styles.emptyBackText}>Retour aux catégories</Text>
+                </TouchableOpacity>
+              </View>
+            }
+          />
+        )
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
+  container: { flex: 1, backgroundColor: COLORS.background },
+
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingTop: 60,
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.md,
     gap: SPACING.sm,
+    backgroundColor: COLORS.background,
   },
-  searchContainer: {
-    flex: 1,
+  title: {
+    fontSize: FONTS.xxl,
+    fontWeight: FONTS.extrabold,
+    color: COLORS.textPrimary,
+  },
+  locationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  locationText: {
+    fontSize: FONTS.xs,
+    color: COLORS.primary,
+    fontWeight: FONTS.semibold,
+  },
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.surfaceMuted,
     borderRadius: RADIUS.lg,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 12,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 13,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
     gap: SPACING.sm,
@@ -171,97 +315,138 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     padding: 0,
   },
-  filterButton: {
-    width: 48,
-    height: 48,
-    borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.primaryFaded,
-    justifyContent: 'center',
+  activeFilter: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  categoriesWrapper: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
-    paddingBottom: SPACING.sm,
-  },
-  categoriesList: {
-    paddingHorizontal: SPACING.lg,
-    gap: SPACING.sm,
-  },
-  categoryChip: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: 8,
-    borderRadius: RADIUS.xxl,
-    backgroundColor: COLORS.surface,
+  activeCatChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
   },
-  categoryChipSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  categoryText: {
+  activeCatText: {
     fontSize: FONTS.sm,
-    fontWeight: FONTS.medium,
-    color: COLORS.textSecondary,
-  },
-  categoryTextSelected: {
-    color: COLORS.textInverse,
     fontWeight: FONTS.semibold,
   },
+  resultCount: {
+    fontSize: FONTS.sm,
+    color: COLORS.textMuted,
+    fontWeight: FONTS.medium,
+  },
+
+  // Grille catégories
+  gridContainer: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.lg,
+  },
+  browseTitle: {
+    fontSize: FONTS.md,
+    fontWeight: FONTS.semibold,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.lg,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.md,
+  },
+  tile: {
+    width: TILE_SIZE,
+    height: TILE_SIZE * 0.65,
+    borderRadius: RADIUS.xl,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    ...SHADOWS.md,
+  },
+  tileEmoji: { fontSize: 28 },
+  tileLabel: {
+    fontSize: FONTS.sm,
+    fontWeight: FONTS.bold,
+    color: '#fff',
+  },
+
+  // Nearby section
+  nearbySection: {
+    marginTop: SPACING.xxl,
+    backgroundColor: COLORS.primaryFaded,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.xl,
+    gap: SPACING.sm,
+  },
+  nearbySectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  nearbyTitle: {
+    fontSize: FONTS.lg,
+    fontWeight: FONTS.bold,
+    color: COLORS.primary,
+  },
+  nearbySubtitle: {
+    fontSize: FONTS.sm,
+    color: COLORS.textSecondary,
+  },
+  nearbyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.primary,
+    borderRadius: RADIUS.lg,
+    paddingVertical: 12,
+    marginTop: SPACING.sm,
+  },
+  nearbyBtnText: {
+    fontSize: FONTS.sm,
+    fontWeight: FONTS.bold,
+    color: '#fff',
+  },
+
+  // Résultats
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   resultsList: {
     padding: SPACING.lg,
     paddingBottom: 100,
   },
   resultCard: {
     flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.surface,
     borderRadius: RADIUS.lg,
-    padding: SPACING.sm,
+    padding: SPACING.md,
     marginBottom: SPACING.md,
     ...SHADOWS.sm,
   },
   resultImage: {
-    width: 80,
-    height: 80,
+    width: 76,
+    height: 76,
     borderRadius: RADIUS.md,
     backgroundColor: COLORS.surfaceMuted,
   },
-  resultInfo: {
-    flex: 1,
-    marginLeft: SPACING.md,
-    justifyContent: 'center',
-  },
+  resultInfo: { flex: 1, marginLeft: SPACING.md, gap: 3 },
   resultTitle: {
     fontSize: FONTS.md,
     fontWeight: FONTS.semibold,
     color: COLORS.textPrimary,
-    marginBottom: 4,
   },
   resultPrice: {
     fontSize: FONTS.md,
     fontWeight: FONTS.bold,
     color: COLORS.primary,
-    marginBottom: 8,
   },
-  resultMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  resultMetaText: {
-    fontSize: FONTS.xs,
-    color: COLORS.textMuted,
-  },
-  resultMetaDot: {
-    fontSize: FONTS.xs,
-    color: COLORS.textMuted,
-  },
-  emptyContainer: {
-    paddingVertical: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  resultMeta: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  resultMetaText: { fontSize: FONTS.xs, color: COLORS.textMuted },
+  dot: { fontSize: FONTS.xs, color: COLORS.textMuted, marginHorizontal: 1 },
+
+  // Empty
+  emptyContainer: { paddingVertical: 80, alignItems: 'center' },
   emptyTitle: {
     fontSize: FONTS.lg,
     fontWeight: FONTS.bold,
@@ -275,5 +460,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 40,
     lineHeight: 20,
+    marginBottom: SPACING.xl,
+  },
+  emptyBackBtn: {
+    paddingHorizontal: SPACING.xxl,
+    paddingVertical: SPACING.md,
+    backgroundColor: COLORS.primaryFaded,
+    borderRadius: RADIUS.lg,
+  },
+  emptyBackText: {
+    fontSize: FONTS.sm,
+    fontWeight: FONTS.semibold,
+    color: COLORS.primary,
   },
 });

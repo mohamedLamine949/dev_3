@@ -28,6 +28,32 @@ interface Props {
 
 export default function PostAnnonceScreen({ navigation }: any) {
   const { session } = useAuth();
+
+  // Gate doux — afficher un écran d'invitation si non connecté
+  if (!session) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.background, justifyContent: 'center', alignItems: 'center', padding: SPACING.xxl }}>
+        <StatusBar barStyle="dark-content" />
+        <Text style={{ fontSize: 56, marginBottom: SPACING.xl }}>📢</Text>
+        <Text style={{ fontSize: FONTS.xxl, fontWeight: FONTS.extrabold, color: COLORS.textPrimary, textAlign: 'center', marginBottom: SPACING.md }}>
+          Publiez votre annonce
+        </Text>
+        <Text style={{ fontSize: FONTS.md, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: SPACING.xxxl }}>
+          Créez un compte gratuit pour vendre vos articles au Mali en quelques minutes.
+        </Text>
+        <TouchableOpacity
+          style={{ width: '100%', height: 54, backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, justifyContent: 'center', alignItems: 'center' }}
+          onPress={() => navigation.navigate('Login')}
+          activeOpacity={0.85}
+        >
+          <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' }}>Se connecter / S'inscrire</Text>
+        </TouchableOpacity>
+        <Text style={{ fontSize: FONTS.xs, color: COLORS.textMuted, marginTop: SPACING.xl, textAlign: 'center' }}>
+          La navigation et le contact vendeur sont gratuits sans compte.
+        </Text>
+      </View>
+    );
+  }
   const [images, setImages] = useState<string[]>([]);
   const [titre, setTitre] = useState('');
   const [prix, setPrix] = useState('');

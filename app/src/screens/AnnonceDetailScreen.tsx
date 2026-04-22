@@ -11,10 +11,13 @@ import {
   Animated,
   Share,
   FlatList,
+  Alert,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, ETAT_ARTICLE } from '../constants/theme';
 import { Annonce } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
+import { Linking } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -29,6 +32,7 @@ interface Props {
 
 export default function AnnonceDetailScreen({ route, navigation }: Props) {
   const { annonce } = route.params as { annonce: Annonce };
+  const { session } = useAuth();
   const [isFavorite, setIsFavorite] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -51,7 +55,17 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
   };
 
   const handleContact = () => {
-    // TODO: Ouvrir le chat ou demander la connexion
+    if (!session) {
+      Alert.alert(
+        'Connexion rapide',
+        'Créez un compte gratuit pour contacter le vendeur.',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Se connecter', onPress: () => navigation.navigate('Login') },
+        ]
+      );
+      return;
+    }
     navigation.navigate('ChatConversation', {
       annonceId: annonce.id,
       vendeurId: annonce.user_id,
@@ -177,16 +191,80 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
 
           {/* Vendeur */}
           <Text style={styles.sectionTitle}>Vendeur</Text>
-          <TouchableOpacity style={styles.sellerCard} activeOpacity={0.7}>
-            <View style={styles.sellerAvatar}>
-              <Text style={styles.sellerAvatarText}>V</Text>
-            </View>
-            <View style={styles.sellerInfo}>
-              <Text style={styles.sellerName}>Vendeur</Text>
-              <Text style={styles.sellerMeta}>Membre depuis 2024</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
-          </TouchableOpacity>
+          {(() => {
+            const seller = (annonce as any).user;
+            const sellerName = seller ? `${seller.prenom || ''} ${seller.nom || ''}`.trim() || 'Vendeur' : 'Vendeur';
+            return (
+              <View style={styles.sellerSection}>
+                {/* Carte identité */}
+                <View style={styles.sellerCard}>
+                  {seller?.avatar_url ? (
+                    <Image source={{ uri: seller.avatar_url }} style={styles.sellerAvatarImg} />
+                  ) : (
+                    <View style={styles.sellerAvatar}>
+                      <Text style={styles.sellerAvatarText}>{sellerName.charAt(0).toUpperCase()}</Text>
+                    </View>
+                  )}
+                  <View style={styles.sellerInfo}>
+                    <Text style={styles.sellerName}>{sellerName}</Text>
+                    {seller?.bio ? (
+                      <Text style={styles.sellerBio} numberOfLines={2}>{seller.bio}</Text>
+                    ) : (
+                      <Text style={styles.sellerMeta}>Vendeur sur Chap Chap</Text>
+                    )}
+                  </View>
+                </View>
+
+                {/* Boutons de contact */}
+                <View style={styles.contactButtons}>
+                  {seller?.telephone && (
+                    <TouchableOpacity
+                      style={[styles.contactBtn, { backgroundColor: '#15803d15', borderColor: COLORS.primary }]}
+                      onPress={() => Linking.openURL(`tel:${seller.telephone}`)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="call-outline" size={18} color={COLORS.primary} />
+                      <Text style={[styles.contactBtnText, { color: COLORS.primary }]}>Appeler</Text>
+                    </TouchableOpacity>
+                  )}
+                  {seller?.whatsapp && (
+                    <TouchableOpacity
+                      style={[styles.contactBtn, { backgroundColor: '#25D36615', borderColor: '#25D366' }]}
+                      onPress={() => Linking.openURL(`https://wa.me/${seller.whatsapp.replace(/[^0-9]/g, '')}`)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+                      <Text style={[styles.contactBtnText, { color: '#25D366' }]}>WhatsApp</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Réseaux sociaux */}
+                {(seller?.instagram || seller?.tiktok || seller?.facebook) && (
+                  <View style={styles.sellerSocials}>
+                    {seller.instagram && (
+                      <TouchableOpacity onPress={() => Linking.openURL(`https://instagram.com/${seller.instagram.replace('@','')}`)} style={[styles.socialChip, { backgroundColor: '#E1306C15' }]}>
+                        <Ionicons name="logo-instagram" size={14} color="#E1306C" />
+                        <Text style={[styles.socialChipText, { color: '#E1306C' }]}>{seller.instagram}</Text>
+                      </TouchableOpacity>
+                    )}
+                    {seller.tiktok && (
+                      <TouchableOpacity onPress={() => Linking.openURL(`https://tiktok.com/@${seller.tiktok.replace('@','')}`)} style={[styles.socialChip, { backgroundColor: '#01010115' }]}>
+                        <Ionicons name="musical-notes-outline" size={14} color="#010101" />
+                        <Text style={[styles.socialChipText, { color: '#333' }]}>{seller.tiktok}</Text>
+                      </TouchableOpacity>
+                    )}
+                    {seller.facebook && (
+                      <TouchableOpacity onPress={() => Linking.openURL(`https://facebook.com/${seller.facebook}`)} style={[styles.socialChip, { backgroundColor: '#1877F215' }]}>
+                        <Ionicons name="logo-facebook" size={14} color="#1877F2" />
+                        <Text style={[styles.socialChipText, { color: '#1877F2' }]}>{seller.facebook}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          })()}
 
           {/* Sécurité */}
           <View style={styles.securityCard}>
@@ -378,6 +456,7 @@ const styles = StyleSheet.create({
   },
 
   // Vendeur
+  sellerSection: { gap: SPACING.md },
   sellerCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -386,33 +465,33 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     ...SHADOWS.sm,
   },
+  sellerAvatarImg: {
+    width: 48, height: 48, borderRadius: 24, marginRight: SPACING.md,
+  },
   sellerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 48, height: 48, borderRadius: 24,
     backgroundColor: COLORS.primaryFaded,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center', alignItems: 'center',
     marginRight: SPACING.md,
   },
-  sellerAvatarText: {
-    fontSize: FONTS.lg,
-    fontWeight: FONTS.bold,
-    color: COLORS.primary,
+  sellerAvatarText: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: COLORS.primary },
+  sellerInfo: { flex: 1 },
+  sellerName: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: COLORS.textPrimary },
+  sellerBio: { fontSize: FONTS.sm, color: COLORS.textSecondary, marginTop: 2, lineHeight: 18 },
+  sellerMeta: { fontSize: FONTS.sm, color: COLORS.textMuted, marginTop: 2 },
+  contactButtons: { flexDirection: 'row', gap: SPACING.md },
+  contactBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 7, paddingVertical: 12, borderRadius: RADIUS.lg, borderWidth: 1.5,
   },
-  sellerInfo: {
-    flex: 1,
+  contactBtnText: { fontSize: FONTS.sm, fontWeight: FONTS.bold },
+  sellerSocials: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  socialChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: SPACING.md, paddingVertical: 6,
+    borderRadius: RADIUS.full,
   },
-  sellerName: {
-    fontSize: FONTS.md,
-    fontWeight: FONTS.semibold,
-    color: COLORS.textPrimary,
-  },
-  sellerMeta: {
-    fontSize: FONTS.sm,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
+  socialChipText: { fontSize: FONTS.xs, fontWeight: FONTS.semibold },
 
   // Sécurité
   securityCard: {

@@ -17,6 +17,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES } from '../constants/theme';
 import { Annonce } from '../lib/supabase';
 import { useAnnonces } from '../hooks/useAnnonces';
+import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - SPACING.lg * 2 - SPACING.md) / 2;
@@ -61,6 +62,7 @@ export default function HomeScreen({ navigation }: Props) {
     categorie: selectedCategory,
     search: debouncedSearch,
   });
+  const { location } = useLocation();
 
   const renderCategoryItem = ({ item }: { item: typeof CATEGORIES[0] }) => {
     const isSelected = selectedCategory === item.id;
@@ -92,6 +94,10 @@ export default function HomeScreen({ navigation }: Props) {
 
   const renderAnnonceCard = ({ item, index }: { item: Annonce; index: number }) => {
     const imageUrl = item.images?.[0]?.image_url || 'https://picsum.photos/400/400?random=99';
+    const dist =
+      location && (item as any).latitude && (item as any).longitude
+        ? getDistance(location.latitude, location.longitude, (item as any).latitude, (item as any).longitude)
+        : null;
     return (
       <TouchableOpacity
         activeOpacity={0.85}
@@ -122,9 +128,17 @@ export default function HomeScreen({ navigation }: Props) {
           <Text style={styles.cardPrice}>{formatPrix(item.prix)}</Text>
           <View style={styles.cardMeta}>
             <Ionicons name="location-outline" size={12} color={COLORS.textMuted} />
-            <Text style={styles.cardMetaText}>{item.ville}</Text>
-            <Text style={styles.cardMetaDot}>•</Text>
-            <Text style={styles.cardMetaText}>{timeAgo(item.date_creation)}</Text>
+            <Text style={styles.cardMetaText} numberOfLines={1}>
+              {(item as any).quartier || item.ville}
+            </Text>
+            {dist !== null && (
+              <>
+                <Text style={styles.cardMetaDot}>·</Text>
+                <Text style={[styles.cardMetaText, { color: COLORS.primary }]}>
+                  {formatDistance(dist)}
+                </Text>
+              </>
+            )}
           </View>
         </View>
       </TouchableOpacity>

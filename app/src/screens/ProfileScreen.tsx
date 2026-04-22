@@ -1,16 +1,8 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  StatusBar,
-  Alert,
-  Image,
-  Modal,
-  TextInput,
-  ActivityIndicator,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  StatusBar, Alert, Image, Modal, TextInput, ActivityIndicator,
+  Linking, Platform,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
@@ -19,9 +11,15 @@ import { supabase } from '../lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
 
-interface Props {
-  navigation: any;
-}
+interface Props { navigation: any; }
+
+const SOCIAL_FIELDS = [
+  { key: 'telephone', label: 'Téléphone', icon: 'call-outline', color: '#15803d', prefix: 'tel:', placeholder: '+223 XX XX XX XX' },
+  { key: 'whatsapp',  label: 'WhatsApp',  icon: 'logo-whatsapp', color: '#25D366', prefix: 'https://wa.me/', placeholder: '+223XXXXXXXX' },
+  { key: 'instagram', label: 'Instagram', icon: 'logo-instagram', color: '#E1306C', prefix: 'https://instagram.com/', placeholder: '@votre_compte' },
+  { key: 'tiktok',   label: 'TikTok',    icon: 'musical-notes-outline', color: '#010101', prefix: 'https://tiktok.com/@', placeholder: '@votre_compte' },
+  { key: 'facebook', label: 'Facebook',  icon: 'logo-facebook', color: '#1877F2', prefix: 'https://facebook.com/', placeholder: 'Votre page' },
+] as const;
 
 const MENU_ITEMS = [
   {
@@ -40,51 +38,46 @@ const MENU_ITEMS = [
       { icon: 'shield', label: 'Confidentialité', screen: 'Confidentialite' },
     ],
   },
-  {
-    section: 'Aide',
-    items: [
-      { icon: 'help-circle', label: 'Centre d\'aide', screen: 'Aide' },
-      { icon: 'message-circle', label: 'Nous contacter', screen: 'Contact' },
-      { icon: 'info', label: 'À propos', screen: 'APropos' },
-    ],
-  },
 ];
 
 export default function ProfileScreen({ navigation }: Props) {
   const { session, user, signOut, refreshUser } = useAuth();
-  
-  // States pour l'édition
+
   const [isEditing, setIsEditing] = useState(false);
   const [editPrenom, setEditPrenom] = useState('');
   const [editNom, setEditNom] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [editTelephone, setEditTelephone] = useState('');
+  const [editWhatsapp, setEditWhatsapp] = useState('');
+  const [editInstagram, setEditInstagram] = useState('');
+  const [editTiktok, setEditTiktok] = useState('');
+  const [editFacebook, setEditFacebook] = useState('');
   const [editAvatarBase64, setEditAvatarBase64] = useState<string | null>(null);
   const [editAvatarUri, setEditAvatarUri] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const openEditModal = () => {
-    if (!session || !user) return;
-    setEditPrenom(user.prenom || '');
-    setEditNom(user.nom || '');
-    setEditAvatarUri(user.avatar_url || null);
+    if (!session) return;
+    setEditPrenom(user?.prenom || '');
+    setEditNom(user?.nom || '');
+    setEditBio(user?.bio || '');
+    setEditTelephone(user?.telephone || '');
+    setEditWhatsapp(user?.whatsapp || '');
+    setEditInstagram(user?.instagram || '');
+    setEditTiktok(user?.tiktok || '');
+    setEditFacebook(user?.facebook || '');
+    setEditAvatarUri(user?.avatar_url || null);
     setEditAvatarBase64(null);
     setIsEditing(true);
   };
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission', 'Permission requise pour accéder aux photos.');
-      return;
-    }
-
+    if (status !== 'granted') { Alert.alert('Permission requise pour accéder aux photos.'); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-      base64: true,
+      allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true,
     });
-
     if (!result.canceled && result.assets[0].base64) {
       setEditAvatarUri(result.assets[0].uri);
       setEditAvatarBase64(result.assets[0].base64);
@@ -92,250 +85,320 @@ export default function ProfileScreen({ navigation }: Props) {
   };
 
   const handleSaveProfile = async () => {
-    if (!session || !user) return;
+    if (!session) return;
+    const userId = session.user.id;
     try {
       setIsSaving(true);
-      
-      let avatarUrlToSave = user.avatar_url;
-
-      // Upload de l'image si elle a changé
+      let avatarUrlToSave = user?.avatar_url || null;
       if (editAvatarBase64) {
-        const filePath = `${user.id}/${Date.now()}.png`;
+        const filePath = `${userId}/${Date.now()}.png`;
         const { error: uploadError } = await supabase.storage
-          .from('avatars')
-          .upload(filePath, decode(editAvatarBase64), {
-            contentType: 'image/png',
-          });
-
-        if (uploadError) {
-          console.error('Erreur upload avatar:', uploadError);
-        } else {
+          .from('avatars').upload(filePath, decode(editAvatarBase64), { contentType: 'image/png', upsert: true });
+        if (!uploadError) {
           const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
           avatarUrlToSave = data.publicUrl;
         }
       }
-
-      // Mise à jour de la table users
-      const { error } = await supabase
-        .from('users')
-        .update({
-          prenom: editPrenom.trim(),
-          nom: editNom.trim(),
-          avatar_url: avatarUrlToSave,
-        })
-        .eq('id', user.id);
-
+      const { error } = await supabase.from('users').upsert({
+        id: userId,
+        prenom: editPrenom.trim(),
+        nom: editNom.trim(),
+        bio: editBio.trim(),
+        telephone: editTelephone.trim(),
+        whatsapp: editWhatsapp.trim(),
+        instagram: editInstagram.trim(),
+        tiktok: editTiktok.trim(),
+        facebook: editFacebook.trim(),
+        avatar_url: avatarUrlToSave,
+      }, { onConflict: 'id' });
       if (error) throw error;
-
       await refreshUser();
       setIsEditing(false);
     } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible de sauvegarder le profil.');
+      Alert.alert('Erreur', error.message || 'Impossible de sauvegarder.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleAuthAction = () => {
-    if (!session) {
-      navigation.navigate('Login');
-      return;
-    }
-
-    Alert.alert(
-      'Déconnexion',
-      'Êtes-vous sûr de vouloir vous déconnecter ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Déconnexion', style: 'destructive', onPress: signOut },
-      ]
-    );
+  const openLink = (prefix: string, value: string) => {
+    if (!value) return;
+    const url = value.startsWith('http') || value.startsWith('tel:') ? value : prefix + value.replace('@', '');
+    Linking.openURL(url).catch(() => Alert.alert('Impossible d\'ouvrir ce lien.'));
   };
 
   const onMenuItemPress = (item: any) => {
-    if (item.private && !session) {
-      navigation.navigate('Login');
-      return;
-    }
-
-    if (item.screen) {
-      if (item.screen === 'MesAnnonces' || item.screen === 'Favoris') {
-        navigation.navigate(item.screen);
-      } else {
-        navigation.navigate('Placeholder', { title: item.label });
-      }
+    if (item.private && !session) { navigation.navigate('Login'); return; }
+    if (item.screen === 'MesAnnonces' || item.screen === 'Favoris') {
+      navigation.navigate(item.screen);
+    } else {
+      navigation.navigate('Placeholder', { title: item.label });
     }
   };
 
+  const displayName = session
+    ? `${user?.prenom || 'Nouveau'} ${user?.nom || 'Client'}`.trim()
+    : 'Invité';
+
+  const activeSocials = SOCIAL_FIELDS.filter(f => user?.[f.key]);
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <ScrollView showsVerticalScrollIndicator={false}>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
+        {/* Header vert avec avatar */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profil</Text>
-        </View>
+          <View style={styles.headerTop}>
+            <Text style={styles.headerTitle}>Profil</Text>
+            {session && (
+              <TouchableOpacity style={styles.editBtn} onPress={openEditModal} activeOpacity={0.8}>
+                <Feather name="edit-2" size={16} color="#fff" />
+                <Text style={styles.editBtnText}>Modifier</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
-        {/* Avatar & Infos */}
-        <TouchableOpacity 
-          style={styles.profileCard} 
-          activeOpacity={0.8}
-          onPress={session ? openEditModal : () => navigation.navigate('Login')}
-        >
-          <View style={[styles.avatar, user?.avatar_url && { backgroundColor: 'transparent' }]}>
+          <TouchableOpacity
+            style={styles.avatarWrapper}
+            onPress={session ? openEditModal : undefined}
+            activeOpacity={0.9}
+          >
             {user?.avatar_url ? (
               <Image source={{ uri: user.avatar_url }} style={styles.avatarImage} />
             ) : (
-              <Text style={styles.avatarText}>
-                {session ? user?.prenom?.charAt(0) || '👤' : '👤'}
-              </Text>
+              <View style={styles.avatarFallback}>
+                <Text style={styles.avatarInitial}>
+                  {session ? (user?.prenom?.charAt(0) || '?').toUpperCase() : '👤'}
+                </Text>
+              </View>
             )}
-          </View>
-          <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>
-              {session ? `${user?.prenom || 'Nouveau'} ${user?.nom || 'Client'}`.trim() : 'Invité'}
-            </Text>
-            <Text style={styles.profilePhone}>
-              {session ? user?.phone || session.user.phone : 'Connectez-vous pour continuer'}
-            </Text>
-          </View>
-          {session ? (
-            <TouchableOpacity style={styles.editButton} onPress={openEditModal} activeOpacity={0.7}>
-              <Feather name="edit-2" size={16} color={COLORS.primary} />
+            {session && (
+              <View style={styles.avatarCameraBadge}>
+                <Ionicons name="camera" size={12} color="#fff" />
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <Text style={styles.displayName}>{displayName}</Text>
+          {user?.bio ? (
+            <Text style={styles.bioText}>{user.bio}</Text>
+          ) : session ? (
+            <TouchableOpacity onPress={openEditModal}>
+              <Text style={styles.addBioText}>+ Ajouter une bio</Text>
             </TouchableOpacity>
-          ) : (
-            <Ionicons name="chevron-forward" size={24} color={COLORS.textMuted} />
-          )}
-        </TouchableOpacity>
+          ) : null}
 
-        {/* Stats (Visible que si connecté) */}
-        {session && (
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>0</Text>
-              <Text style={styles.statLabel}>Annonces</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>0</Text>
-              <Text style={styles.statLabel}>Ventes</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>-</Text>
-              <Text style={styles.statLabel}>Note ⭐</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Menu Sections */}
-        {MENU_ITEMS.map((section) => (
-          <View key={section.section} style={styles.menuSection}>
-            <Text style={styles.menuSectionTitle}>{section.section}</Text>
-            <View style={styles.menuCard}>
-              {section.items.map((item, index) => (
+          {/* Réseaux sociaux actifs */}
+          {activeSocials.length > 0 && (
+            <View style={styles.socialsRow}>
+              {activeSocials.map(f => (
                 <TouchableOpacity
-                  key={item.label}
-                  style={[
-                    styles.menuItem,
-                    index < section.items.length - 1 && styles.menuItemBorder,
-                  ]}
-                  activeOpacity={0.7}
-                  onPress={() => onMenuItemPress(item)}
+                  key={f.key}
+                  style={[styles.socialIcon, { backgroundColor: f.color }]}
+                  onPress={() => openLink(f.prefix, user![f.key]!)}
+                  activeOpacity={0.8}
                 >
-                  <View style={styles.menuItemLeft}>
-                    <View style={styles.menuIconContainer}>
-                      <Feather name={item.icon as any} size={18} color={COLORS.primary} />
-                    </View>
-                    <Text style={styles.menuItemLabel}>{item.label}</Text>
-                  </View>
-                  <View style={styles.menuItemRight}>
-                    {'value' in item && (
-                      <Text style={styles.menuItemValue}>{(item as any).value}</Text>
-                    )}
-                    {session && 'badge' in item && (
-                      <View style={styles.menuBadge}>
-                        <Text style={styles.menuBadgeText}>{(item as any).badge}</Text>
-                      </View>
-                    )}
-                    <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-                  </View>
+                  <Ionicons name={f.icon as any} size={18} color="#fff" />
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
-        ))}
+          )}
 
-        {/* Action Auth */}
-        <TouchableOpacity 
-          style={styles.logoutButton} 
-          onPress={handleAuthAction} 
-          activeOpacity={0.7}
-        >
-          <Feather name={session ? "log-out" : "log-in"} size={18} color={session ? COLORS.error : COLORS.primary} />
-          <Text style={[styles.logoutText, !session && { color: COLORS.primary }]}>
-            {session ? 'Déconnexion' : 'Se connecter'}
-          </Text>
-        </TouchableOpacity>
+          {!session && (
+            <TouchableOpacity style={styles.loginPromptBtn} onPress={() => navigation.navigate('Login')}>
+              <Text style={styles.loginPromptText}>Se connecter / S'inscrire</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
-        {/* Version */}
-        <Text style={styles.versionText}>Chap Chap v1.0.0</Text>
+        <View style={styles.body}>
+          {/* Stats */}
+          {session && (
+            <View style={styles.statsCard}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>0</Text>
+                <Text style={styles.statLabel}>Annonces</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>0</Text>
+                <Text style={styles.statLabel}>Ventes</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>—</Text>
+                <Text style={styles.statLabel}>Note ⭐</Text>
+              </View>
+            </View>
+          )}
 
-        <View style={{ height: 100 }} />
+          {/* Contacts rapides */}
+          {session && (user?.telephone || user?.whatsapp) && (
+            <View style={styles.contactCard}>
+              <Text style={styles.sectionLabel}>Mes contacts publics</Text>
+              {user.telephone && (
+                <TouchableOpacity
+                  style={styles.contactRow}
+                  onPress={() => Linking.openURL(`tel:${user.telephone}`)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.contactIconBox, { backgroundColor: '#15803d22' }]}>
+                    <Ionicons name="call-outline" size={18} color={COLORS.primary} />
+                  </View>
+                  <Text style={styles.contactText}>{user.telephone}</Text>
+                  <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+                </TouchableOpacity>
+              )}
+              {user.whatsapp && (
+                <TouchableOpacity
+                  style={[styles.contactRow, !user.telephone && {}]}
+                  onPress={() => Linking.openURL(`https://wa.me/${user.whatsapp?.replace(/[^0-9]/g, '')}`)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.contactIconBox, { backgroundColor: '#25D36622' }]}>
+                    <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+                  </View>
+                  <Text style={styles.contactText}>{user.whatsapp}</Text>
+                  <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {/* Menu */}
+          {MENU_ITEMS.map((section) => (
+            <View key={section.section} style={styles.menuSection}>
+              <Text style={styles.sectionLabel}>{section.section}</Text>
+              <View style={styles.menuCard}>
+                {section.items.map((item, index) => (
+                  <TouchableOpacity
+                    key={item.label}
+                    style={[styles.menuItem, index < section.items.length - 1 && styles.menuItemBorder]}
+                    activeOpacity={0.7}
+                    onPress={() => onMenuItemPress(item)}
+                  >
+                    <View style={styles.menuItemLeft}>
+                      <View style={styles.menuIconBox}>
+                        <Feather name={item.icon as any} size={17} color={COLORS.primary} />
+                      </View>
+                      <Text style={styles.menuItemLabel}>{item.label}</Text>
+                    </View>
+                    <View style={styles.menuItemRight}>
+                      {'value' in item && <Text style={styles.menuItemValue}>{(item as any).value}</Text>}
+                      <Ionicons name="chevron-forward" size={17} color={COLORS.textMuted} />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          ))}
+
+          {/* Déconnexion */}
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={() => {
+              if (!session) { navigation.navigate('Login'); return; }
+              Alert.alert('Déconnexion', 'Êtes-vous sûr ?', [
+                { text: 'Annuler', style: 'cancel' },
+                { text: 'Déconnexion', style: 'destructive', onPress: signOut },
+              ]);
+            }}
+            activeOpacity={0.7}
+          >
+            <Feather name={session ? 'log-out' : 'log-in'} size={18} color={session ? COLORS.error : COLORS.primary} />
+            <Text style={[styles.logoutText, !session && { color: COLORS.primary }]}>
+              {session ? 'Déconnexion' : 'Se connecter'}
+            </Text>
+          </TouchableOpacity>
+
+          <Text style={styles.version}>Chap Chap v2.0</Text>
+          <View style={{ height: 100 }} />
+        </View>
       </ScrollView>
 
-      {/* Modal d'édition de profil */}
+      {/* Modal d'édition */}
       <Modal visible={isEditing} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setIsEditing(false)}>
-        <View style={styles.modalContainer}>
+        <View style={styles.modal}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setIsEditing(false)}>
-              <Ionicons name="close" size={28} color={COLORS.textPrimary} />
+              <Ionicons name="close" size={26} color={COLORS.textPrimary} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Modifier le profil</Text>
             <TouchableOpacity onPress={handleSaveProfile} disabled={isSaving}>
-              {isSaving ? (
-                <ActivityIndicator size="small" color={COLORS.primary} />
-              ) : (
-                <Text style={styles.modalSaveButton}>Valider</Text>
-              )}
+              {isSaving
+                ? <ActivityIndicator size="small" color={COLORS.primary} />
+                : <Text style={styles.modalSave}>Valider</Text>
+              }
             </TouchableOpacity>
           </View>
-          <ScrollView contentContainerStyle={styles.modalContent}>
-            
-            <View style={styles.editAvatarContainer}>
-              <TouchableOpacity style={styles.editAvatarButton} onPress={pickImage}>
-                {editAvatarUri ? (
-                  <Image source={{ uri: editAvatarUri }} style={styles.editAvatarImage} />
-                ) : (
-                  <Ionicons name="camera" size={32} color={COLORS.textInverse} />
-                )}
-                <View style={styles.editAvatarOverlay}>
-                  <Ionicons name="pencil" size={16} color={COLORS.textInverse} />
+
+          <ScrollView contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false}>
+            {/* Avatar */}
+            <TouchableOpacity style={styles.modalAvatar} onPress={pickImage} activeOpacity={0.8}>
+              {editAvatarUri
+                ? <Image source={{ uri: editAvatarUri }} style={styles.modalAvatarImage} />
+                : <Ionicons name="camera" size={32} color={COLORS.textInverse} />
+              }
+              <View style={styles.modalAvatarOverlay}>
+                <Ionicons name="pencil" size={14} color="#fff" />
+              </View>
+            </TouchableOpacity>
+
+            {/* Identité */}
+            <Text style={styles.modalSectionLabel}>Identité</Text>
+            <View style={styles.modalRow}>
+              <View style={[styles.modalField, { flex: 1 }]}>
+                <Text style={styles.fieldLabel}>Prénom</Text>
+                <TextInput style={styles.fieldInput} value={editPrenom} onChangeText={setEditPrenom} placeholder="Amadou" />
+              </View>
+              <View style={{ width: SPACING.md }} />
+              <View style={[styles.modalField, { flex: 1 }]}>
+                <Text style={styles.fieldLabel}>Nom</Text>
+                <TextInput style={styles.fieldInput} value={editNom} onChangeText={setEditNom} placeholder="Coulibaly" />
+              </View>
+            </View>
+
+            <View style={styles.modalField}>
+              <Text style={styles.fieldLabel}>Bio / Description</Text>
+              <TextInput
+                style={[styles.fieldInput, { height: 80, textAlignVertical: 'top' }]}
+                value={editBio}
+                onChangeText={setEditBio}
+                placeholder="Vendeur de téléphones à Bamako · Livraison disponible"
+                multiline
+              />
+            </View>
+
+            {/* Contacts */}
+            <Text style={styles.modalSectionLabel}>Contacts & Réseaux</Text>
+            {SOCIAL_FIELDS.map(f => (
+              <View key={f.key} style={styles.modalField}>
+                <View style={styles.fieldLabelRow}>
+                  <Ionicons name={f.icon as any} size={15} color={f.color} />
+                  <Text style={styles.fieldLabel}>{f.label}</Text>
                 </View>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Prénom</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editPrenom}
-                onChangeText={setEditPrenom}
-                placeholder="Votre prénom"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Nom</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editNom}
-                onChangeText={setEditNom}
-                placeholder="Votre nom"
-              />
-            </View>
-
+                <TextInput
+                  style={styles.fieldInput}
+                  value={
+                    f.key === 'telephone' ? editTelephone :
+                    f.key === 'whatsapp' ? editWhatsapp :
+                    f.key === 'instagram' ? editInstagram :
+                    f.key === 'tiktok' ? editTiktok : editFacebook
+                  }
+                  onChangeText={
+                    f.key === 'telephone' ? setEditTelephone :
+                    f.key === 'whatsapp' ? setEditWhatsapp :
+                    f.key === 'instagram' ? setEditInstagram :
+                    f.key === 'tiktok' ? setEditTiktok : setEditFacebook
+                  }
+                  placeholder={f.placeholder}
+                  keyboardType={f.key === 'telephone' || f.key === 'whatsapp' ? 'phone-pad' : 'default'}
+                  autoCapitalize="none"
+                />
+              </View>
+            ))}
+            <View style={{ height: 40 }} />
           </ScrollView>
         </View>
       </Modal>
@@ -344,268 +407,156 @@ export default function ProfileScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  scrollContent: {
+  container: { flex: 1, backgroundColor: COLORS.background },
+
+  // Header vert
+  header: {
+    backgroundColor: COLORS.primary,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: SPACING.xxxl,
+    alignItems: 'center',
     paddingHorizontal: SPACING.xl,
   },
-  header: {
-    paddingTop: 60,
-    paddingBottom: SPACING.xl,
+  headerTop: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.xl,
   },
-  headerTitle: {
-    fontSize: FONTS.xxl,
-    fontWeight: FONTS.extrabold,
-    color: COLORS.textPrimary,
+  headerTitle: { fontSize: FONTS.xxl, fontWeight: FONTS.extrabold, color: '#fff' },
+  editBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: SPACING.md, paddingVertical: 7,
+    borderRadius: RADIUS.full,
+  },
+  editBtnText: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: '#fff' },
+
+  // Avatar
+  avatarWrapper: { position: 'relative', marginBottom: SPACING.lg },
+  avatarImage: { width: 90, height: 90, borderRadius: 45, borderWidth: 3, borderColor: '#fff' },
+  avatarFallback: {
+    width: 90, height: 90, borderRadius: 45,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 3, borderColor: '#fff',
+  },
+  avatarInitial: { fontSize: FONTS.xxxl, fontWeight: FONTS.bold, color: '#fff' },
+  avatarCameraBadge: {
+    position: 'absolute', bottom: 2, right: 2,
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: COLORS.primaryDark,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: '#fff',
   },
 
-  // Profile card
-  profileCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    padding: SPACING.xl,
-    borderRadius: RADIUS.xl,
-    ...SHADOWS.md,
+  displayName: { fontSize: FONTS.xl, fontWeight: FONTS.extrabold, color: '#fff', marginBottom: 4 },
+  bioText: { fontSize: FONTS.sm, color: 'rgba(255,255,255,0.8)', textAlign: 'center', lineHeight: 18, marginBottom: SPACING.md, paddingHorizontal: SPACING.lg },
+  addBioText: { fontSize: FONTS.sm, color: 'rgba(255,255,255,0.6)', marginBottom: SPACING.md },
+
+  socialsRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm },
+  socialIcon: {
+    width: 42, height: 42, borderRadius: 21,
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
   },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: SPACING.lg,
+
+  loginPromptBtn: {
+    marginTop: SPACING.lg,
+    paddingHorizontal: SPACING.xxl, paddingVertical: 11,
+    backgroundColor: '#fff', borderRadius: RADIUS.full,
   },
-  avatarText: {
-    fontSize: FONTS.xl,
-    fontWeight: FONTS.bold,
-    color: COLORS.textInverse,
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: FONTS.lg,
-    fontWeight: FONTS.bold,
-    color: COLORS.textPrimary,
-  },
-  profilePhone: {
-    fontSize: FONTS.sm,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  editButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.primaryFaded,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  loginPromptText: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: COLORS.primary },
+
+  // Body
+  body: { padding: SPACING.xl },
 
   // Stats
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    padding: SPACING.xl,
-    borderRadius: RADIUS.xl,
-    marginTop: SPACING.lg,
+  statsCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: COLORS.surface, borderRadius: RADIUS.xl,
+    padding: SPACING.xl, marginBottom: SPACING.xl,
     ...SHADOWS.sm,
   },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: FONTS.xxl,
-    fontWeight: FONTS.extrabold,
-    color: COLORS.textPrimary,
-  },
-  statLabel: {
-    fontSize: FONTS.xs,
-    color: COLORS.textMuted,
-    marginTop: 2,
-  },
-  statDivider: {
-    width: 1,
-    height: 36,
-    backgroundColor: COLORS.divider,
-  },
+  statItem: { flex: 1, alignItems: 'center' },
+  statValue: { fontSize: FONTS.xxl, fontWeight: FONTS.extrabold, color: COLORS.textPrimary },
+  statLabel: { fontSize: FONTS.xs, color: COLORS.textMuted, marginTop: 2 },
+  statDivider: { width: 1, height: 36, backgroundColor: COLORS.divider },
 
-  // Menu
-  menuSection: {
-    marginTop: SPACING.xxl,
+  // Contact card
+  contactCard: {
+    backgroundColor: COLORS.surface, borderRadius: RADIUS.xl,
+    marginBottom: SPACING.xl, overflow: 'hidden', ...SHADOWS.sm,
   },
-  menuSectionTitle: {
-    fontSize: FONTS.sm,
-    fontWeight: FONTS.semibold,
-    color: COLORS.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: SPACING.md,
-    marginLeft: SPACING.xs,
-  },
-  menuCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: RADIUS.xl,
-    overflow: 'hidden',
-    ...SHADOWS.sm,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: SPACING.lg,
-    paddingHorizontal: SPACING.lg,
-  },
-  menuItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-  },
-  menuItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  contactRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: SPACING.lg, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: COLORS.borderLight,
     gap: SPACING.md,
   },
-  menuIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: RADIUS.md,
-    backgroundColor: COLORS.primaryFaded,
-    justifyContent: 'center',
-    alignItems: 'center',
+  contactIconBox: {
+    width: 36, height: 36, borderRadius: RADIUS.md,
+    justifyContent: 'center', alignItems: 'center',
   },
-  menuItemLabel: {
-    fontSize: FONTS.md,
-    fontWeight: FONTS.medium,
-    color: COLORS.textPrimary,
-  },
-  menuItemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  menuItemValue: {
-    fontSize: FONTS.sm,
-    color: COLORS.textMuted,
-  },
-  menuBadge: {
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-  },
-  menuBadgeText: {
-    fontSize: 11,
-    fontWeight: FONTS.bold,
-    color: COLORS.textInverse,
-  },
+  contactText: { flex: 1, fontSize: FONTS.md, color: COLORS.textPrimary, fontWeight: FONTS.medium },
 
-  // Logout
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.sm,
-    marginTop: SPACING.xxxl,
-    paddingVertical: SPACING.lg,
+  // Sections
+  sectionLabel: {
+    fontSize: FONTS.xs, fontWeight: FONTS.semibold,
+    color: COLORS.textMuted, textTransform: 'uppercase',
+    letterSpacing: 0.5, marginBottom: SPACING.md, marginLeft: 2,
   },
-  logoutText: {
-    fontSize: FONTS.md,
-    fontWeight: FONTS.semibold,
-    color: COLORS.error,
-  },
-  versionText: {
-    textAlign: 'center',
-    fontSize: FONTS.xs,
-    color: COLORS.textMuted,
-    marginTop: SPACING.md,
-  },
+  menuSection: { marginBottom: SPACING.xl },
+  menuCard: { backgroundColor: COLORS.surface, borderRadius: RADIUS.xl, overflow: 'hidden', ...SHADOWS.sm },
+  menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: SPACING.lg, paddingHorizontal: SPACING.lg },
+  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: COLORS.divider },
+  menuItemLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
+  menuIconBox: { width: 36, height: 36, borderRadius: RADIUS.md, backgroundColor: COLORS.primaryFaded, justifyContent: 'center', alignItems: 'center' },
+  menuItemLabel: { fontSize: FONTS.md, fontWeight: FONTS.medium, color: COLORS.textPrimary },
+  menuItemRight: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  menuItemValue: { fontSize: FONTS.sm, color: COLORS.textMuted },
 
-  // Modal Editing Styles
-  modalContainer: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, paddingVertical: SPACING.lg, marginTop: SPACING.md },
+  logoutText: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: COLORS.error },
+  version: { textAlign: 'center', fontSize: FONTS.xs, color: COLORS.textMuted, marginTop: SPACING.sm },
+
+  // Modal
+  modal: { flex: 1, backgroundColor: COLORS.background },
   modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 60,
-    paddingHorizontal: SPACING.xl,
-    paddingBottom: SPACING.lg,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    paddingHorizontal: SPACING.xl, paddingBottom: SPACING.lg,
     backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
+    borderBottomWidth: 1, borderBottomColor: COLORS.borderLight,
   },
-  modalTitle: {
-    fontSize: FONTS.lg,
-    fontWeight: FONTS.bold,
-    color: COLORS.textPrimary,
+  modalTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: COLORS.textPrimary },
+  modalSave: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: COLORS.primary },
+  modalBody: { padding: SPACING.xl },
+  modalAvatar: {
+    width: 90, height: 90, borderRadius: 45,
+    backgroundColor: COLORS.primary,
+    alignSelf: 'center', marginBottom: SPACING.xxl,
+    justifyContent: 'center', alignItems: 'center', overflow: 'hidden',
   },
-  modalSaveButton: {
-    fontSize: FONTS.md,
-    fontWeight: FONTS.bold,
-    color: COLORS.primary,
+  modalAvatarImage: { width: '100%', height: '100%' },
+  modalAvatarOverlay: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    height: 26, backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center', alignItems: 'center',
   },
-  modalContent: {
-    padding: SPACING.xl,
+  modalSectionLabel: {
+    fontSize: FONTS.sm, fontWeight: FONTS.bold, color: COLORS.textSecondary,
+    textTransform: 'uppercase', letterSpacing: 0.5,
+    marginBottom: SPACING.md, marginTop: SPACING.xl,
   },
-  editAvatarContainer: {
-    alignItems: 'center',
-    marginVertical: SPACING.xl,
-  },
-  editAvatarButton: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: COLORS.primaryFaded,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  editAvatarImage: {
-    width: '100%',
-    height: '100%',
-  },
-  editAvatarOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    height: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  inputGroup: {
-    marginBottom: SPACING.lg,
-  },
-  inputLabel: {
-    fontSize: FONTS.sm,
-    fontWeight: FONTS.semibold,
-    color: COLORS.textSecondary,
-    marginBottom: SPACING.xs,
-  },
-  textInput: {
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    borderRadius: RADIUS.md,
-    padding: SPACING.md,
-    fontSize: FONTS.md,
-    color: COLORS.textPrimary,
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
+  modalRow: { flexDirection: 'row' },
+  modalField: { marginBottom: SPACING.lg },
+  fieldLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 },
+  fieldLabel: { fontSize: FONTS.xs, fontWeight: FONTS.semibold, color: COLORS.textSecondary, marginBottom: 6 },
+  fieldInput: {
+    backgroundColor: COLORS.surface, borderWidth: 1,
+    borderColor: COLORS.borderLight, borderRadius: RADIUS.md,
+    padding: SPACING.md, fontSize: FONTS.md, color: COLORS.textPrimary,
   },
 });

@@ -25,7 +25,7 @@ export function useAnnonces(options?: {
         .select(`
           *,
           images:images_annonce(id, image_url, ordre),
-          user:users(id, prenom, nom, avatar_url)
+          user:users(id, prenom, nom, bio, avatar_url, telephone, whatsapp, instagram, tiktok, facebook)
         `)
         .eq('statut', 'active')
         .eq('est_payee', true)

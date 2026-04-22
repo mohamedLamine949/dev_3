@@ -22,11 +22,16 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
  */
 export interface User {
   id: string;
-  num_telephone?: string;
   prenom: string;
   nom: string;
+  bio?: string;
   avatar_url?: string;
-  date_creation: string;
+  telephone?: string;
+  whatsapp?: string;
+  instagram?: string;
+  tiktok?: string;
+  facebook?: string;
+  date_creation?: string;
 }
 
 export interface Annonce {

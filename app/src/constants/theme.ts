@@ -123,6 +123,7 @@ export const CATEGORIES = [
   { id: 'electronique', label: 'Électronique', icon: 'monitor' },
   { id: 'vehicules', label: 'Véhicules', icon: 'truck' },
   { id: 'immobilier', label: 'Immobilier', icon: 'home' },
+  { id: 'nourriture', label: 'Nourriture', icon: 'coffee' },
   { id: 'mode', label: 'Mode', icon: 'shopping-bag' },
   { id: 'maison', label: 'Maison', icon: 'box' },
   { id: 'emploi', label: 'Emploi', icon: 'briefcase' },
