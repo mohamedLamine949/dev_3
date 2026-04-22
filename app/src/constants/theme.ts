@@ -4,20 +4,20 @@
  */
 
 export const COLORS = {
-  // Couleur principale - Orange chaleureux (vitaux pour le Mali)
-  primary: '#FF6B35',
-  primaryLight: '#FF8C5A',
-  primaryDark: '#E05520',
-  primaryFaded: 'rgba(255, 107, 53, 0.12)',
+  // Couleur principale - Vert argent (marketplace premium)
+  primary: '#15803d',
+  primaryLight: '#16a34a',
+  primaryDark: '#166534',
+  primaryFaded: 'rgba(21, 128, 61, 0.12)',
 
-  // Couleur secondaire - Vert confiance
-  secondary: '#00B894',
-  secondaryLight: '#55EFC4',
-  secondaryDark: '#00A381',
+  // Couleur secondaire - Or premium
+  secondary: '#ca8a04',
+  secondaryLight: '#eab308',
+  secondaryDark: '#a16207',
 
-  // Couleur d'accent - Doré premium
-  accent: '#FDCB6E',
-  accentDark: '#E1A844',
+  // Couleur d'accent - Émeraude
+  accent: '#34d399',
+  accentDark: '#10b981',
 
   // Arrière-plans
   background: '#FAFBFD',
@@ -110,7 +110,7 @@ export const SHADOWS = {
     elevation: 8,
   },
   colored: {
-    shadowColor: '#FF6B35',
+    shadowColor: '#15803d',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,

@@ -83,7 +83,7 @@ export default function MessagesScreen({ navigation }: Props) {
         <Text style={styles.emptyText}>Connectez-vous pour voir vos messages.</Text>
         <TouchableOpacity 
           style={{ marginTop: 20, backgroundColor: COLORS.primary, padding: 12, borderRadius: 8 }}
-          onPress={() => navigation.navigate('Profile')}
+          onPress={() => navigation.navigate('Profil')}
         >
           <Text style={{ color: 'white', fontWeight: 'bold' }}>Se connecter</Text>
         </TouchableOpacity>
