@@ -16,17 +16,21 @@ export function useAnnonces(options?: {
   const [error, setError] = useState<string | null>(null);
 
   const fetchAnnonces = useCallback(async () => {
+    let timedOut = false;
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      console.error('⏱️ Timeout Supabase — requête bloquée après 10s');
+      setError('Impossible de charger les annonces. Vérifiez votre connexion.');
+      setLoading(false);
+    }, 10000);
+
     try {
       setLoading(true);
       setError(null);
 
       let query = supabase
         .from('annonces')
-        .select(`
-          *,
-          images:images_annonce(id, image_url, ordre),
-          user:users(id, prenom, nom, bio, avatar_url, telephone, whatsapp, instagram, tiktok, facebook)
-        `)
+        .select('*')
         .eq('statut', 'active')
         .eq('est_payee', true)
         .order('date_creation', { ascending: false });
@@ -45,13 +49,22 @@ export function useAnnonces(options?: {
 
       const { data, error: fetchError } = await query;
 
-      if (fetchError) throw fetchError;
+      if (timedOut) return;
+      clearTimeout(timeoutId);
+
+      if (fetchError) {
+        console.error('❌ Supabase error:', JSON.stringify(fetchError));
+        throw fetchError;
+      }
+      console.log('✅ Annonces reçues:', data?.length ?? 0);
       setAnnonces((data as Annonce[]) || []);
     } catch (err: any) {
+      if (timedOut) return;
+      clearTimeout(timeoutId);
       setError(err.message || 'Erreur lors du chargement');
       console.error('Erreur fetchAnnonces:', err);
     } finally {
-      setLoading(false);
+      if (!timedOut) setLoading(false);
     }
   }, [options?.categorie, options?.search, options?.limit]);
 

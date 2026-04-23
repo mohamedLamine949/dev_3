@@ -58,7 +58,7 @@ export default function HomeScreen({ navigation }: Props) {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  const { annonces, loading, refetch } = useAnnonces({
+  const { annonces, loading, error, refetch } = useAnnonces({
     categorie: selectedCategory,
     search: debouncedSearch,
   });
@@ -198,8 +198,26 @@ export default function HomeScreen({ navigation }: Props) {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
       {loading && annonces.length === 0 ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 }}>
           <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={{ fontSize: FONTS.sm, color: COLORS.textMuted }}>Chargement des annonces…</Text>
+        </View>
+      ) : error && annonces.length === 0 ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: SPACING.xxl, gap: 16 }}>
+          <Feather name="wifi-off" size={48} color={COLORS.textMuted} />
+          <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.semibold, color: COLORS.textPrimary, textAlign: 'center' }}>
+            Connexion impossible
+          </Text>
+          <Text style={{ fontSize: FONTS.sm, color: COLORS.textMuted, textAlign: 'center' }}>
+            {error || 'Vérifiez votre connexion internet ou réessayez dans quelques instants.'}
+          </Text>
+          <TouchableOpacity
+            style={{ backgroundColor: COLORS.primary, paddingHorizontal: 28, paddingVertical: 13, borderRadius: RADIUS.lg }}
+            onPress={refetch}
+            activeOpacity={0.8}
+          >
+            <Text style={{ color: '#fff', fontWeight: FONTS.bold, fontSize: FONTS.md }}>Réessayer</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList

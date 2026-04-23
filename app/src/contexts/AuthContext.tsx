@@ -67,14 +67,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signInWithEmail(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const timeout = new Promise<{ error: any }>((resolve) =>
+      setTimeout(() => resolve({ error: { message: 'Délai dépassé. Vérifiez votre connexion.' } }), 12000)
+    );
+    const request = supabase.auth.signInWithPassword({ email, password });
+    const { error } = await Promise.race([request, timeout]);
     return { error };
   }
 
   async function signUpWithEmail(email: string, password: string, prenom: string, nom: string) {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const timeout = new Promise<{ data: any; error: any }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: { message: 'Délai dépassé. Vérifiez votre connexion.' } }), 12000)
+    );
+    const request = supabase.auth.signUp({ email, password });
+    const { data, error } = await Promise.race([request, timeout]);
     if (error) return { error };
-    if (data.user) {
+    if (data?.user) {
       await supabase.from('users').insert({ id: data.user.id, prenom, nom });
     }
     return { error: null };

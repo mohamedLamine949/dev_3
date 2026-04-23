@@ -223,7 +223,7 @@ export default function ProfileScreen({ navigation }: Props) {
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>0</Text>
-                <Text style={styles.statLabel}>Ventes</Text>
+                <Text style={styles.statLabel}>Avis</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>

@@ -6,6 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet, Platform } from 'react-native';
 
 import { COLORS, FONTS, RADIUS, SHADOWS } from '../constants/theme';
+import { useAuth } from '../contexts/AuthContext';
+import { useUnreadCount } from '../hooks/useChat';
 
 // Screens
 import HomeScreen from '../screens/HomeScreen';
@@ -96,6 +98,9 @@ function ProfileStack() {
 
 // Barre de navigation principale (Tabs)
 function MainTabs() {
+  const { session } = useAuth();
+  const unreadCount = useUnreadCount(session?.user?.id);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -152,7 +157,7 @@ function MainTabs() {
         name="Messages"
         component={MessagesStack}
         options={{
-          tabBarBadge: 3,
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
           tabBarBadgeStyle: {
             backgroundColor: COLORS.primary,
             fontSize: 10,

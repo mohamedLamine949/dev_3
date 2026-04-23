@@ -35,8 +35,7 @@ export default function MessagesScreen({ navigation }: Props) {
 
   const renderConversation = ({ item }: { item: any }) => {
     const imageUrl = item.annonce?.images?.[0]?.image_url || 'https://picsum.photos/100/100';
-    // MOCK hasUnread based on fake field (in real app, requires joining messages)
-    const hasUnread = false; 
+    const hasUnread = (item.unread_count || 0) > 0;
 
     return (
       <TouchableOpacity
@@ -69,6 +68,11 @@ export default function MessagesScreen({ navigation }: Props) {
             >
               {item.dernier_message}
             </Text>
+            {hasUnread && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadText}>{item.unread_count}</Text>
+              </View>
+            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -171,7 +175,9 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   conversationCardUnread: {
-    // Subtle highlight
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
+    paddingLeft: SPACING.md - 3,
   },
   conversationImage: {
     width: 56,

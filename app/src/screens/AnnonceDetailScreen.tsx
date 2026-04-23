@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,13 @@ import {
   Share,
   FlatList,
   Alert,
+  Linking,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, ETAT_ARTICLE } from '../constants/theme';
 import { Annonce } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Linking } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -36,6 +37,18 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
+  const [seller, setSeller] = useState<any>((annonce as any).user || null);
+
+  useEffect(() => {
+    if (!seller && annonce.user_id) {
+      supabase
+        .from('users')
+        .select('id, prenom, nom, bio, avatar_url, telephone, whatsapp, instagram, tiktok, facebook')
+        .eq('id', annonce.user_id)
+        .single()
+        .then(({ data }) => { if (data) setSeller(data); });
+    }
+  }, [annonce.user_id]);
 
   const images = annonce.images?.length
     ? annonce.images.map((img) => img.image_url)
@@ -175,7 +188,9 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
             </View>
             <View style={styles.tag}>
               <Ionicons name="location-outline" size={13} color={COLORS.textSecondary} />
-              <Text style={styles.tagText}>{annonce.ville}</Text>
+              <Text style={styles.tagText}>
+                {(annonce as any).quartier ? `${(annonce as any).quartier}, ${annonce.ville}` : annonce.ville}
+              </Text>
             </View>
           </View>
 
@@ -192,7 +207,6 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
           {/* Vendeur */}
           <Text style={styles.sectionTitle}>Vendeur</Text>
           {(() => {
-            const seller = (annonce as any).user;
             const sellerName = seller ? `${seller.prenom || ''} ${seller.nom || ''}`.trim() || 'Vendeur' : 'Vendeur';
             return (
               <View style={styles.sellerSection}>
@@ -284,7 +298,19 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
 
       {/* CTA fixe en bas */}
       <View style={styles.ctaContainer}>
-        <TouchableOpacity style={styles.ctaPhoneButton} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.ctaPhoneButton}
+          activeOpacity={0.8}
+          onPress={() => {
+            if (seller?.telephone) {
+              Linking.openURL(`tel:${seller.telephone}`);
+            } else if (seller?.whatsapp) {
+              Linking.openURL(`https://wa.me/${seller.whatsapp.replace(/[^0-9]/g, '')}`);
+            } else {
+              handleContact();
+            }
+          }}
+        >
           <Ionicons name="call-outline" size={22} color={COLORS.primary} />
         </TouchableOpacity>
         <TouchableOpacity
