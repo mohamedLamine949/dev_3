@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   StatusBar, Alert, Image, Modal, TextInput, ActivityIndicator,
@@ -55,6 +55,23 @@ export default function ProfileScreen({ navigation }: Props) {
   const [editAvatarBase64, setEditAvatarBase64] = useState<string | null>(null);
   const [editAvatarUri, setEditAvatarUri] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [stats, setStats] = useState({ annonces: 0, avis: 0, avgNote: null as number | null });
+
+  useEffect(() => {
+    if (!session) return;
+    const userId = session.user.id;
+    Promise.all([
+      supabase.from('annonces').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('statut', 'active'),
+      supabase.from('avis').select('note').eq('vendeur_id', userId),
+    ]).then(([annoncesRes, avisRes]) => {
+      const annoncesCount = annoncesRes.count ?? 0;
+      const avisData = (avisRes.data || []) as { note: number }[];
+      const avgNote = avisData.length > 0
+        ? avisData.reduce((s, a) => s + a.note, 0) / avisData.length
+        : null;
+      setStats({ annonces: annoncesCount, avis: avisData.length, avgNote });
+    });
+  }, [session?.user?.id]);
 
   const openEditModal = () => {
     if (!session) return;
@@ -217,18 +234,20 @@ export default function ProfileScreen({ navigation }: Props) {
           {session && (
             <View style={styles.statsCard}>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>0</Text>
+                <Text style={styles.statValue}>{stats.annonces}</Text>
                 <Text style={styles.statLabel}>Annonces</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>0</Text>
+                <Text style={styles.statValue}>{stats.avis}</Text>
                 <Text style={styles.statLabel}>Avis</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>—</Text>
-                <Text style={styles.statLabel}>Note ⭐</Text>
+                <Text style={styles.statValue}>
+                  {stats.avgNote !== null ? stats.avgNote.toFixed(1) + ' ⭐' : '—'}
+                </Text>
+                <Text style={styles.statLabel}>Note</Text>
               </View>
             </View>
           )}

@@ -21,6 +21,7 @@ import LoginScreen from '../screens/LoginScreen';
 import MesAnnoncesScreen from '../screens/MesAnnoncesScreen';
 import FavorisScreen from '../screens/FavorisScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
+import VendeurProfileScreen from '../screens/VendeurProfileScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -185,10 +186,14 @@ export default function AppNavigator() {
           component={LoginScreen}
           options={{ animation: 'slide_from_bottom' }}
         />
-        {/* Le chat peut aussi être ouvert depuis le détail */}
         <Stack.Screen
           name="ChatConversation"
           component={ChatConversationScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="VendeurProfile"
+          component={VendeurProfileScreen}
           options={{ animation: 'slide_from_right' }}
         />
       </Stack.Navigator>

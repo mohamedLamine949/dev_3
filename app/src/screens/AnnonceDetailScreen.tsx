@@ -13,12 +13,17 @@ import {
   FlatList,
   Alert,
   Linking,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, ETAT_ARTICLE } from '../constants/theme';
 import { Annonce } from '../lib/supabase';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { submitAvis } from '../hooks/useAvis';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -38,6 +43,10 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const [seller, setSeller] = useState<any>((annonce as any).user || null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewNote, setReviewNote] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     if (!seller && annonce.user_id) {
@@ -65,6 +74,31 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
         message: `${annonce.titre} - ${formatPrix(annonce.prix)} sur Chap Chap 🇲🇱`,
       });
     } catch {}
+  };
+
+  const handleSubmitReview = async () => {
+    if (!session || reviewNote === 0) return;
+    setSubmittingReview(true);
+    const { error } = await submitAvis({
+      auteurId: session.user.id,
+      vendeurId: annonce.user_id,
+      annonceId: annonce.id,
+      note: reviewNote,
+      commentaire: reviewComment,
+    });
+    setSubmittingReview(false);
+    if (error) {
+      if ((error as any).code === '23505') {
+        Alert.alert('Avis déjà envoyé', 'Vous avez déjà laissé un avis pour cette annonce.');
+      } else {
+        Alert.alert('Erreur', 'Impossible d\'envoyer l\'avis. Réessayez.');
+      }
+    } else {
+      setShowReviewModal(false);
+      setReviewNote(0);
+      setReviewComment('');
+      Alert.alert('Merci !', 'Votre avis a bien été enregistré.');
+    }
   };
 
   const handleContact = () => {
@@ -210,8 +244,12 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
             const sellerName = seller ? `${seller.prenom || ''} ${seller.nom || ''}`.trim() || 'Vendeur' : 'Vendeur';
             return (
               <View style={styles.sellerSection}>
-                {/* Carte identité */}
-                <View style={styles.sellerCard}>
+                {/* Carte identité — cliquable pour voir le profil */}
+                <TouchableOpacity
+                  style={styles.sellerCard}
+                  activeOpacity={0.75}
+                  onPress={() => navigation.navigate('VendeurProfile', { vendeurId: annonce.user_id })}
+                >
                   {seller?.avatar_url ? (
                     <Image source={{ uri: seller.avatar_url }} style={styles.sellerAvatarImg} />
                   ) : (
@@ -227,7 +265,8 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
                       <Text style={styles.sellerMeta}>Vendeur sur Chap Chap</Text>
                     )}
                   </View>
-                </View>
+                  <Ionicons name="chevron-forward" size={18} color={COLORS.borderLight} />
+                </TouchableOpacity>
 
                 {/* Boutons de contact */}
                 <View style={styles.contactButtons}>
@@ -280,6 +319,19 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
             );
           })()}
 
+          {/* Bouton laisser un avis */}
+          {session && session.user.id !== annonce.user_id && (
+            <TouchableOpacity
+              style={styles.reviewBtn}
+              onPress={() => setShowReviewModal(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="star-outline" size={16} color={COLORS.secondary} />
+              <Text style={styles.reviewBtnText}>Laisser un avis sur ce vendeur</Text>
+              <Ionicons name="chevron-forward" size={16} color={COLORS.secondary} />
+            </TouchableOpacity>
+          )}
+
           {/* Sécurité */}
           <View style={styles.securityCard}>
             <Ionicons name="shield-checkmark" size={20} color={COLORS.secondary} />
@@ -295,6 +347,70 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
           <View style={{ height: 100 }} />
         </View>
       </ScrollView>
+
+      {/* Modal avis */}
+      <Modal visible={showReviewModal} transparent animationType="slide" onRequestClose={() => setShowReviewModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHandle} />
+              <Text style={styles.modalTitle}>Laisser un avis</Text>
+              {seller && (
+                <Text style={styles.modalSubtitle}>
+                  Pour {`${seller.prenom || ''} ${seller.nom || ''}`.trim() || 'ce vendeur'}
+                </Text>
+              )}
+
+              {/* Étoiles interactives */}
+              <View style={styles.starsRow}>
+                {[1, 2, 3, 4, 5].map(i => (
+                  <TouchableOpacity key={i} onPress={() => setReviewNote(i)} activeOpacity={0.7}>
+                    <Ionicons
+                      name={i <= reviewNote ? 'star' : 'star-outline'}
+                      size={38}
+                      color={i <= reviewNote ? '#f59e0b' : COLORS.border}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {reviewNote > 0 && (
+                <Text style={styles.noteLabel}>
+                  {['', 'Très mauvais', 'Mauvais', 'Correct', 'Bien', 'Excellent'][reviewNote]}
+                </Text>
+              )}
+
+              {/* Commentaire */}
+              <TextInput
+                style={styles.reviewInput}
+                placeholder="Commentaire (facultatif)…"
+                placeholderTextColor={COLORS.textMuted}
+                value={reviewComment}
+                onChangeText={setReviewComment}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+
+              {/* Actions */}
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowReviewModal(false)}>
+                  <Text style={styles.modalCancelText}>Annuler</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalSubmitBtn, reviewNote === 0 && { opacity: 0.4 }]}
+                  onPress={handleSubmitReview}
+                  disabled={reviewNote === 0 || submittingReview}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.modalSubmitText}>
+                    {submittingReview ? 'Envoi…' : 'Envoyer'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* CTA fixe en bas */}
       <View style={styles.ctaContainer}>
@@ -542,6 +658,69 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     lineHeight: 20,
   },
+
+  // Bouton avis
+  reviewBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    backgroundColor: 'rgba(202, 138, 4, 0.08)',
+    borderWidth: 1, borderColor: 'rgba(202, 138, 4, 0.3)',
+    borderRadius: RADIUS.lg, paddingHorizontal: SPACING.lg, paddingVertical: 14,
+    marginTop: SPACING.lg,
+  },
+  reviewBtnText: {
+    flex: 1, fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: COLORS.secondary,
+  },
+
+  // Modal avis
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: RADIUS.xxl, borderTopRightRadius: RADIUS.xxl,
+    paddingHorizontal: SPACING.xl, paddingBottom: 40, paddingTop: SPACING.lg,
+    alignItems: 'center',
+  },
+  modalHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: COLORS.border, marginBottom: SPACING.xl,
+  },
+  modalTitle: {
+    fontSize: FONTS.xl, fontWeight: FONTS.bold,
+    color: COLORS.textPrimary, marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: FONTS.sm, color: COLORS.textMuted, marginBottom: SPACING.xl,
+  },
+  starsRow: {
+    flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.sm,
+  },
+  noteLabel: {
+    fontSize: FONTS.sm, fontWeight: FONTS.semibold,
+    color: '#f59e0b', marginBottom: SPACING.xl,
+  },
+  reviewInput: {
+    width: '100%', height: 90,
+    backgroundColor: COLORS.surfaceMuted,
+    borderWidth: 1, borderColor: COLORS.borderLight,
+    borderRadius: RADIUS.lg, padding: SPACING.md,
+    fontSize: FONTS.md, color: COLORS.textPrimary,
+    marginBottom: SPACING.xl,
+  },
+  modalActions: {
+    flexDirection: 'row', gap: SPACING.md, width: '100%',
+  },
+  modalCancelBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.surfaceMuted, alignItems: 'center',
+  },
+  modalCancelText: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: COLORS.textSecondary },
+  modalSubmitBtn: {
+    flex: 2, paddingVertical: 14, borderRadius: RADIUS.lg,
+    backgroundColor: COLORS.secondary, alignItems: 'center',
+  },
+  modalSubmitText: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
 
   // CTA
   ctaContainer: {
