@@ -4,6 +4,10 @@ import { supabase, User } from '../lib/supabase';
 import { Session } from '@supabase/supabase-js';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const SESSION_STORAGE_KEY = 'chapchap_session';
+const isNative = typeof document === 'undefined';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -27,22 +31,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) fetchOrCreateProfile(session.user);
-      setIsLoading(false);
-    });
+    let mounted = true;
+
+    // Sur natif : on restaure la session depuis AsyncStorage SANS bloquer Supabase.
+    // Le client Supabase est en persistSession:false → les requêtes partent immédiatement.
+    const init = async () => {
+      if (isNative) {
+        try {
+          const saved = await AsyncStorage.getItem(SESSION_STORAGE_KEY);
+          if (saved && mounted) {
+            const parsed = JSON.parse(saved);
+            const { error } = await supabase.auth.setSession(parsed);
+            if (error) await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
+            // onAuthStateChange se charge de setIsLoading(false)
+            return;
+          }
+        } catch {
+          await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
+        }
+      }
+      // Pas de session sauvegardée (ou web)
+      if (mounted) setIsLoading(false);
+    };
+
+    init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return;
       setSession(session);
       if (session?.user) {
         await fetchOrCreateProfile(session.user);
+        // Sauvegarder la session sur natif
+        if (isNative) {
+          AsyncStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+          }));
+        }
       } else {
         setUser(null);
+        if (isNative) AsyncStorage.removeItem(SESSION_STORAGE_KEY);
       }
+      if (mounted) setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => { mounted = false; subscription.unsubscribe(); };
   }, []);
 
   async function fetchOrCreateProfile(authUser: any) {
