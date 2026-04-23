@@ -5,6 +5,21 @@ import {
   Linking, Platform,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
+
+function StarRow({ note, size = 16 }: { note: number; size?: number }) {
+  return (
+    <View style={{ flexDirection: 'row', gap: 2 }}>
+      {[1, 2, 3, 4, 5].map(i => (
+        <Ionicons
+          key={i}
+          name={i <= Math.round(note) ? 'star' : 'star-outline'}
+          size={size}
+          color={i <= Math.round(note) ? '#f59e0b' : '#D1D5DB'}
+        />
+      ))}
+    </View>
+  );
+}
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -240,14 +255,21 @@ export default function ProfileScreen({ navigation }: Props) {
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{stats.avis}</Text>
-                <Text style={styles.statLabel}>Avis</Text>
+                <Text style={styles.statLabel}>Avis reçus</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>
-                  {stats.avgNote !== null ? stats.avgNote.toFixed(1) + ' ⭐' : '—'}
-                </Text>
-                <Text style={styles.statLabel}>Note</Text>
+                {stats.avgNote !== null ? (
+                  <>
+                    <StarRow note={stats.avgNote} size={14} />
+                    <Text style={styles.statLabel}>{stats.avgNote.toFixed(1)} / 5</Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.statValue}>—</Text>
+                    <Text style={styles.statLabel}>Note</Text>
+                  </>
+                )}
               </View>
             </View>
           )}
@@ -331,7 +353,7 @@ export default function ProfileScreen({ navigation }: Props) {
             </Text>
           </TouchableOpacity>
 
-          <Text style={styles.version}>Chap Chap v2.0</Text>
+          <Text style={styles.version}>Flash Market v2.0</Text>
           <View style={{ height: 100 }} />
         </View>
       </ScrollView>

@@ -89,7 +89,7 @@ export default function LoginScreen({ navigation }: Props) {
         <View style={styles.logoContainer}>
           <Text style={styles.logoEmoji}>⚡</Text>
         </View>
-        <Text style={styles.appName}>Chap Chap</Text>
+        <Text style={styles.appName}>Flash Market</Text>
         <Text style={styles.tagline}>La marketplace du Mali</Text>
       </View>
 

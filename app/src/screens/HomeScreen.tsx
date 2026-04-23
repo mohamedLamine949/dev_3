@@ -150,8 +150,8 @@ export default function HomeScreen({ navigation }: Props) {
       {/* Hero Section */}
       <View style={styles.heroSection}>
         <View style={styles.heroContent}>
-          <Text style={styles.heroTitle}>Chap Chap 🇲🇱</Text>
-          <Text style={styles.heroSubtitle}>Achetez & Vendez au Mali</Text>
+          <Text style={styles.heroTitle}>⚡ Flash Market</Text>
+          <Text style={styles.heroSubtitle}>Achetez & Vendez en un Flash</Text>
         </View>
       </View>
 

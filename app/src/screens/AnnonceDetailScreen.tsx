@@ -71,7 +71,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `${annonce.titre} - ${formatPrix(annonce.prix)} sur Chap Chap 🇲🇱`,
+        message: `${annonce.titre} - ${formatPrix(annonce.prix)} sur Flash Market 🇲🇱`,
       });
     } catch {}
   };
@@ -262,7 +262,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
                     {seller?.bio ? (
                       <Text style={styles.sellerBio} numberOfLines={2}>{seller.bio}</Text>
                     ) : (
-                      <Text style={styles.sellerMeta}>Vendeur sur Chap Chap</Text>
+                      <Text style={styles.sellerMeta}>Vendeur sur Flash Market</Text>
                     )}
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={COLORS.borderLight} />
