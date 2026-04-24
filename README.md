@@ -202,7 +202,9 @@ CREATE INDEX idx_messages_conversation ON messages(conversation_id);
 
 ## 👨‍💻 Auteur
 
+**Sidi Oumar GANO** — [@sdiprograms11](https://github.com/sidiprograms11)
 **Mohamed Lamine** — [@mohamedLamine949](https://github.com/mohamedLamine949)
+
 
 ---
 
