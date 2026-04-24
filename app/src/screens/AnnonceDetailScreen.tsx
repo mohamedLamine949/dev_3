@@ -79,7 +79,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
 
   const images = annonce.images?.length
     ? annonce.images.map((img) => img.image_url)
-    : ['https://picsum.photos/600/600?random=99'];
+    : [];
 
   const categoryLabel =
     CATEGORIES.find((c) => c.id === annonce.categorie)?.label || annonce.categorie;
@@ -145,6 +145,12 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
       <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
         {/* Carrousel d'images */}
         <View style={styles.imageCarousel}>
+          {images.length === 0 ? (
+            <View style={styles.imagePlaceholder}>
+              <Ionicons name="image-outline" size={64} color={COLORS.border} />
+              <Text style={styles.imagePlaceholderText}>Aucune photo</Text>
+            </View>
+          ) : null}
           <FlatList
             data={images}
             horizontal
@@ -510,6 +516,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: FONTS.xs,
     fontWeight: FONTS.semibold,
+  },
+
+  imagePlaceholder: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH * 0.85,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.surfaceMuted,
+    gap: SPACING.sm,
+  },
+  imagePlaceholderText: {
+    fontSize: FONTS.sm,
+    color: COLORS.textMuted,
   },
 
   // Floating header

@@ -90,7 +90,7 @@ export default function SearchScreen({ navigation }: Props) {
 
   // ---- Rendu carte résultat ----
   const renderResult = ({ item }: { item: Annonce }) => {
-    const imageUrl = item.images?.[0]?.image_url || `https://picsum.photos/seed/${item.id}/200/200`;
+    const imageUrl = item.images?.[0]?.image_url || null;
     const dist =
       location && (item as any).latitude && (item as any).longitude
         ? getDistance(location.latitude, location.longitude, (item as any).latitude, (item as any).longitude)
@@ -102,7 +102,12 @@ export default function SearchScreen({ navigation }: Props) {
         activeOpacity={0.75}
         onPress={() => navigation.navigate('AnnonceDetail', { annonce: item })}
       >
-        <Image source={{ uri: imageUrl }} style={styles.resultImage} />
+        {imageUrl
+          ? <Image source={{ uri: imageUrl }} style={styles.resultImage} />
+          : <View style={[styles.resultImage, { backgroundColor: COLORS.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
+              <Ionicons name="image-outline" size={24} color={COLORS.border} />
+            </View>
+        }
         <View style={styles.resultInfo}>
           <Text style={styles.resultTitle} numberOfLines={2}>{item.titre}</Text>
           <Text style={styles.resultPrice}>{formatPrix(item.prix)}</Text>

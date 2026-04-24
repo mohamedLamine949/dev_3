@@ -103,7 +103,7 @@ export default function HomeScreen({ navigation }: Props) {
   };
 
   const renderAnnonceCard = ({ item, index }: { item: Annonce; index: number }) => {
-    const imageUrl = item.images?.[0]?.image_url || 'https://picsum.photos/400/400?random=99';
+    const imageUrl = item.images?.[0]?.image_url || null;
     const dist =
       location && (item as any).latitude && (item as any).longitude
         ? getDistance(location.latitude, location.longitude, (item as any).latitude, (item as any).longitude)
@@ -119,7 +119,12 @@ export default function HomeScreen({ navigation }: Props) {
       >
         {/* Image */}
         <View style={styles.cardImageContainer}>
-          <Image source={{ uri: imageUrl }} style={styles.cardImage} />
+          {imageUrl
+            ? <Image source={{ uri: imageUrl }} style={styles.cardImage} />
+            : <View style={[styles.cardImage, styles.imagePlaceholder]}>
+                <Ionicons name="image-outline" size={32} color={COLORS.border} />
+              </View>
+          }
           {/* Badge état */}
           {item.etat_article === 'neuf' && (
             <View style={styles.badgeNeuf}>
@@ -430,6 +435,11 @@ const styles = StyleSheet.create({
   cardMetaText: {
     fontSize: FONTS.xs,
     color: COLORS.textMuted,
+  },
+  imagePlaceholder: {
+    backgroundColor: COLORS.surfaceMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cardMetaDot: {
     fontSize: FONTS.xs,

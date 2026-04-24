@@ -30,10 +30,7 @@ export function useAnnonces(options?: {
 
       let query = supabase
         .from('annonces')
-        .select(`
-          *,
-          images:images_annonce(image_url, ordre)
-        `)
+        .select('*, images:images_annonce(id, image_url, ordre)')
         .eq('statut', 'active')
         .eq('est_payee', true)
         .order('date_creation', { ascending: false });

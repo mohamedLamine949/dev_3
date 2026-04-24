@@ -201,7 +201,7 @@ export default function VendeurProfileScreen({ route, navigation }: Props) {
           ) : (
             <View style={styles.grid}>
               {annonces.map((item, index) => {
-                const imageUrl = item.images?.[0]?.image_url || `https://picsum.photos/seed/${item.id}/300/300`;
+                const imageUrl = item.images?.[0]?.image_url || null;
                 return (
                   <TouchableOpacity
                     key={item.id}
@@ -209,7 +209,12 @@ export default function VendeurProfileScreen({ route, navigation }: Props) {
                     onPress={() => navigation.navigate('AnnonceDetail', { annonce: item })}
                     activeOpacity={0.8}
                   >
-                    <Image source={{ uri: imageUrl }} style={styles.cardImage} />
+                    {imageUrl
+                      ? <Image source={{ uri: imageUrl }} style={styles.cardImage} />
+                      : <View style={[styles.cardImage, { backgroundColor: COLORS.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
+                          <Ionicons name="image-outline" size={28} color={COLORS.border} />
+                        </View>
+                    }
                     <View style={styles.cardInfo}>
                       <Text style={styles.cardTitle} numberOfLines={2}>{item.titre}</Text>
                       <Text style={styles.cardPrice}>{formatPrix(item.prix)}</Text>
