@@ -1,13 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SUPABASE_URL = 'https://jmoudxygkbmxnsquevps.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptb3VkeHlna2JteG5zcXVldnBzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NzE4NjUsImV4cCI6MjA5MjM0Nzg2NX0.5FzzePiknM9GGH6KxtcCUHM1kD99FNcKM0BcD7NL5N4';
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 
-// Pas d'AsyncStorage ici — évite le blocage des requêtes pendant l'init SQLite sur iOS.
-// La persistance de session est gérée manuellement dans AuthContext.
+console.log('🔧 [Supabase Config] URL:', SUPABASE_URL);
+console.log('🔧 [Supabase Config] Key length:', SUPABASE_ANON_KEY?.length);
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
-    persistSession: false,
+    storage: AsyncStorage,
+    persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: false,
   },

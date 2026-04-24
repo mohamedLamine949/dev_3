@@ -24,6 +24,7 @@ import { Annonce } from '../lib/supabase';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { submitAvis } from '../hooks/useAvis';
+import { toggleFavori } from '../hooks/useFavoris';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -58,6 +59,23 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
         .then(({ data }) => { if (data) setSeller(data); });
     }
   }, [annonce.user_id]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    supabase
+      .from('favoris')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .eq('annonce_id', annonce.id)
+      .maybeSingle()
+      .then(({ data }) => setIsFavorite(!!data));
+  }, [session?.user?.id, annonce.id]);
+
+  const handleToggleFavori = async () => {
+    if (!session) { navigation.navigate('Login'); return; }
+    const nowFav = await toggleFavori(session.user.id, annonce.id);
+    setIsFavorite(nowFav);
+  };
 
   const images = annonce.images?.length
     ? annonce.images.map((img) => img.image_url)
@@ -187,7 +205,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.floatingButton}
-              onPress={() => setIsFavorite(!isFavorite)}
+              onPress={handleToggleFavori}
               activeOpacity={0.8}
             >
               <Ionicons

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, Conversation, Message } from '../lib/supabase';
+import { supabase, Message } from '../lib/supabase';
 
 /**
  * Compte les messages non lus pour l'utilisateur (pour le badge de la tab)
@@ -235,18 +235,35 @@ export function useChat(conversationId: string | undefined, currentUserId: strin
  * Trouve ou crée une conversation entre acheteur et vendeur pour une annonce
  */
 export async function getOrCreateConversation(acheteurId: string, vendeurId: string, annonceId: string) {
-  // 1. Chercher si la conversation existe (UNIQUE index)
-  const { data: existing, error: findError } = await supabase
+  if (!acheteurId || !vendeurId || !annonceId) {
+    console.error("getOrCreateConversation: paramètres manquants", { acheteurId, vendeurId, annonceId });
+    return null;
+  }
+
+  // 1. Vérifier que l'annonce existe encore en base
+  const { data: annonceCheck, error: annonceError } = await supabase
+    .from('annonces')
+    .select('id')
+    .eq('id', annonceId)
+    .maybeSingle();
+
+  if (annonceError || !annonceCheck) {
+    console.error("getOrCreateConversation: annonce introuvable", annonceId, annonceError);
+    return null;
+  }
+
+  // 2. Chercher si la conversation existe déjà
+  const { data: existing } = await supabase
     .from('conversations')
     .select('*')
     .eq('acheteur_id', acheteurId)
     .eq('vendeur_id', vendeurId)
     .eq('annonce_id', annonceId)
-    .single();
+    .maybeSingle();
 
   if (existing) return existing;
 
-  // 2. Sinon, on la crée
+  // 3. Sinon, on la crée
   const { data: newConv, error: createError } = await supabase
     .from('conversations')
     .insert({

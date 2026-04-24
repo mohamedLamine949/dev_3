@@ -42,15 +42,6 @@ const MENU_ITEMS = [
     items: [
       { icon: 'list', label: 'Mes annonces', screen: 'MesAnnonces', private: true },
       { icon: 'heart', label: 'Mes favoris', screen: 'Favoris', private: true },
-      { icon: 'clock', label: 'Historique', screen: 'Historique', private: true },
-    ],
-  },
-  {
-    section: 'Paramètres',
-    items: [
-      { icon: 'bell', label: 'Notifications', screen: 'Notifications' },
-      { icon: 'globe', label: 'Langue', screen: 'Langue', value: 'Français' },
-      { icon: 'shield', label: 'Confidentialité', screen: 'Confidentialite' },
     ],
   },
 ];
@@ -70,6 +61,7 @@ export default function ProfileScreen({ navigation }: Props) {
   const [editAvatarBase64, setEditAvatarBase64] = useState<string | null>(null);
   const [editAvatarUri, setEditAvatarUri] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [stats, setStats] = useState({ annonces: 0, avis: 0, avgNote: null as number | null });
 
   useEffect(() => {
@@ -107,12 +99,43 @@ export default function ProfileScreen({ navigation }: Props) {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') { Alert.alert('Permission requise pour accéder aux photos.'); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true,
     });
     if (!result.canceled && result.assets[0].base64) {
       setEditAvatarUri(result.assets[0].uri);
       setEditAvatarBase64(result.assets[0].base64);
+    }
+  };
+
+  const handleAvatarPress = async () => {
+    if (!session) return;
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission requise', 'Autorisez l\'accès à la galerie pour changer votre photo.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true,
+    });
+    if (result.canceled || !result.assets[0].base64) return;
+    try {
+      setIsUploadingAvatar(true);
+      const filePath = `${session.user.id}/avatar.png`;
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, decode(result.assets[0].base64), { contentType: 'image/png', upsert: true });
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+      const { error } = await supabase.from('users').update({ avatar_url: avatarUrl }).eq('id', session.user.id);
+      if (error) throw error;
+      await refreshUser();
+    } catch (err: any) {
+      Alert.alert('Erreur', err.message || 'Impossible d\'uploader la photo.');
+    } finally {
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -123,13 +146,26 @@ export default function ProfileScreen({ navigation }: Props) {
       setIsSaving(true);
       let avatarUrlToSave = user?.avatar_url || null;
       if (editAvatarBase64) {
-        const filePath = `${userId}/${Date.now()}.png`;
+        // On utilise un nom de fichier fixe pour éviter de multiplier les fichiers inutiles
+        const filePath = `${userId}/avatar.png`;
+        
+        console.log("📤 [Upload] Tentative d'upload vers :", filePath);
+        
         const { error: uploadError } = await supabase.storage
-          .from('avatars').upload(filePath, decode(editAvatarBase64), { contentType: 'image/png', upsert: true });
-        if (!uploadError) {
-          const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-          avatarUrlToSave = data.publicUrl;
+          .from('avatars')
+          .upload(filePath, decode(editAvatarBase64), { 
+            contentType: 'image/png', 
+            upsert: true 
+          });
+
+        if (uploadError) {
+          console.error("❌ [Upload Error] :", uploadError);
+          throw new Error(`Erreur lors de l'upload de l'image: ${uploadError.message}`);
         }
+
+        const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+        avatarUrlToSave = `${data.publicUrl}?t=${Date.now()}`; // Ajout d'un cache-buster
+        console.log("✅ [Upload Success] URL publique :", avatarUrlToSave);
       }
       const { error } = await supabase.from('users').upsert({
         id: userId,
@@ -193,7 +229,7 @@ export default function ProfileScreen({ navigation }: Props) {
 
           <TouchableOpacity
             style={styles.avatarWrapper}
-            onPress={session ? openEditModal : undefined}
+            onPress={session ? handleAvatarPress : undefined}
             activeOpacity={0.9}
           >
             {user?.avatar_url ? (
@@ -205,11 +241,15 @@ export default function ProfileScreen({ navigation }: Props) {
                 </Text>
               </View>
             )}
-            {session && (
+            {isUploadingAvatar ? (
+              <View style={[styles.avatarCameraBadge, { backgroundColor: 'rgba(0,0,0,0.5)', width: 90, height: 90, borderRadius: 45, bottom: 0, right: 0, left: 0, top: 0 }]}>
+                <ActivityIndicator size="small" color="#fff" />
+              </View>
+            ) : session ? (
               <View style={styles.avatarCameraBadge}>
                 <Ionicons name="camera" size={12} color="#fff" />
               </View>
-            )}
+            ) : null}
           </TouchableOpacity>
 
           <Text style={styles.displayName}>{displayName}</Text>

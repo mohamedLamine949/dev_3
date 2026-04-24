@@ -18,6 +18,8 @@ import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES } from '../constant
 import { Annonce } from '../lib/supabase';
 import { useAnnonces } from '../hooks/useAnnonces';
 import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
+import { useAuth } from '../contexts/AuthContext';
+import { useFavoris, toggleFavori } from '../hooks/useFavoris';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - SPACING.lg * 2 - SPACING.md) / 2;
@@ -63,6 +65,14 @@ export default function HomeScreen({ navigation }: Props) {
     search: debouncedSearch,
   });
   const { location } = useLocation();
+  const { session } = useAuth();
+  const { favorisIds, refetch: refetchFavoris } = useFavoris(session?.user?.id);
+
+  const handleToggleFavori = async (annonceId: string) => {
+    if (!session) { navigation.navigate('Login'); return; }
+    await toggleFavori(session.user.id, annonceId);
+    refetchFavoris();
+  };
 
   const renderCategoryItem = ({ item }: { item: typeof CATEGORIES[0] }) => {
     const isSelected = selectedCategory === item.id;
@@ -117,8 +127,16 @@ export default function HomeScreen({ navigation }: Props) {
             </View>
           )}
           {/* Bouton favori */}
-          <TouchableOpacity style={styles.favoriteButton} activeOpacity={0.7}>
-            <Ionicons name="heart-outline" size={18} color={COLORS.textInverse} />
+          <TouchableOpacity
+            style={styles.favoriteButton}
+            activeOpacity={0.7}
+            onPress={() => handleToggleFavori(item.id)}
+          >
+            <Ionicons
+              name={favorisIds.has(item.id) ? 'heart' : 'heart-outline'}
+              size={18}
+              color={favorisIds.has(item.id) ? '#ef4444' : COLORS.textInverse}
+            />
           </TouchableOpacity>
         </View>
 

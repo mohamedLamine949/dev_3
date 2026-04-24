@@ -94,7 +94,7 @@ export default function VendeurProfileScreen({ route, navigation }: Props) {
   useEffect(() => {
     supabase
       .from('annonces')
-      .select('*')
+      .select('*, images:images_annonce(image_url, ordre)')
       .eq('user_id', vendeurId)
       .eq('statut', 'active')
       .eq('est_payee', true)

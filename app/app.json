@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "Flash Market",
-    "slug": "flash-market",
+    "name": "Chap Chap",
+    "slug": "chap-chap",
+    "scheme": "chapchap",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -29,7 +30,8 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-secure-store"
     ]
   }
 }

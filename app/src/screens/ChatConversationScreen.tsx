@@ -10,6 +10,7 @@ import {
   Platform,
   StatusBar,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
@@ -51,7 +52,13 @@ export default function ChatConversationScreen({ route, navigation }: Props) {
           return;
         }
         const conv = await getOrCreateConversation(currentUserId, vendeurId, annonceId);
-        if (conv) setActiveConversationId(conv.id);
+        if (conv) {
+          setActiveConversationId(conv.id);
+        } else {
+          Alert.alert('Erreur', 'Impossible de démarrer la conversation. L\'annonce est peut-être introuvable.', [
+            { text: 'OK', onPress: () => navigation.goBack() },
+          ]);
+        }
       }
       setResolving(false);
     }
