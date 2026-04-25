@@ -26,6 +26,7 @@ import PlaceholderScreen from '../screens/PlaceholderScreen';
 import VendeurProfileScreen from '../screens/VendeurProfileScreen';
 import LegalScreen from '../screens/LegalScreen';
 import TermsModal from '../components/TermsModal';
+import NotificationManager from '../components/NotificationManager';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -209,6 +210,7 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer theme={isDark ? MyDarkTheme : MyDefaultTheme}>
+      <NotificationManager />
       <TermsModal />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {/* Pour l'instant, on affiche directement les tabs (démo) */}
