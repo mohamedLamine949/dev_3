@@ -178,7 +178,7 @@ export default function HomeScreen({ navigation }: Props) {
             <Image source={require('../../assets/icon.png')} style={styles.heroLogo} />
             <Text style={styles.heroTitle}>Flash Market</Text>
           </View>
-          <Text style={styles.heroSubtitle}>Achetez & Vendez en un Flash</Text>
+          <Text style={styles.heroSubtitle}>Trouvez ce qu'il vous faut, près de chez vous</Text>
         </View>
       </View>
 

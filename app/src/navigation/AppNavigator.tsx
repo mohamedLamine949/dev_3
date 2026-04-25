@@ -22,6 +22,7 @@ import MesAnnoncesScreen from '../screens/MesAnnoncesScreen';
 import FavorisScreen from '../screens/FavorisScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
 import VendeurProfileScreen from '../screens/VendeurProfileScreen';
+import TermsModal from '../components/TermsModal';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -178,6 +179,7 @@ function MainTabs() {
 export default function AppNavigator() {
   return (
     <NavigationContainer>
+      <TermsModal />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {/* Pour l'instant, on affiche directement les tabs (démo) */}
         <Stack.Screen name="Main" component={MainTabs} />

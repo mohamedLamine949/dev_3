@@ -156,7 +156,7 @@ export default function LoginScreen({ navigation }: Props) {
           <Image source={require('../../assets/icon.png')} style={styles.logoImage} />
         </View>
         <Text style={styles.appName}>Flash Market</Text>
-        <Text style={styles.tagline}>La marketplace du Mali</Text>
+        <Text style={styles.tagline}>Achetez & Vendez en toute confiance</Text>
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.cardWrapper}>

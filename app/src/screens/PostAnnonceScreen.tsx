@@ -59,7 +59,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
           Publiez votre annonce
         </Text>
         <Text style={{ fontSize: FONTS.md, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: SPACING.xxxl }}>
-          Créez un compte gratuit pour vendre vos articles au Mali en quelques minutes.
+          Créez un compte gratuit et publiez votre première annonce en quelques minutes.
         </Text>
         <TouchableOpacity
           style={{ width: '100%', height: 54, backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, justifyContent: 'center', alignItems: 'center' }}
