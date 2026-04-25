@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useConversations } from '../hooks/useChat';
@@ -23,127 +23,6 @@ function timeAgo(dateStr: string): string {
   if (diff < 3600) return `${Math.floor(diff / 60)}min`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
   return `${Math.floor(diff / 86400)}j`;
-}
-
-interface Props {
-  navigation: any;
-}
-
-export default function MessagesScreen({ navigation }: Props) {
-  const { session } = useAuth();
-  const { theme, isDark } = useTheme();
-  const userId = session?.user?.id;
-  
-  const { conversations, loading, refetch } = useConversations(userId);
-
-  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
-
-  const renderConversation = ({ item }: { item: any }) => {
-    const imageUrl = item.annonce?.images?.[0]?.image_url || null;
-    const hasUnread = (item.unread_count || 0) > 0;
-
-    return (
-      <TouchableOpacity
-        style={[styles.conversationCard, hasUnread && styles.conversationCardUnread]}
-        activeOpacity={0.7}
-        onPress={() =>
-          navigation.navigate('ChatConversation', {
-            conversationId: item.id,
-            titrAnnonce: item.annonce?.titre,
-          })
-        }
-      >
-        {/* Image de l'annonce */}
-        {imageUrl
-          ? <Image source={{ uri: imageUrl }} style={styles.conversationImage} />
-          : <View style={[styles.conversationImage, { backgroundColor: theme.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
-              <Ionicons name="pricetag-outline" size={20} color={theme.border} />
-            </View>
-        }
-
-        {/* Contenu */}
-        <View style={styles.conversationContent}>
-          <View style={styles.conversationTop}>
-            <Text style={[styles.conversationTitle, hasUnread && styles.textBold]} numberOfLines={1}>
-              {item.annonce?.titre || 'Annonce supprimée'}
-            </Text>
-            <Text style={[styles.conversationTime, hasUnread && { color: theme.primary }]}>
-              {timeAgo(item.date_dernier_message)}
-            </Text>
-          </View>
-          <View style={styles.conversationBottom}>
-            <Text
-              style={[styles.conversationMessage, hasUnread && styles.textBold]}
-              numberOfLines={1}
-            >
-              {item.dernier_message}
-            </Text>
-            {hasUnread && (
-              <View style={styles.unreadBadge}>
-                <Text style={styles.unreadText}>{item.unread_count}</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  if (!userId) {
-    return (
-      <View style={[styles.container, styles.emptyContainer, { backgroundColor: theme.background }]}>
-        <Ionicons name="log-in-outline" size={56} color={theme.textMuted} />
-        <Text style={styles.emptyTitle}>Non connecté</Text>
-        <Text style={styles.emptyText}>Connectez-vous pour voir vos messages.</Text>
-        <TouchableOpacity 
-          style={{ marginTop: 20, backgroundColor: theme.primary, padding: 12, borderRadius: 8 }}
-          onPress={() => navigation.navigate('Profil')}
-        >
-          <Text style={{ color: '#fff', fontWeight: 'bold' }}>Se connecter</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.container}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.background} />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Messages</Text>
-        <TouchableOpacity activeOpacity={0.7}>
-          <Ionicons name="ellipsis-horizontal" size={24} color={theme.textPrimary} />
-        </TouchableOpacity>
-      </View>
-
-      {loading && conversations.length === 0 ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={theme.primary} />
-        </View>
-      ) : (
-        <FlatList
-          data={conversations}
-          renderItem={renderConversation}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          onRefresh={refetch}
-          refreshing={loading}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="chatbubbles-outline" size={56} color={theme.textMuted} />
-              <Text style={styles.emptyTitle}>Pas encore de messages</Text>
-              <Text style={styles.emptyText}>
-                Contactez un vendeur pour commencer une conversation
-              </Text>
-            </View>
-          }
-        />
-      )}
-    </View>
-  );
 }
 
 const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
@@ -165,7 +44,6 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     fontWeight: FONTS.extrabold,
     color: theme.textPrimary,
   },
-
   listContainer: {
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.md,
@@ -176,8 +54,6 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: theme.borderLight,
     marginLeft: 76,
   },
-
-  // Conversation card
   conversationCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -244,8 +120,6 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     fontWeight: FONTS.bold,
     color: theme.textInverse,
   },
-
-  // Empty
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -264,3 +138,117 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     maxWidth: 250,
   },
 });
+
+export default function MessagesScreen({ navigation }: any) {
+  const { session } = useAuth();
+  const { theme, isDark } = useTheme();
+  const userId = session?.user?.id;
+  
+  const { conversations, loading, refetch } = useConversations(userId);
+
+  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
+  const renderConversation = ({ item }: { item: any }) => {
+    const imageUrl = item.annonce?.images?.[0]?.image_url || null;
+    const hasUnread = (item.unread_count || 0) > 0;
+
+    return (
+      <TouchableOpacity
+        style={[styles.conversationCard, hasUnread && styles.conversationCardUnread]}
+        activeOpacity={0.7}
+        onPress={() =>
+          navigation.navigate('ChatConversation', {
+            conversationId: item.id,
+            titreAnnonce: item.annonce?.titre,
+          })
+        }
+      >
+        {imageUrl
+          ? <Image source={{ uri: imageUrl }} style={styles.conversationImage} />
+          : <View style={[styles.conversationImage, { backgroundColor: theme.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
+              <Ionicons name="pricetag-outline" size={20} color={theme.border} />
+            </View>
+        }
+
+        <View style={styles.conversationContent}>
+          <View style={styles.conversationTop}>
+            <Text style={[styles.conversationTitle, hasUnread && styles.textBold]} numberOfLines={1}>
+              {item.annonce?.titre || 'Annonce supprimée'}
+            </Text>
+            <Text style={[styles.conversationTime, hasUnread && { color: theme.primary }]}>
+              {timeAgo(item.date_dernier_message)}
+            </Text>
+          </View>
+          <View style={styles.conversationBottom}>
+            <Text
+              style={[styles.conversationMessage, hasUnread && styles.textBold]}
+              numberOfLines={1}
+            >
+              {item.dernier_message}
+            </Text>
+            {hasUnread && (
+              <View style={styles.unreadBadge}>
+                <Text style={styles.unreadText}>{item.unread_count}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.background} />
+      
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Messages</Text>
+        <TouchableOpacity onPress={refetch}>
+          <Ionicons name="reload" size={22} color={theme.primary} />
+        </TouchableOpacity>
+      </View>
+
+      {!userId ? (
+        <View style={[styles.container, styles.emptyContainer]}>
+          <Ionicons name="lock-closed-outline" size={64} color={theme.textMuted} />
+          <Text style={styles.emptyTitle}>Connexion requise</Text>
+          <Text style={styles.emptyText}>Connectez-vous pour accéder à vos messages.</Text>
+          <TouchableOpacity 
+            style={{ marginTop: 24, backgroundColor: theme.primary, paddingHorizontal: 32, paddingVertical: 14, borderRadius: RADIUS.lg }}
+            onPress={() => navigation.navigate('Profil')}
+          >
+            <Text style={{ color: '#fff', fontWeight: 'bold' }}>Se connecter</Text>
+          </TouchableOpacity>
+        </View>
+      ) : loading && conversations.length === 0 ? (
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color={theme.primary} />
+        </View>
+      ) : conversations.length === 0 ? (
+        <FlatList
+          data={[]}
+          renderItem={null}
+          refreshing={loading}
+          onRefresh={refetch}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="chatbubbles-outline" size={64} color={theme.textMuted} />
+              <Text style={styles.emptyTitle}>Pas encore de messages</Text>
+              <Text style={styles.emptyText}>Vos conversations apparaîtront ici.</Text>
+            </View>
+          }
+        />
+      ) : (
+        <FlatList
+          data={conversations}
+          renderItem={renderConversation}
+          keyExtractor={(item) => item.id}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          contentContainerStyle={styles.listContainer}
+          onRefresh={refetch}
+          refreshing={loading}
+        />
+      )}
+    </View>
+  );
+}

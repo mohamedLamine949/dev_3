@@ -25,51 +25,7 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diff / 604800)}sem`;
 }
 
-function Stars({ note, size = 14, theme }: { note: number; size?: number; theme: any }) {
-  return (
-    <View style={{ flexDirection: 'row', gap: 2 }}>
-      {[1, 2, 3, 4, 5].map(i => (
-        <Ionicons
-          key={i}
-          name={i <= Math.round(note) ? 'star' : 'star-outline'}
-          size={size}
-          color={i <= Math.round(note) ? '#f59e0b' : theme.borderLight}
-        />
-      ))}
-    </View>
-  );
-}
-
-function AvisCard({ avis: a, theme }: { avis: Avis; theme: any }) {
-  const authorName = a.auteur
-    ? `${a.auteur.prenom || ''} ${a.auteur.nom || ''}`.trim() || 'Anonyme'
-    : 'Anonyme';
-  
-  // We use a simplified version of styles for internal components or pass theme
-  return (
-    <View style={[styles.avisCard, { backgroundColor: theme.surface }]}>
-      <View style={styles.avisHeader}>
-        {a.auteur?.avatar_url ? (
-          <Image source={{ uri: a.auteur.avatar_url }} style={styles.avisAvatar} />
-        ) : (
-          <View style={[styles.avisAvatar, { backgroundColor: theme.primaryFaded, justifyContent: 'center', alignItems: 'center' }]}>
-            <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.primary }}>{authorName.charAt(0).toUpperCase()}</Text>
-          </View>
-        )}
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textPrimary, marginBottom: 3 }}>{authorName}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Stars note={a.note} size={12} theme={theme} />
-            <Text style={{ fontSize: FONTS.xs, color: theme.textMuted }}>{timeAgo(a.date_creation)}</Text>
-          </View>
-        </View>
-      </View>
-      {a.commentaire ? <Text style={{ fontSize: FONTS.sm, color: theme.textSecondary, lineHeight: 20, marginTop: SPACING.sm }}>{a.commentaire}</Text> : null}
-    </View>
-  );
-}
-
-export default function VendeurProfileScreen({ route, navigation }: Props) {
+export default function VendeurProfileScreen({ route, navigation }: any) {
   const { vendeurId } = route.params as { vendeurId: string };
   const { theme, isDark } = useTheme();
   const [seller, setSeller] = useState<any>(null);
@@ -79,6 +35,49 @@ export default function VendeurProfileScreen({ route, navigation }: Props) {
   const { avis, avgNote, loading: loadingAvis } = useSellerAvis(vendeurId);
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
+  function Stars({ note, size = 14 }: { note: number; size?: number }) {
+    return (
+      <View style={{ flexDirection: 'row', gap: 2 }}>
+        {[1, 2, 3, 4, 5].map(i => (
+          <Ionicons
+            key={i}
+            name={i <= Math.round(note) ? 'star' : 'star-outline'}
+            size={size}
+            color={i <= Math.round(note) ? '#f59e0b' : theme.borderLight}
+          />
+        ))}
+      </View>
+    );
+  }
+
+  function AvisCard({ avis: a }: { avis: Avis }) {
+    const authorName = a.auteur
+      ? `${a.auteur.prenom || ''} ${a.auteur.nom || ''}`.trim() || 'Anonyme'
+      : 'Anonyme';
+    
+    return (
+      <View style={[styles.avisCard, { backgroundColor: theme.surface }]}>
+        <View style={styles.avisHeader}>
+          {a.auteur?.avatar_url ? (
+            <Image source={{ uri: a.auteur.avatar_url }} style={styles.avisAvatar} />
+          ) : (
+            <View style={[styles.avisAvatar, { backgroundColor: theme.primaryFaded, justifyContent: 'center', alignItems: 'center' }]}>
+              <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.primary }}>{authorName.charAt(0).toUpperCase()}</Text>
+            </View>
+          )}
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textPrimary, marginBottom: 3 }}>{authorName}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Stars note={a.note} size={12} />
+              <Text style={{ fontSize: FONTS.xs, color: theme.textMuted }}>{timeAgo(a.date_creation)}</Text>
+            </View>
+          </View>
+        </View>
+        {a.commentaire ? <Text style={{ fontSize: FONTS.sm, color: theme.textSecondary, lineHeight: 20, marginTop: SPACING.sm }}>{a.commentaire}</Text> : null}
+      </View>
+    );
+  }
 
   useEffect(() => {
     supabase

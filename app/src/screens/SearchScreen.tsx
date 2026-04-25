@@ -119,37 +119,37 @@ export default function SearchScreen({ navigation }: Props) {
       >
         {imageUrl
           ? <Image source={{ uri: imageUrl }} style={styles.resultImage} />
-          : <View style={[styles.resultImage, { backgroundColor: COLORS.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
-              <Ionicons name="image-outline" size={24} color={COLORS.border} />
+          : <View style={[styles.resultImage, { backgroundColor: theme.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
+              <Ionicons name="image-outline" size={24} color={theme.border} />
             </View>
         }
         <View style={styles.resultInfo}>
           <Text style={styles.resultTitle} numberOfLines={2}>{item.titre}</Text>
           <Text style={styles.resultPrice}>{formatPrix(item.prix)}</Text>
           <View style={styles.resultMeta}>
-            <Ionicons name="location-outline" size={12} color={COLORS.textMuted} />
+            <Ionicons name="location-outline" size={12} color={theme.textMuted} />
             <Text style={styles.resultMetaText}>
               {item.quartier ? `${item.quartier}, ` : ''}{item.ville}
             </Text>
             {dist !== null && (
               <>
                 <Text style={styles.dot}>·</Text>
-                <Ionicons name="navigate-outline" size={11} color={COLORS.primary} />
-                <Text style={[styles.resultMetaText, { color: COLORS.primary }]}>
+                <Ionicons name="navigate-outline" size={11} color={theme.primary} />
+                <Text style={[styles.resultMetaText, { color: theme.primary }]}>
                   {formatDistance(dist)}
                 </Text>
               </>
             )}
           </View>
         </View>
-        <Ionicons name="chevron-forward" size={18} color={COLORS.borderLight} />
+        <Ionicons name="chevron-forward" size={18} color={theme.borderLight} />
       </TouchableOpacity>
     );
   };
 
   // ---- Rendu tuile catégorie ----
   const renderCategoryTile = (cat: typeof CATEGORIES[0]) => {
-    const color = CAT_COLORS[cat.id] || COLORS.primary;
+    const color = CAT_COLORS[cat.id] || theme.primary;
     const emoji = CAT_EMOJIS[cat.id] || '📦';
     return (
       <TouchableOpacity
