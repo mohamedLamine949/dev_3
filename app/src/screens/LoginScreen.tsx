@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   KeyboardAvoidingView, Platform, StatusBar, ScrollView,
-  Alert, ActivityIndicator,
+  Alert, ActivityIndicator, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
@@ -148,7 +148,7 @@ export default function LoginScreen({ navigation }: Props) {
 
       <View style={styles.header}>
         <View style={styles.logoContainer}>
-          <Text style={styles.logoEmoji}>⚡</Text>
+          <Image source={require('../../assets/icon.png')} style={styles.logoImage} />
         </View>
         <Text style={styles.appName}>Flash Market</Text>
         <Text style={styles.tagline}>La marketplace du Mali</Text>
@@ -289,8 +289,8 @@ export default function LoginScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.primary },
   header: { alignItems: 'center', paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingBottom: SPACING.xxl },
-  logoContainer: { width: 72, height: 72, borderRadius: RADIUS.xxl, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center', marginBottom: SPACING.lg },
-  logoEmoji: { fontSize: 36 },
+  logoContainer: { width: 80, height: 80, borderRadius: RADIUS.xxl, overflow: 'hidden', marginBottom: SPACING.lg },
+  logoImage: { width: 80, height: 80 },
   appName: { fontSize: FONTS.xxxl, fontWeight: FONTS.extrabold, color: '#fff', letterSpacing: -0.5 },
   tagline: { fontSize: FONTS.sm, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
   cardWrapper: { flex: 1 },
