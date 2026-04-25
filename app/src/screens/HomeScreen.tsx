@@ -173,7 +173,10 @@ export default function HomeScreen({ navigation }: Props) {
       {/* Hero Section */}
       <View style={styles.heroSection}>
         <View style={styles.heroContent}>
-          <Text style={styles.heroTitle}>⚡ Flash Market</Text>
+          <View style={styles.heroLogoRow}>
+            <Image source={require('../../assets/icon.png')} style={styles.heroLogo} />
+            <Text style={styles.heroTitle}>Flash Market</Text>
+          </View>
           <Text style={styles.heroSubtitle}>Achetez & Vendez en un Flash</Text>
         </View>
       </View>
@@ -287,6 +290,17 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xl,
   },
   heroContent: {},
+  heroLogoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    marginBottom: SPACING.xs,
+  },
+  heroLogo: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+  },
   heroTitle: {
     fontSize: FONTS.xxxl,
     fontWeight: FONTS.extrabold,
