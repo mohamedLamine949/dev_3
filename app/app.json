@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Chap Chap",
-    "slug": "chap-chap",
-    "scheme": "chapchap",
+    "name": "Flash Market",
+    "slug": "flash-market",
+    "scheme": "flashmarket",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -11,20 +11,20 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FF6B35"
+      "backgroundColor": "#16a34a"
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.chapchap.app"
+      "bundleIdentifier": "com.flashmarket.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FF6B35"
+        "backgroundColor": "#16a34a"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.chapchap.app"
+      "package": "com.flashmarket.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
