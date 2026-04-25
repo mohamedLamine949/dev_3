@@ -7,8 +7,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 
-const TERMS_KEY = 'flash_market_terms_accepted_v1';
-
 import { useTheme } from '../contexts/ThemeContext';
 
 const TERMS_KEY = 'flash_market_terms_accepted_v1';
