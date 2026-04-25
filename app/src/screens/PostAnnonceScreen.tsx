@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: 54, paddingHorizontal: SPACING.xl, paddingBottom: SPACING.lg,
+    paddingTop: Platform.OS === 'ios' ? 54 : 36, paddingHorizontal: SPACING.xl, paddingBottom: SPACING.lg,
     backgroundColor: COLORS.background, borderBottomWidth: 1, borderBottomColor: COLORS.borderLight,
   },
   headerTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: COLORS.textPrimary },

@@ -8,6 +8,7 @@ import {
   Image,
   StatusBar,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
@@ -34,7 +35,7 @@ export default function MessagesScreen({ navigation }: Props) {
   const { conversations, loading, refetch } = useConversations(userId);
 
   const renderConversation = ({ item }: { item: any }) => {
-    const imageUrl = item.annonce?.images?.[0]?.image_url || 'https://picsum.photos/100/100';
+    const imageUrl = item.annonce?.images?.[0]?.image_url || null;
     const hasUnread = (item.unread_count || 0) > 0;
 
     return (
@@ -49,7 +50,12 @@ export default function MessagesScreen({ navigation }: Props) {
         }
       >
         {/* Image de l'annonce */}
-        <Image source={{ uri: imageUrl }} style={styles.conversationImage} />
+        {imageUrl
+          ? <Image source={{ uri: imageUrl }} style={styles.conversationImage} />
+          : <View style={[styles.conversationImage, { backgroundColor: COLORS.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
+              <Ionicons name="pricetag-outline" size={20} color={COLORS.border} />
+            </View>
+        }
 
         {/* Contenu */}
         <View style={styles.conversationContent}>
@@ -145,7 +151,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.lg,
     backgroundColor: COLORS.background,

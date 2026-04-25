@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Image, StatusBar, ActivityIndicator,
+  Image, StatusBar, ActivityIndicator, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
@@ -24,14 +24,19 @@ export default function FavorisScreen({ navigation }: any) {
   };
 
   const renderItem = ({ item }: { item: any }) => {
-    const imageUrl = item.images?.[0]?.image_url || `https://picsum.photos/seed/${item.id}/200/200`;
+    const imageUrl = item.images?.[0]?.image_url || null;
     return (
       <TouchableOpacity
         style={styles.card}
         activeOpacity={0.8}
         onPress={() => navigation.navigate('AnnonceDetail', { annonce: item })}
       >
-        <Image source={{ uri: imageUrl }} style={styles.image} />
+        {imageUrl
+          ? <Image source={{ uri: imageUrl }} style={styles.image} />
+          : <View style={[styles.image, { backgroundColor: COLORS.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
+              <Ionicons name="image-outline" size={22} color={COLORS.border} />
+            </View>
+        }
         <View style={styles.info}>
           <Text style={styles.title} numberOfLines={2}>{item.titre}</Text>
           <Text style={styles.price}>{formatPrix(item.prix)}</Text>
@@ -104,7 +109,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: 54, paddingHorizontal: SPACING.md, paddingBottom: SPACING.md,
+    paddingTop: Platform.OS === 'ios' ? 54 : 36, paddingHorizontal: SPACING.md, paddingBottom: SPACING.md,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1, borderBottomColor: COLORS.borderLight,
   },

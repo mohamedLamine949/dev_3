@@ -9,6 +9,7 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
@@ -62,7 +63,7 @@ export default function MesAnnoncesScreen({ navigation }: any) {
   };
 
   const renderItem = ({ item }: { item: Annonce }) => {
-    const imageUrl = item.images?.[0]?.image_url || 'https://picsum.photos/200';
+    const imageUrl = item.images?.[0]?.image_url || null;
     const badge = getStatusBadge(item.statut, item.est_payee);
 
     return (
@@ -72,7 +73,12 @@ export default function MesAnnoncesScreen({ navigation }: any) {
         onPress={() => navigation.navigate('AnnonceDetail', { annonce: item })}
         onLongPress={() => handleManage(item)}
       >
-        <Image source={{ uri: imageUrl }} style={styles.image} />
+        {imageUrl
+          ? <Image source={{ uri: imageUrl }} style={styles.image} />
+          : <View style={[styles.image, { backgroundColor: COLORS.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
+              <Ionicons name="image-outline" size={24} color={COLORS.border} />
+            </View>
+        }
         <View style={styles.info}>
           <View style={styles.headerRow}>
             <Text style={styles.title} numberOfLines={1}>{item.titre}</Text>
@@ -141,7 +147,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 54,
+    paddingTop: Platform.OS === 'ios' ? 54 : 36,
     paddingHorizontal: SPACING.md,
     paddingBottom: SPACING.md,
     backgroundColor: COLORS.surface,

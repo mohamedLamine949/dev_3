@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 54,
+    paddingTop: Platform.OS === 'ios' ? 54 : 36,
     paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.md,
     backgroundColor: COLORS.surface,

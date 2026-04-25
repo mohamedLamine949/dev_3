@@ -12,6 +12,7 @@ import {
   Animated,
   StatusBar,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES } from '../constants/theme';
@@ -286,7 +287,7 @@ const styles = StyleSheet.create({
 
   // Hero
   heroSection: {
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingBottom: SPACING.xl,
   },
   heroContent: {},
