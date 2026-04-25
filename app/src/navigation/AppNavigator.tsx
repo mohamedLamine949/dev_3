@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,6 +30,8 @@ import NotificationManager from '../components/NotificationManager';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+
+export const navigationRef = createNavigationContainerRef();
 
 // Stack pour l'onglet Accueil
 function HomeStack() {
@@ -209,7 +211,7 @@ export default function AppNavigator() {
   };
 
   return (
-    <NavigationContainer theme={isDark ? MyDarkTheme : MyDefaultTheme}>
+    <NavigationContainer ref={navigationRef} theme={isDark ? MyDarkTheme : MyDefaultTheme}>
       <NotificationManager />
       <TermsModal />
       <Stack.Navigator screenOptions={{ headerShown: false }}>

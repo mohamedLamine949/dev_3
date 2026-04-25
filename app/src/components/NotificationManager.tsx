@@ -1,10 +1,9 @@
 import React, { useEffect } from 'react';
-import { useNavigation } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
 import { useNotifications } from '../hooks/useNotifications';
+import { navigationRef } from '../navigation/AppNavigator';
 
 export default function NotificationManager() {
-  const navigation = useNavigation<any>();
   const { notification } = useNotifications();
 
   useEffect(() => {
@@ -12,8 +11,8 @@ export default function NotificationManager() {
     const subscription = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data;
       
-      if (data?.conversationId) {
-        navigation.navigate('Messages', {
+      if (data?.conversationId && navigationRef.isReady()) {
+        navigationRef.navigate('Messages', {
           screen: 'ChatConversation',
           params: { 
             conversationId: data.conversationId,
@@ -24,7 +23,7 @@ export default function NotificationManager() {
     });
 
     return () => subscription.remove();
-  }, [navigation]);
+  }, []);
   
   return null;
 }

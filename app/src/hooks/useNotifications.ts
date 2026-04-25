@@ -39,12 +39,8 @@ export function useNotifications() {
     });
 
     return () => {
-      if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
-      }
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
-      }
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
     };
   }, [session?.user?.id]);
 
@@ -90,15 +86,20 @@ async function registerForPushNotificationsAsync() {
     }
     
     try {
-        const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
-        if (!projectId) {
-            console.error('Project ID not found. Make sure to configure EAS or use a fixed projectId in app.json');
+        const projectId = 
+          Constants?.expoConfig?.extra?.eas?.projectId ?? 
+          Constants?.easConfig?.projectId ??
+          ''; // Laissez vide si non trouvé, l'erreur sera gérée plus bas
+          
+        if (!projectId && Device.isDevice) {
+            console.warn('Project ID non trouvé dans la configuration Expo. Les notifications distantes pourraient ne pas fonctionner sans projectId dans app.json.');
         }
+
         token = (await Notifications.getExpoPushTokenAsync({
-            projectId: projectId,
+            ...(projectId ? { projectId } : {}),
         })).data;
     } catch (e) {
-        console.error('Error getting push token:', e);
+        console.log('Erreur lors de la récupération du push token (normal en simulateur ou sans config EAS):', e);
     }
   } else {
     console.log('Must use physical device for Push Notifications');
