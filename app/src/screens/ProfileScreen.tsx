@@ -423,15 +423,31 @@ export default function ProfileScreen({ navigation }: Props) {
           <TouchableOpacity
             style={[styles.menuItem, { marginTop: SPACING.md, backgroundColor: theme.surface, borderRadius: RADIUS.lg }]}
             onPress={async () => {
+              const { status: existingStatus } = await Notifications.getPermissionsAsync();
+              let finalStatus = existingStatus;
+              if (existingStatus !== 'granted') {
+                const { status } = await Notifications.requestPermissionsAsync();
+                finalStatus = status;
+              }
+              
+              if (finalStatus !== 'granted') {
+                Alert.alert("Permission refusée", "Vous devez autoriser les notifications dans les réglages de votre appareil pour tester cette fonctionnalité.");
+                return;
+              }
+
               await Notifications.scheduleNotificationAsync({
                 content: {
-                  title: "Nouveau message ! 📬",
-                  body: "Vous avez reçu un message pour l'annonce 'iPhone 15 Pro'",
-                  data: { conversationId: 'test-id', titreAnnonce: 'iPhone 15 Pro' },
+                  title: "Test de notification 🔔",
+                  body: "Ceci est un test local. Cliquez pour simuler l'ouverture d'un message.",
+                  data: { conversationId: 'test-id', titreAnnonce: 'Annonce Test' },
                 },
-                trigger: { seconds: 2 },
+                trigger: { seconds: 3 },
               });
-              Alert.alert("Notification test", "La notification arrivera dans 2 secondes. Fermez l'app ou attendez.");
+              
+              Alert.alert(
+                "Test lancé", 
+                "La notification arrivera dans 3 secondes.\n\nCONSEIL : Verrouillez votre téléphone ou quittez l'application pour la voir apparaître comme une vraie notification."
+              );
             }}
           >
             <View style={styles.menuItemLeft}>
