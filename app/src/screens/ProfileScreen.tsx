@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   StatusBar, Alert, Image, Modal, TextInput, ActivityIndicator,
-  Linking, Platform,
+  Linking, Platform, KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 
@@ -400,6 +400,7 @@ export default function ProfileScreen({ navigation }: Props) {
 
       {/* Modal d'édition */}
       <Modal visible={isEditing} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setIsEditing(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.modal}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setIsEditing(false)}>
@@ -414,7 +415,7 @@ export default function ProfileScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
 
-          <ScrollView contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false}>
+          <ScrollView contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* Avatar */}
             <TouchableOpacity style={styles.modalAvatar} onPress={pickImage} activeOpacity={0.8}>
               {editAvatarUri
@@ -479,9 +480,10 @@ export default function ProfileScreen({ navigation }: Props) {
                 />
               </View>
             ))}
-            <View style={{ height: 40 }} />
+            <View style={{ height: 80 }} />
           </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
