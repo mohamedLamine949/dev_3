@@ -1,54 +1,86 @@
 /**
  * Chap Chap - Design System & Theme
- * Palette vibrante, moderne, inspirée de l'Afrique de l'Ouest
+ * Palette vibrante, moderne, avec support Mode Sombre
  */
 
-export const COLORS = {
-  // Couleur principale - Vert argent (marketplace premium)
+export const LIGHT_COLORS = {
   primary: '#15803d',
   primaryLight: '#16a34a',
   primaryDark: '#166534',
   primaryFaded: 'rgba(21, 128, 61, 0.12)',
 
-  // Couleur secondaire - Or premium
   secondary: '#ca8a04',
   secondaryLight: '#eab308',
   secondaryDark: '#a16207',
 
-  // Couleur d'accent - Émeraude
   accent: '#34d399',
   accentDark: '#10b981',
 
-  // Arrière-plans
   background: '#FAFBFD',
   surface: '#FFFFFF',
   surfaceElevated: '#FFFFFF',
   surfaceMuted: '#F4F5F7',
 
-  // Textes
   textPrimary: '#1A1D26',
   textSecondary: '#6B7280',
   textMuted: '#9CA3AF',
   textInverse: '#FFFFFF',
 
-  // États
   success: '#00B894',
   warning: '#FDCB6E',
   error: '#FF6B6B',
   info: '#74B9FF',
 
-  // Bordures & séparateurs
   border: '#E8ECF1',
   borderLight: '#F0F2F5',
   divider: '#F0F2F5',
 
-  // Overlay
   overlay: 'rgba(0, 0, 0, 0.5)',
   overlayLight: 'rgba(0, 0, 0, 0.2)',
 };
 
+export const DARK_COLORS = {
+  primary: '#16a34a', // Slightly brighter in dark mode
+  primaryLight: '#22c55e',
+  primaryDark: '#15803d',
+  primaryFaded: 'rgba(22, 163, 74, 0.15)',
+
+  secondary: '#eab308',
+  secondaryLight: '#facc15',
+  secondaryDark: '#ca8a04',
+
+  accent: '#34d399',
+  accentDark: '#10b981',
+
+  background: '#0F172A',
+  surface: '#1E293B',
+  surfaceElevated: '#334155',
+  surfaceMuted: '#1E293B',
+
+  textPrimary: '#F8FAFC',
+  textSecondary: '#94A3B8',
+  textMuted: '#64748B',
+  textInverse: '#FFFFFF',
+
+  success: '#00B894',
+  warning: '#FDCB6E',
+  error: '#FF6B6B',
+  info: '#74B9FF',
+
+  border: '#334155',
+  borderLight: '#1E293B',
+  divider: '#334155',
+
+  overlay: 'rgba(0, 0, 0, 0.7)',
+  overlayLight: 'rgba(0, 0, 0, 0.4)',
+};
+
+export type ThemeColors = typeof LIGHT_COLORS;
+
+// Par défaut pour la compatibilité
+export const COLORS = LIGHT_COLORS;
+
 export const FONTS = {
-  // Tailles
   xs: 11,
   sm: 13,
   md: 15,
@@ -57,8 +89,6 @@ export const FONTS = {
   xxl: 24,
   xxxl: 32,
   hero: 40,
-
-  // Poids
   regular: '400' as const,
   medium: '500' as const,
   semibold: '600' as const,

@@ -15,11 +15,11 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES } from '../constants/theme';
-import { Annonce } from '../lib/supabase';
+import { FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES } from '../constants/theme';
 import { useAnnonces } from '../hooks/useAnnonces';
 import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useFavoris, toggleFavori } from '../hooks/useFavoris';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -49,6 +49,7 @@ interface Props {
 }
 
 export default function HomeScreen({ navigation }: Props) {
+  const { theme, isDark } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -89,7 +90,7 @@ export default function HomeScreen({ navigation }: Props) {
         <Feather
           name={item.icon as any}
           size={16}
-          color={isSelected ? COLORS.textInverse : COLORS.textSecondary}
+          color={isSelected ? theme.textInverse : theme.textSecondary}
         />
         <Text
           style={[
@@ -123,7 +124,7 @@ export default function HomeScreen({ navigation }: Props) {
           {imageUrl
             ? <Image source={{ uri: imageUrl }} style={styles.cardImage} />
             : <View style={[styles.cardImage, styles.imagePlaceholder]}>
-                <Ionicons name="image-outline" size={32} color={COLORS.border} />
+                <Ionicons name="image-outline" size={32} color={theme.border} />
               </View>
           }
           {/* Badge état */}
@@ -141,7 +142,7 @@ export default function HomeScreen({ navigation }: Props) {
             <Ionicons
               name={favorisIds.has(item.id) ? 'heart' : 'heart-outline'}
               size={18}
-              color={favorisIds.has(item.id) ? '#ef4444' : COLORS.textInverse}
+              color={favorisIds.has(item.id) ? '#ef4444' : theme.textInverse}
             />
           </TouchableOpacity>
         </View>
@@ -151,14 +152,14 @@ export default function HomeScreen({ navigation }: Props) {
           <Text style={styles.cardTitle} numberOfLines={2}>{item.titre}</Text>
           <Text style={styles.cardPrice}>{formatPrix(item.prix)}</Text>
           <View style={styles.cardMeta}>
-            <Ionicons name="location-outline" size={12} color={COLORS.textMuted} />
+            <Ionicons name="location-outline" size={12} color={theme.textMuted} />
             <Text style={styles.cardMetaText} numberOfLines={1}>
               {(item as any).quartier || item.ville}
             </Text>
             {dist !== null && (
               <>
                 <Text style={styles.cardMetaDot}>·</Text>
-                <Text style={[styles.cardMetaText, { color: COLORS.primary }]}>
+                <Text style={[styles.cardMetaText, { color: theme.primary }]}>
                   {formatDistance(dist)}
                 </Text>
               </>
@@ -185,17 +186,17 @@ export default function HomeScreen({ navigation }: Props) {
       {/* Barre de recherche */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
-          <Feather name="search" size={20} color={COLORS.textMuted} />
+          <Feather name="search" size={20} color={theme.textMuted} />
           <TextInput
             style={styles.searchInput}
             placeholder="Que cherchez-vous ?"
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={theme.textMuted}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
+              <Ionicons name="close-circle" size={20} color={theme.textMuted} />
             </TouchableOpacity>
           )}
         </View>
@@ -221,25 +222,27 @@ export default function HomeScreen({ navigation }: Props) {
     </View>
   );
 
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.background} />
       {loading && annonces.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 }}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={{ fontSize: FONTS.sm, color: COLORS.textMuted }}>Chargement des annonces…</Text>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={{ fontSize: FONTS.sm, color: theme.textMuted }}>Chargement des annonces…</Text>
         </View>
       ) : error && annonces.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: SPACING.xxl, gap: 16 }}>
-          <Feather name="wifi-off" size={48} color={COLORS.textMuted} />
-          <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.semibold, color: COLORS.textPrimary, textAlign: 'center' }}>
+          <Feather name="wifi-off" size={48} color={theme.textMuted} />
+          <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.semibold, color: theme.textPrimary, textAlign: 'center' }}>
             Connexion impossible
           </Text>
-          <Text style={{ fontSize: FONTS.sm, color: COLORS.textMuted, textAlign: 'center' }}>
+          <Text style={{ fontSize: FONTS.sm, color: theme.textMuted, textAlign: 'center' }}>
             {error || 'Vérifiez votre connexion internet ou réessayez dans quelques instants.'}
           </Text>
           <TouchableOpacity
-            style={{ backgroundColor: COLORS.primary, paddingHorizontal: 28, paddingVertical: 13, borderRadius: RADIUS.lg }}
+            style={{ backgroundColor: theme.primary, paddingHorizontal: 28, paddingVertical: 13, borderRadius: RADIUS.lg }}
             onPress={refetch}
             activeOpacity={0.8}
           >
@@ -259,13 +262,13 @@ export default function HomeScreen({ navigation }: Props) {
             <RefreshControl
               refreshing={loading}
               onRefresh={refetch}
-              colors={[COLORS.primary]}
-              tintColor={COLORS.primary}
+              colors={[theme.primary]}
+              tintColor={theme.primary}
             />
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Feather name="inbox" size={48} color={COLORS.textMuted} />
+              <Feather name="inbox" size={48} color={theme.textMuted} />
               <Text style={styles.emptyText}>Aucune annonce trouvée</Text>
             </View>
           }
@@ -275,10 +278,10 @@ export default function HomeScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   listContainer: {
     paddingHorizontal: SPACING.lg,
@@ -305,12 +308,12 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: FONTS.xxxl,
     fontWeight: FONTS.extrabold,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     letterSpacing: -0.5,
   },
   heroSubtitle: {
     fontSize: FONTS.md,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginTop: SPACING.xs,
   },
 
@@ -321,7 +324,7 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: theme.surfaceMuted,
     borderRadius: RADIUS.lg,
     paddingHorizontal: SPACING.lg,
     paddingVertical: 14,
@@ -330,7 +333,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: FONTS.md,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     padding: 0,
   },
 
@@ -346,21 +349,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm + 2,
     borderRadius: RADIUS.full,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: theme.surfaceMuted,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: theme.borderLight,
   },
   categoryChipSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
   },
   categoryLabel: {
     fontSize: FONTS.sm,
     fontWeight: FONTS.medium,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   categoryLabelSelected: {
-    color: COLORS.textInverse,
+    color: theme.textInverse,
   },
 
   // Section
@@ -373,12 +376,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: FONTS.lg,
     fontWeight: FONTS.bold,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   sectionLink: {
     fontSize: FONTS.sm,
     fontWeight: FONTS.semibold,
-    color: COLORS.primary,
+    color: theme.primary,
   },
 
   // Card annonce
@@ -386,7 +389,7 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     marginBottom: SPACING.lg,
     borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.surface,
+    backgroundColor: theme.surface,
     overflow: 'hidden',
     ...SHADOWS.md,
   },
@@ -398,13 +401,13 @@ const styles = StyleSheet.create({
   cardImage: {
     width: '100%',
     height: '100%',
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: theme.surfaceMuted,
   },
   badgeNeuf: {
     position: 'absolute',
     top: SPACING.sm,
     left: SPACING.sm,
-    backgroundColor: COLORS.secondary,
+    backgroundColor: theme.secondary,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 3,
     borderRadius: RADIUS.xs,
@@ -412,7 +415,7 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 10,
     fontWeight: FONTS.bold,
-    color: COLORS.textInverse,
+    color: theme.textInverse,
     letterSpacing: 0.5,
   },
   favoriteButton: {
@@ -432,14 +435,14 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: FONTS.sm,
     fontWeight: FONTS.semibold,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     lineHeight: 18,
     marginBottom: SPACING.xs,
   },
   cardPrice: {
     fontSize: FONTS.md,
     fontWeight: FONTS.bold,
-    color: COLORS.primary,
+    color: theme.primary,
     marginBottom: SPACING.xs,
   },
   cardMeta: {
@@ -449,16 +452,16 @@ const styles = StyleSheet.create({
   },
   cardMetaText: {
     fontSize: FONTS.xs,
-    color: COLORS.textMuted,
+    color: theme.textMuted,
   },
   imagePlaceholder: {
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: theme.surfaceMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
   cardMetaDot: {
     fontSize: FONTS.xs,
-    color: COLORS.textMuted,
+    color: theme.textMuted,
     marginHorizontal: 2,
   },
 
@@ -471,6 +474,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: FONTS.md,
-    color: COLORS.textMuted,
+    color: theme.textMuted,
   },
 });

@@ -26,6 +26,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { submitAvis } from '../hooks/useAvis';
 import { toggleFavori } from '../hooks/useFavoris';
 
+import { useTheme } from '../contexts/ThemeContext';
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 function formatPrix(prix: number): string {
@@ -40,6 +42,7 @@ interface Props {
 export default function AnnonceDetailScreen({ route, navigation }: Props) {
   const { annonce } = route.params as { annonce: Annonce };
   const { session } = useAuth();
+  const { theme, isDark } = useTheme();
   const [isFavorite, setIsFavorite] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -138,6 +141,8 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
     });
   };
 
+  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -147,7 +152,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
         <View style={styles.imageCarousel}>
           {images.length === 0 ? (
             <View style={styles.imagePlaceholder}>
-              <Ionicons name="image-outline" size={64} color={COLORS.border} />
+              <Ionicons name="image-outline" size={64} color={theme.border} />
               <Text style={styles.imagePlaceholderText}>Aucune photo</Text>
             </View>
           ) : null}
@@ -217,7 +222,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
               <Ionicons
                 name={isFavorite ? 'heart' : 'heart-outline'}
                 size={22}
-                color={isFavorite ? COLORS.error : '#fff'}
+                color={isFavorite ? theme.error : '#fff'}
               />
             </TouchableOpacity>
           </View>
@@ -237,15 +242,15 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
           {/* Tags */}
           <View style={styles.tagsRow}>
             <View style={styles.tag}>
-              <Feather name="tag" size={12} color={COLORS.primary} />
+              <Feather name="tag" size={12} color={theme.primary} />
               <Text style={styles.tagText}>{categoryLabel}</Text>
             </View>
             <View style={styles.tag}>
-              <Feather name="check-circle" size={12} color={COLORS.secondary} />
+              <Feather name="check-circle" size={12} color={theme.secondary} />
               <Text style={styles.tagText}>{etatLabel}</Text>
             </View>
             <View style={styles.tag}>
-              <Ionicons name="location-outline" size={13} color={COLORS.textSecondary} />
+              <Ionicons name="location-outline" size={13} color={theme.textSecondary} />
               <Text style={styles.tagText}>
                 {(annonce as any).quartier ? `${(annonce as any).quartier}, ${annonce.ville}` : annonce.ville}
               </Text>
@@ -289,24 +294,24 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
                       <Text style={styles.sellerMeta}>Vendeur sur Flash Market</Text>
                     )}
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={COLORS.borderLight} />
+                  <Ionicons name="chevron-forward" size={18} color={theme.borderLight} />
                 </TouchableOpacity>
 
                 {/* Boutons de contact */}
                 <View style={styles.contactButtons}>
                   {seller?.telephone && (
                     <TouchableOpacity
-                      style={[styles.contactBtn, { backgroundColor: '#15803d15', borderColor: COLORS.primary }]}
+                      style={[styles.contactBtn, { backgroundColor: isDark ? 'rgba(0, 184, 148, 0.1)' : '#15803d15', borderColor: theme.primary }]}
                       onPress={() => Linking.openURL(`tel:${seller.telephone}`)}
                       activeOpacity={0.8}
                     >
-                      <Ionicons name="call-outline" size={18} color={COLORS.primary} />
-                      <Text style={[styles.contactBtnText, { color: COLORS.primary }]}>Appeler</Text>
+                      <Ionicons name="call-outline" size={18} color={theme.primary} />
+                      <Text style={[styles.contactBtnText, { color: theme.primary }]}>Appeler</Text>
                     </TouchableOpacity>
                   )}
                   {seller?.whatsapp && (
                     <TouchableOpacity
-                      style={[styles.contactBtn, { backgroundColor: '#25D36615', borderColor: '#25D366' }]}
+                      style={[styles.contactBtn, { backgroundColor: 'rgba(37, 211, 102, 0.1)', borderColor: '#25D366' }]}
                       onPress={() => Linking.openURL(`https://wa.me/${seller.whatsapp.replace(/[^0-9]/g, '')}`)}
                       activeOpacity={0.8}
                     >
@@ -320,19 +325,19 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
                 {(seller?.instagram || seller?.tiktok || seller?.facebook) && (
                   <View style={styles.sellerSocials}>
                     {seller.instagram && (
-                      <TouchableOpacity onPress={() => Linking.openURL(`https://instagram.com/${seller.instagram.replace('@','')}`)} style={[styles.socialChip, { backgroundColor: '#E1306C15' }]}>
+                      <TouchableOpacity onPress={() => Linking.openURL(`https://instagram.com/${seller.instagram.replace('@','')}`)} style={[styles.socialChip, { backgroundColor: 'rgba(225, 48, 108, 0.1)' }]}>
                         <Ionicons name="logo-instagram" size={14} color="#E1306C" />
                         <Text style={[styles.socialChipText, { color: '#E1306C' }]}>{seller.instagram}</Text>
                       </TouchableOpacity>
                     )}
                     {seller.tiktok && (
-                      <TouchableOpacity onPress={() => Linking.openURL(`https://tiktok.com/@${seller.tiktok.replace('@','')}`)} style={[styles.socialChip, { backgroundColor: '#01010115' }]}>
-                        <Ionicons name="musical-notes-outline" size={14} color="#010101" />
-                        <Text style={[styles.socialChipText, { color: '#333' }]}>{seller.tiktok}</Text>
+                      <TouchableOpacity onPress={() => Linking.openURL(`https://tiktok.com/@${seller.tiktok.replace('@','')}`)} style={[styles.socialChip, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(1, 1, 1, 0.1)' }]}>
+                        <Ionicons name="musical-notes-outline" size={14} color={isDark ? '#fff' : '#010101'} />
+                        <Text style={[styles.socialChipText, { color: theme.textPrimary }]}>{seller.tiktok}</Text>
                       </TouchableOpacity>
                     )}
                     {seller.facebook && (
-                      <TouchableOpacity onPress={() => Linking.openURL(`https://facebook.com/${seller.facebook}`)} style={[styles.socialChip, { backgroundColor: '#1877F215' }]}>
+                      <TouchableOpacity onPress={() => Linking.openURL(`https://facebook.com/${seller.facebook}`)} style={[styles.socialChip, { backgroundColor: 'rgba(24, 119, 242, 0.1)' }]}>
                         <Ionicons name="logo-facebook" size={14} color="#1877F2" />
                         <Text style={[styles.socialChipText, { color: '#1877F2' }]}>{seller.facebook}</Text>
                       </TouchableOpacity>
@@ -350,15 +355,15 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
               onPress={() => setShowReviewModal(true)}
               activeOpacity={0.8}
             >
-              <Ionicons name="star-outline" size={16} color={COLORS.secondary} />
+              <Ionicons name="star-outline" size={16} color={theme.secondary} />
               <Text style={styles.reviewBtnText}>Laisser un avis sur ce vendeur</Text>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.secondary} />
+              <Ionicons name="chevron-forward" size={16} color={theme.secondary} />
             </TouchableOpacity>
           )}
 
           {/* Sécurité */}
           <View style={styles.securityCard}>
-            <Ionicons name="shield-checkmark" size={20} color={COLORS.secondary} />
+            <Ionicons name="shield-checkmark" size={20} color={theme.secondary} />
             <View style={styles.securityInfo}>
               <Text style={styles.securityTitle}>Conseils de sécurité</Text>
               <Text style={styles.securityText}>
@@ -392,7 +397,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
                     <Ionicons
                       name={i <= reviewNote ? 'star' : 'star-outline'}
                       size={38}
-                      color={i <= reviewNote ? '#f59e0b' : COLORS.border}
+                      color={i <= reviewNote ? '#f59e0b' : theme.border}
                     />
                   </TouchableOpacity>
                 ))}
@@ -407,7 +412,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
               <TextInput
                 style={styles.reviewInput}
                 placeholder="Commentaire (facultatif)…"
-                placeholderTextColor={COLORS.textMuted}
+                placeholderTextColor={theme.textMuted}
                 value={reviewComment}
                 onChangeText={setReviewComment}
                 multiline
@@ -451,20 +456,357 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
             }
           }}
         >
-          <Ionicons name="call-outline" size={22} color={COLORS.primary} />
+          <Ionicons name="call-outline" size={22} color={theme.primary} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.ctaMessageButton}
           onPress={handleContact}
           activeOpacity={0.8}
         >
-          <Ionicons name="chatbubble-outline" size={20} color={COLORS.textInverse} />
+          <Ionicons name="chatbubble-outline" size={20} color={theme.textInverse} />
           <Text style={styles.ctaMessageText}>Contacter le vendeur</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
+
+const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+
+  // Image carousel
+  imageCarousel: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH * 0.85,
+    backgroundColor: theme.surfaceMuted,
+    position: 'relative',
+  },
+  carouselImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH * 0.85,
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    position: 'absolute',
+    bottom: SPACING.lg,
+    alignSelf: 'center',
+    gap: 6,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+  },
+  dotActive: {
+    backgroundColor: '#fff',
+    width: 20,
+  },
+  photoCountBadge: {
+    position: 'absolute',
+    bottom: SPACING.lg,
+    right: SPACING.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: 4,
+    borderRadius: RADIUS.full,
+  },
+  photoCountText: {
+    color: '#fff',
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.semibold,
+  },
+
+  imagePlaceholder: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH * 0.85,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.surfaceMuted,
+    gap: SPACING.sm,
+  },
+  imagePlaceholderText: {
+    fontSize: FONTS.sm,
+    color: theme.textMuted,
+  },
+
+  // Floating header
+  floatingHeader: {
+    position: 'absolute',
+    top: 50,
+    left: SPACING.lg,
+    right: SPACING.lg,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    zIndex: 10,
+  },
+  floatingRight: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  floatingButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Detail
+  detailContainer: {
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.xl,
+    backgroundColor: theme.background,
+    borderTopLeftRadius: RADIUS.xxl,
+    borderTopRightRadius: RADIUS.xxl,
+    marginTop: -SPACING.xl,
+  },
+
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  price: {
+    fontSize: FONTS.xxl,
+    fontWeight: FONTS.extrabold,
+    color: theme.primary,
+  },
+  negotiableBadge: {
+    backgroundColor: isDark ? 'rgba(0, 184, 148, 0.15)' : theme.primaryFaded,
+    paddingHorizontal: SPACING.sm + 2,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
+  },
+  negotiableText: {
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.semibold,
+    color: theme.primary,
+  },
+
+  title: {
+    fontSize: FONTS.xl,
+    fontWeight: FONTS.bold,
+    color: theme.textPrimary,
+    lineHeight: 26,
+    marginBottom: SPACING.lg,
+  },
+
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    marginBottom: SPACING.xl,
+  },
+  tag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: theme.surfaceMuted,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+  },
+  tagText: {
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.medium,
+    color: theme.textSecondary,
+  },
+
+  divider: {
+    height: 1,
+    backgroundColor: theme.borderLight,
+    marginVertical: SPACING.xl,
+  },
+
+  sectionTitle: {
+    fontSize: FONTS.lg,
+    fontWeight: FONTS.bold,
+    color: theme.textPrimary,
+    marginBottom: SPACING.md,
+  },
+  description: {
+    fontSize: FONTS.md,
+    color: theme.textSecondary,
+    lineHeight: 24,
+  },
+
+  // Vendeur
+  sellerSection: { gap: SPACING.md },
+  sellerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.surface,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    ...SHADOWS.sm,
+  },
+  sellerAvatarImg: {
+    width: 48, height: 48, borderRadius: 24, marginRight: SPACING.md,
+  },
+  sellerAvatar: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: theme.primaryFaded,
+    justifyContent: 'center', alignItems: 'center',
+    marginRight: SPACING.md,
+  },
+  sellerAvatarText: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.primary },
+  sellerInfo: { flex: 1 },
+  sellerName: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: theme.textPrimary },
+  sellerBio: { fontSize: FONTS.sm, color: theme.textSecondary, marginTop: 2, lineHeight: 18 },
+  sellerMeta: { fontSize: FONTS.sm, color: theme.textMuted, marginTop: 2 },
+  contactButtons: { flexDirection: 'row', gap: SPACING.md },
+  contactBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 7, paddingVertical: 12, borderRadius: RADIUS.lg, borderWidth: 1.5,
+  },
+  contactBtnText: { fontSize: FONTS.sm, fontWeight: FONTS.bold },
+  sellerSocials: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  socialChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: SPACING.md, paddingVertical: 6,
+    borderRadius: RADIUS.full,
+  },
+  socialChipText: { fontSize: FONTS.xs, fontWeight: FONTS.semibold },
+
+  // Sécurité
+  securityCard: {
+    flexDirection: 'row',
+    backgroundColor: isDark ? 'rgba(0, 184, 148, 0.1)' : 'rgba(0, 184, 148, 0.08)',
+    padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    marginTop: SPACING.xl,
+    gap: SPACING.md,
+  },
+  securityInfo: {
+    flex: 1,
+  },
+  securityTitle: {
+    fontSize: FONTS.sm,
+    fontWeight: FONTS.semibold,
+    color: theme.textPrimary,
+    marginBottom: 4,
+  },
+  securityText: {
+    fontSize: FONTS.sm,
+    color: theme.textSecondary,
+    lineHeight: 20,
+  },
+
+  // Bouton avis
+  reviewBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    backgroundColor: isDark ? 'rgba(202, 138, 4, 0.1)' : 'rgba(202, 138, 4, 0.08)',
+    borderWidth: 1, borderColor: isDark ? 'rgba(202, 138, 4, 0.4)' : 'rgba(202, 138, 4, 0.3)',
+    borderRadius: RADIUS.lg, paddingHorizontal: SPACING.lg, paddingVertical: 14,
+    marginTop: SPACING.lg,
+  },
+  reviewBtnText: {
+    flex: 1, fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.secondary,
+  },
+
+  // Modal avis
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: theme.surface,
+    borderTopLeftRadius: RADIUS.xxl, borderTopRightRadius: RADIUS.xxl,
+    paddingHorizontal: SPACING.xl, paddingBottom: 40, paddingTop: SPACING.lg,
+    alignItems: 'center',
+  },
+  modalHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: theme.border, marginBottom: SPACING.xl,
+  },
+  modalTitle: {
+    fontSize: FONTS.xl, fontWeight: FONTS.bold,
+    color: theme.textPrimary, marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: FONTS.sm, color: theme.textMuted, marginBottom: SPACING.xl,
+  },
+  starsRow: {
+    flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.sm,
+  },
+  noteLabel: {
+    fontSize: FONTS.sm, fontWeight: FONTS.semibold,
+    color: '#f59e0b', marginBottom: SPACING.xl,
+  },
+  reviewInput: {
+    width: '100%', height: 90,
+    backgroundColor: theme.surfaceMuted,
+    borderWidth: 1, borderColor: theme.borderLight,
+    borderRadius: RADIUS.lg, padding: SPACING.md,
+    fontSize: FONTS.md, color: theme.textPrimary,
+    marginBottom: SPACING.xl,
+  },
+  modalActions: {
+    flexDirection: 'row', gap: SPACING.md, width: '100%',
+  },
+  modalCancelBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: RADIUS.lg,
+    backgroundColor: theme.surfaceMuted, alignItems: 'center',
+  },
+  modalCancelText: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: theme.textSecondary },
+  modalSubmitBtn: {
+    flex: 2, paddingVertical: 14, borderRadius: RADIUS.lg,
+    backgroundColor: theme.secondary, alignItems: 'center',
+  },
+  modalSubmitText: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
+
+  // CTA
+  ctaContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.lg,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 14,
+    backgroundColor: theme.surface,
+    borderTopWidth: 1,
+    borderTopColor: theme.borderLight,
+    gap: SPACING.md,
+    ...SHADOWS.lg,
+  },
+  ctaPhoneButton: {
+    width: 52,
+    height: 52,
+    borderRadius: RADIUS.lg,
+    borderWidth: 2,
+    borderColor: theme.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ctaMessageButton: {
+    flex: 1,
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.primary,
+    borderRadius: RADIUS.lg,
+    gap: SPACING.sm,
+    ...SHADOWS.colored,
+  },
+  ctaMessageText: {
+    fontSize: FONTS.md,
+    fontWeight: FONTS.bold,
+    color: theme.textInverse,
+  },
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -13,7 +13,9 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { useTheme } from '../contexts/ThemeContext';
+import { ScrollView } from 'react-native';
 import { Message } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useChat, getOrCreateConversation } from '../hooks/useChat';
@@ -32,7 +34,16 @@ interface Props {
 export default function ChatConversationScreen({ route, navigation }: Props) {
   const { conversationId: initialConvId, titrAnnonce, vendeurId, annonceId } = route.params || {};
   const { session } = useAuth();
+  const { theme, isDark } = useTheme();
   const currentUserId = session?.user?.id;
+  
+  const QUICK_REPLIES = [
+    "Est-ce toujours disponible ?",
+    "Quel est votre dernier prix ?",
+    "Où peut-on se voir ?",
+    "C'est mon dernier prix.",
+    "Merci !",
+  ];
   
   const [activeConversationId, setActiveConversationId] = useState<string | undefined>(initialConvId);
   const [resolving, setResolving] = useState(!initialConvId);
@@ -97,7 +108,7 @@ export default function ChatConversationScreen({ route, navigation }: Props) {
               <Ionicons
                 name={item.lu ? 'checkmark-done' : 'checkmark'}
                 size={14}
-                color={item.lu ? COLORS.secondary : 'rgba(255,255,255,0.5)'}
+                color={item.lu ? theme.secondary : 'rgba(255,255,255,0.5)'}
                 style={{ marginLeft: 4 }}
               />
             )}
@@ -107,22 +118,24 @@ export default function ChatConversationScreen({ route, navigation }: Props) {
     );
   };
 
-  if (resolving || loading && messages.length === 0) {
+  if (resolving || (loading && messages.length === 0)) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
 
+  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={theme.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <Text style={styles.headerTitle} numberOfLines={1}>
@@ -131,7 +144,7 @@ export default function ChatConversationScreen({ route, navigation }: Props) {
           <Text style={styles.headerSubtitle}>{activeConversationId ? 'En ligne' : 'Nouvelle discussion'}</Text>
         </View>
         <TouchableOpacity activeOpacity={0.7}>
-          <Ionicons name="call-outline" size={22} color={COLORS.primary} />
+          <Ionicons name="call-outline" size={22} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
@@ -151,13 +164,35 @@ export default function ChatConversationScreen({ route, navigation }: Props) {
           onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
         />
 
+        {/* Suggestions */}
+        <View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.suggestionsContainer}
+          >
+            {QUICK_REPLIES.map((text, idx) => (
+              <TouchableOpacity
+                key={idx}
+                style={[styles.suggestionChip, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                onPress={() => {
+                  setInputText(text);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.suggestionText, { color: theme.textPrimary }]}>{text}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         {/* Input */}
-        <View style={styles.inputContainer}>
-          <View style={styles.inputWrapper}>
+        <View style={[styles.inputContainer, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+          <View style={[styles.inputWrapper, { backgroundColor: theme.surfaceMuted }]}>
             <TextInput
-              style={styles.textInput}
+              style={[styles.textInput, { color: theme.textPrimary }]}
               placeholder="Écrire un message..."
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={theme.textMuted}
               value={inputText}
               onChangeText={setInputText}
               multiline
@@ -165,12 +200,12 @@ export default function ChatConversationScreen({ route, navigation }: Props) {
             />
           </View>
           <TouchableOpacity
-            style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+            style={[styles.sendButton, { backgroundColor: theme.primary }, !inputText.trim() && { backgroundColor: theme.textMuted, shadowOpacity: 0, elevation: 0 }]}
             onPress={handleSend}
             disabled={!inputText.trim()}
             activeOpacity={0.7}
           >
-            <Ionicons name="send" size={20} color={COLORS.textInverse} />
+            <Ionicons name="send" size={20} color={theme.textInverse} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -178,10 +213,10 @@ export default function ChatConversationScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: theme.surfaceMuted,
   },
 
   // Header
@@ -191,9 +226,9 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 54 : 36,
     paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.md,
-    backgroundColor: COLORS.surface,
+    backgroundColor: theme.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
+    borderBottomColor: theme.borderLight,
     gap: SPACING.md,
   },
   headerInfo: {
@@ -202,11 +237,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: FONTS.md,
     fontWeight: FONTS.bold,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   headerSubtitle: {
     fontSize: FONTS.xs,
-    color: COLORS.secondary,
+    color: theme.secondary,
     marginTop: 1,
   },
 
@@ -231,21 +266,21 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.xl,
   },
   bubbleOther: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: theme.surface,
     borderBottomLeftRadius: RADIUS.xs,
     ...SHADOWS.sm,
   },
   bubbleMe: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: theme.primary,
     borderBottomRightRadius: RADIUS.xs,
   },
   messageText: {
     fontSize: FONTS.md,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     lineHeight: 21,
   },
   messageTextMe: {
-    color: COLORS.textInverse,
+    color: theme.textInverse,
   },
   messageFooter: {
     flexDirection: 'row',
@@ -255,10 +290,27 @@ const styles = StyleSheet.create({
   },
   messageTime: {
     fontSize: 10,
-    color: COLORS.textMuted,
+    color: theme.textMuted,
   },
   messageTimeMe: {
     color: 'rgba(255,255,255,0.6)',
+  },
+
+  // Suggestions
+  suggestionsContainer: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    gap: SPACING.sm,
+  },
+  suggestionChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 8,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+  },
+  suggestionText: {
+    fontSize: FONTS.sm,
+    fontWeight: FONTS.medium,
   },
 
   // Input
@@ -267,15 +319,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
-    paddingBottom: 34,
-    backgroundColor: COLORS.surface,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 14,
     gap: SPACING.sm,
   },
   inputWrapper: {
     flex: 1,
-    backgroundColor: COLORS.surfaceMuted,
     borderRadius: RADIUS.xxl,
     paddingHorizontal: SPACING.lg,
     paddingVertical: Platform.OS === 'ios' ? 10 : 4,
@@ -283,21 +331,14 @@ const styles = StyleSheet.create({
   },
   textInput: {
     fontSize: FONTS.md,
-    color: COLORS.textPrimary,
     padding: 0,
   },
   sendButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
     ...SHADOWS.colored,
-  },
-  sendButtonDisabled: {
-    backgroundColor: COLORS.textMuted,
-    shadowOpacity: 0,
-    elevation: 0,
   },
 });

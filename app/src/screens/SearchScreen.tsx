@@ -14,10 +14,12 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, RADIUS, CATEGORIES, SHADOWS } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, CATEGORIES, SHADOWS, ETAT_ARTICLE } from '../constants/theme';
 import { Annonce } from '../lib/supabase';
 import { useAnnonces } from '../hooks/useAnnonces';
 import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
+import { useTheme } from '../contexts/ThemeContext';
+import { Modal } from 'react-native';
 
 const { width: W } = Dimensions.get('window');
 const TILE_SIZE = (W - SPACING.lg * 2 - SPACING.md) / 2;
@@ -67,9 +69,17 @@ interface Props {
 }
 
 export default function SearchScreen({ navigation }: Props) {
+  const { theme, isDark } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // Filtres avancés
+  const [showFilters, setShowFilters] = useState(false);
+  const [minPrice, setMinPrice] = useState<string>('');
+  const [maxPrice, setMaxPrice] = useState<string>('');
+  const [selectedEtat, setSelectedEtat] = useState<string | null>(null);
+  const [orderBy, setOrderBy] = useState<'newest' | 'price_asc' | 'price_desc'>('newest');
 
   const { location } = useLocation();
   const inResultsMode = debouncedSearch.length > 0 || selectedCategory !== null;
@@ -82,6 +92,10 @@ export default function SearchScreen({ navigation }: Props) {
   const { annonces, loading } = useAnnonces({
     categorie: selectedCategory,
     search: debouncedSearch || undefined,
+    minPrice: minPrice ? parseInt(minPrice) : null,
+    maxPrice: maxPrice ? parseInt(maxPrice) : null,
+    etat: selectedEtat,
+    orderBy: orderBy,
   });
 
   const clearFilters = () => {
@@ -154,9 +168,11 @@ export default function SearchScreen({ navigation }: Props) {
     ? CATEGORIES.find(c => c.id === selectedCategory)?.label
     : null;
 
+  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.background} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -165,7 +181,7 @@ export default function SearchScreen({ navigation }: Props) {
         {/* Localisation */}
         {location && (
           <View style={styles.locationBadge}>
-            <Ionicons name="location" size={13} color={COLORS.primary} />
+            <Ionicons name="location" size={13} color={theme.primary} />
             <Text style={styles.locationText}>
               {location.quartier ? `${location.quartier}, ` : ''}{location.ville || 'Mali'}
             </Text>
@@ -173,22 +189,31 @@ export default function SearchScreen({ navigation }: Props) {
         )}
 
         {/* Barre de recherche */}
-        <View style={styles.searchBar}>
-          <Feather name="search" size={18} color={COLORS.textMuted} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={activeCatLabel ? `Rechercher dans ${activeCatLabel}…` : 'Que cherchez-vous ?'}
-            placeholderTextColor={COLORS.textMuted}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            returnKeyType="search"
-            autoCorrect={false}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
-            </TouchableOpacity>
-          )}
+        <View style={styles.searchRow}>
+          <View style={styles.searchBar}>
+            <Feather name="search" size={18} color={theme.textMuted} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={activeCatLabel ? `Rechercher dans ${activeCatLabel}…` : 'Que cherchez-vous ?'}
+              placeholderTextColor={theme.textMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={18} color={theme.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+          <TouchableOpacity 
+            style={[styles.filterBtn, (minPrice || maxPrice || selectedEtat || orderBy !== 'newest') && styles.filterBtnActive]} 
+            onPress={() => setShowFilters(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="options-outline" size={22} color={(minPrice || maxPrice || selectedEtat || orderBy !== 'newest') ? '#fff' : theme.primary} />
+          </TouchableOpacity>
         </View>
 
         {/* Chip catégorie active */}
@@ -226,7 +251,7 @@ export default function SearchScreen({ navigation }: Props) {
           {location && (
             <View style={styles.nearbySection}>
               <View style={styles.nearbySectionHeader}>
-                <Ionicons name="navigate" size={16} color={COLORS.primary} />
+                <Ionicons name="navigate" size={16} color={theme.primary} />
                 <Text style={styles.nearbyTitle}>Près de moi</Text>
               </View>
               <Text style={styles.nearbySubtitle}>
@@ -249,7 +274,7 @@ export default function SearchScreen({ navigation }: Props) {
         /* MODE RÉSULTATS */
         loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
+            <ActivityIndicator size="large" color={theme.primary} />
           </View>
         ) : (
           <FlatList
@@ -268,7 +293,7 @@ export default function SearchScreen({ navigation }: Props) {
             }
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Feather name="search" size={48} color={COLORS.border} />
+                <Feather name="search" size={48} color={theme.border} />
                 <Text style={styles.emptyTitle}>Aucun résultat</Text>
                 <Text style={styles.emptyText}>
                   Essayez avec d'autres mots-clés ou une autre catégorie.
@@ -281,24 +306,119 @@ export default function SearchScreen({ navigation }: Props) {
           />
         )
       )}
+
+      {/* Modal Filtres */}
+      <Modal visible={showFilters} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowFilters(false)}>
+        <View style={styles.modal}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowFilters(false)}>
+              <Ionicons name="close" size={26} color={theme.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Filtres</Text>
+            <TouchableOpacity onPress={() => {
+              setMinPrice('');
+              setMaxPrice('');
+              setSelectedEtat(null);
+              setOrderBy('newest');
+            }}>
+              <Text style={styles.modalReset}>Réinitialiser</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+            {/* Prix */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>Prix (FCFA)</Text>
+              <View style={styles.priceRow}>
+                <TextInput
+                  style={styles.priceInput}
+                  placeholder="Min"
+                  placeholderTextColor={theme.textMuted}
+                  keyboardType="numeric"
+                  value={minPrice}
+                  onChangeText={setMinPrice}
+                />
+                <View style={styles.priceSeparator} />
+                <TextInput
+                  style={styles.priceInput}
+                  placeholder="Max"
+                  placeholderTextColor={theme.textMuted}
+                  keyboardType="numeric"
+                  value={maxPrice}
+                  onChangeText={setMaxPrice}
+                />
+              </View>
+            </View>
+
+            {/* État */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>État de l'article</Text>
+              <View style={styles.chipRow}>
+                {ETAT_ARTICLE.map(etat => (
+                  <TouchableOpacity
+                    key={etat.id}
+                    style={[styles.chip, selectedEtat === etat.id && styles.chipSelected]}
+                    onPress={() => setSelectedEtat(selectedEtat === etat.id ? null : etat.id)}
+                  >
+                    <Text style={[styles.chipText, selectedEtat === etat.id && styles.chipTextSelected]}>
+                      {etat.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Tri */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>Trier par</Text>
+              <View style={styles.chipRow}>
+                <TouchableOpacity
+                  style={[styles.chip, orderBy === 'newest' && styles.chipSelected]}
+                  onPress={() => setOrderBy('newest')}
+                >
+                  <Text style={[styles.chipText, orderBy === 'newest' && styles.chipTextSelected]}>Plus récent</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.chip, orderBy === 'price_asc' && styles.chipSelected]}
+                  onPress={() => setOrderBy('price_asc')}
+                >
+                  <Text style={[styles.chipText, orderBy === 'price_asc' && styles.chipTextSelected]}>Prix croissant</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.chip, orderBy === 'price_desc' && styles.chipSelected]}
+                  onPress={() => setOrderBy('price_desc')}
+                >
+                  <Text style={[styles.chipText, orderBy === 'price_desc' && styles.chipTextSelected]}>Prix décroissant</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.applyBtn} onPress={() => setShowFilters(false)}>
+              <Text style={styles.applyBtnText}>Appliquer les filtres</Text>
+            </TouchableOpacity>
+            
+            <View style={{ height: 100 }} />
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
 
   header: {
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.md,
     gap: SPACING.sm,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   title: {
     fontSize: FONTS.xxl,
     fontWeight: FONTS.extrabold,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   locationBadge: {
     flexDirection: 'row',
@@ -307,24 +427,44 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: FONTS.xs,
-    color: COLORS.primary,
+    color: theme.primary,
     fontWeight: FONTS.semibold,
   },
-  searchBar: {
+  searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surfaceMuted,
+    gap: SPACING.sm,
+  },
+  searchBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.surfaceMuted,
     borderRadius: RADIUS.lg,
     paddingHorizontal: SPACING.lg,
     paddingVertical: 13,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: theme.borderLight,
     gap: SPACING.sm,
+  },
+  filterBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: RADIUS.lg,
+    backgroundColor: theme.surfaceMuted,
+    borderWidth: 1,
+    borderColor: theme.borderLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterBtnActive: {
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
   },
   searchInput: {
     flex: 1,
     fontSize: FONTS.md,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     padding: 0,
   },
   activeFilter: {
@@ -347,7 +487,7 @@ const styles = StyleSheet.create({
   },
   resultCount: {
     fontSize: FONTS.sm,
-    color: COLORS.textMuted,
+    color: theme.textMuted,
     fontWeight: FONTS.medium,
   },
 
@@ -359,7 +499,7 @@ const styles = StyleSheet.create({
   browseTitle: {
     fontSize: FONTS.md,
     fontWeight: FONTS.semibold,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
     marginBottom: SPACING.lg,
   },
   grid: {
@@ -386,7 +526,7 @@ const styles = StyleSheet.create({
   // Nearby section
   nearbySection: {
     marginTop: SPACING.xxl,
-    backgroundColor: COLORS.primaryFaded,
+    backgroundColor: isDark ? theme.surface : theme.primaryFaded,
     borderRadius: RADIUS.xl,
     padding: SPACING.xl,
     gap: SPACING.sm,
@@ -399,18 +539,18 @@ const styles = StyleSheet.create({
   nearbyTitle: {
     fontSize: FONTS.lg,
     fontWeight: FONTS.bold,
-    color: COLORS.primary,
+    color: theme.primary,
   },
   nearbySubtitle: {
     fontSize: FONTS.sm,
-    color: COLORS.textSecondary,
+    color: theme.textSecondary,
   },
   nearbyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.sm,
-    backgroundColor: COLORS.primary,
+    backgroundColor: theme.primary,
     borderRadius: RADIUS.lg,
     paddingVertical: 12,
     marginTop: SPACING.sm,
@@ -430,7 +570,7 @@ const styles = StyleSheet.create({
   resultCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.surface,
+    backgroundColor: theme.surface,
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
     marginBottom: SPACING.md,
@@ -440,35 +580,35 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: RADIUS.md,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: theme.surfaceMuted,
   },
   resultInfo: { flex: 1, marginLeft: SPACING.md, gap: 3 },
   resultTitle: {
     fontSize: FONTS.md,
     fontWeight: FONTS.semibold,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   resultPrice: {
     fontSize: FONTS.md,
     fontWeight: FONTS.bold,
-    color: COLORS.primary,
+    color: theme.primary,
   },
   resultMeta: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  resultMetaText: { fontSize: FONTS.xs, color: COLORS.textMuted },
-  dot: { fontSize: FONTS.xs, color: COLORS.textMuted, marginHorizontal: 1 },
+  resultMetaText: { fontSize: FONTS.xs, color: theme.textMuted },
+  dot: { fontSize: FONTS.xs, color: theme.textMuted, marginHorizontal: 1 },
 
   // Empty
   emptyContainer: { paddingVertical: 80, alignItems: 'center' },
   emptyTitle: {
     fontSize: FONTS.lg,
     fontWeight: FONTS.bold,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginTop: SPACING.lg,
     marginBottom: SPACING.sm,
   },
   emptyText: {
     fontSize: FONTS.sm,
-    color: COLORS.textMuted,
+    color: theme.textMuted,
     textAlign: 'center',
     paddingHorizontal: 40,
     lineHeight: 20,
@@ -477,12 +617,64 @@ const styles = StyleSheet.create({
   emptyBackBtn: {
     paddingHorizontal: SPACING.xxl,
     paddingVertical: SPACING.md,
-    backgroundColor: COLORS.primaryFaded,
+    backgroundColor: theme.primaryFaded,
     borderRadius: RADIUS.lg,
   },
   emptyBackText: {
     fontSize: FONTS.sm,
     fontWeight: FONTS.semibold,
-    color: COLORS.primary,
+    color: theme.primary,
   },
+
+  // Modal Filtres
+  modal: { flex: 1, backgroundColor: theme.background },
+  modalHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    paddingHorizontal: SPACING.xl, paddingBottom: SPACING.lg,
+    backgroundColor: theme.surface,
+    borderBottomWidth: 1, borderBottomColor: theme.borderLight,
+  },
+  modalTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.textPrimary },
+  modalReset: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.error },
+  modalBody: { padding: SPACING.xl },
+  filterSection: { marginBottom: SPACING.xxl },
+  filterLabel: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.textSecondary, textTransform: 'uppercase', marginBottom: SPACING.lg },
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
+  priceInput: {
+    flex: 1,
+    backgroundColor: theme.surfaceMuted,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 12,
+    fontSize: FONTS.md,
+    color: theme.textPrimary,
+    borderWidth: 1,
+    borderColor: theme.borderLight,
+  },
+  priceSeparator: { width: 10, height: 1, backgroundColor: theme.textMuted },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  chip: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 10,
+    borderRadius: RADIUS.full,
+    backgroundColor: theme.surfaceMuted,
+    borderWidth: 1,
+    borderColor: theme.borderLight,
+  },
+  chipSelected: {
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
+  },
+  chipText: { fontSize: FONTS.sm, color: theme.textSecondary, fontWeight: FONTS.medium },
+  chipTextSelected: { color: '#fff' },
+  applyBtn: {
+    backgroundColor: theme.primary,
+    borderRadius: RADIUS.lg,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginTop: SPACING.xl,
+    ...SHADOWS.colored,
+  },
+  applyBtnText: { color: '#fff', fontSize: FONTS.md, fontWeight: FONTS.bold },
 });

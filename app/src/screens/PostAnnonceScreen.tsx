@@ -20,6 +20,7 @@ import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, ETAT_ARTICLE } fro
 import { createAnnonce } from '../hooks/useAnnonces';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation } from '../hooks/useLocation';
+import { useTheme } from '../contexts/ThemeContext';
 
 const MAX_IMAGES = 5;
 
@@ -30,6 +31,7 @@ interface Props {
 export default function PostAnnonceScreen({ navigation }: any) {
   const { session } = useAuth();
   const { location } = useLocation();
+  const { theme, isDark } = useTheme();
 
   const [images, setImages] = useState<string[]>([]);
   const [titre, setTitre] = useState('');
@@ -49,26 +51,28 @@ export default function PostAnnonceScreen({ navigation }: any) {
     if (location?.quartier) setQuartier(location.quartier);
   }, [location]);
 
+  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
   // Gate doux — afficher un écran d'invitation si non connecté
   if (!session) {
     return (
-      <View style={{ flex: 1, backgroundColor: COLORS.background, justifyContent: 'center', alignItems: 'center', padding: SPACING.xxl }}>
-        <StatusBar barStyle="dark-content" />
+      <View style={{ flex: 1, backgroundColor: theme.background, justifyContent: 'center', alignItems: 'center', padding: SPACING.xxl }}>
+        <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
         <Text style={{ fontSize: 56, marginBottom: SPACING.xl }}>📢</Text>
-        <Text style={{ fontSize: FONTS.xxl, fontWeight: FONTS.extrabold, color: COLORS.textPrimary, textAlign: 'center', marginBottom: SPACING.md }}>
+        <Text style={{ fontSize: FONTS.xxl, fontWeight: FONTS.extrabold, color: theme.textPrimary, textAlign: 'center', marginBottom: SPACING.md }}>
           Publiez votre annonce
         </Text>
-        <Text style={{ fontSize: FONTS.md, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: SPACING.xxxl }}>
+        <Text style={{ fontSize: FONTS.md, color: theme.textSecondary, textAlign: 'center', lineHeight: 22, marginBottom: SPACING.xxxl }}>
           Créez un compte gratuit et publiez votre première annonce en quelques minutes.
         </Text>
         <TouchableOpacity
-          style={{ width: '100%', height: 54, backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, justifyContent: 'center', alignItems: 'center' }}
+          style={{ width: '100%', height: 54, backgroundColor: theme.primary, borderRadius: RADIUS.lg, justifyContent: 'center', alignItems: 'center' }}
           onPress={() => navigation.navigate('Login')}
           activeOpacity={0.85}
         >
           <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' }}>Se connecter / S'inscrire</Text>
         </TouchableOpacity>
-        <Text style={{ fontSize: FONTS.xs, color: COLORS.textMuted, marginTop: SPACING.xl, textAlign: 'center' }}>
+        <Text style={{ fontSize: FONTS.xs, color: theme.textMuted, marginTop: SPACING.xl, textAlign: 'center' }}>
           La navigation et le contact vendeur sont gratuits sans compte.
         </Text>
       </View>
@@ -177,12 +181,12 @@ export default function PostAnnonceScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.background} />
 
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7}>
-          <Ionicons name="close" size={26} color={COLORS.textPrimary} />
+          <Ionicons name="close" size={26} color={theme.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Déposer une annonce</Text>
         <View style={{ width: 26 }} />
@@ -199,7 +203,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
           <Text style={styles.sectionHint}>Ajoutez jusqu'à {MAX_IMAGES} photos. La première sera la photo principale.</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.imageRow}>
             <TouchableOpacity style={styles.imageAddButton} onPress={pickImage} activeOpacity={0.7}>
-              <Ionicons name="camera" size={28} color={COLORS.primary} />
+              <Ionicons name="camera" size={28} color={theme.primary} />
               <Text style={styles.imageAddText}>{images.length}/{MAX_IMAGES}</Text>
             </TouchableOpacity>
 
@@ -207,7 +211,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
               <View key={index} style={styles.imagePreviewContainer}>
                 <Image source={{ uri }} style={styles.imagePreview} />
                 <TouchableOpacity style={styles.imageRemoveButton} onPress={() => removeImage(index)}>
-                  <Ionicons name="close-circle" size={22} color={COLORS.error} />
+                  <Ionicons name="close-circle" size={22} color={theme.error} />
                 </TouchableOpacity>
                 {index === 0 && (
                   <View style={styles.mainPhotoBadge}>
@@ -223,7 +227,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
           <TextInput
             style={styles.input}
             placeholder="Ex: iPhone 15 Pro Max 256GB"
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={theme.textMuted}
             value={titre}
             onChangeText={setTitre}
             maxLength={80}
@@ -269,7 +273,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
             <TextInput
               style={styles.priceInput}
               placeholder="Ex: 15000"
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={theme.textMuted}
               value={prix}
               onChangeText={setPrix}
               keyboardType="numeric"
@@ -284,7 +288,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
           <TextInput
             style={styles.input}
             placeholder="Ex: ACI 2000, Badalabougou..."
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={theme.textMuted}
             value={quartier}
             onChangeText={setQuartier}
           />
@@ -294,7 +298,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
           <TextInput
             style={[styles.input, styles.textArea]}
             placeholder="Décrivez votre article en quelques lignes..."
-            placeholderTextColor={COLORS.textMuted}
+            placeholderTextColor={theme.textMuted}
             value={description}
             onChangeText={setDescription}
             multiline
@@ -310,7 +314,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
             </View>
             <View style={styles.costDivider} />
             <View style={styles.costInfo}>
-              <Ionicons name="information-circle-outline" size={16} color={COLORS.textMuted} />
+              <Ionicons name="information-circle-outline" size={16} color={theme.textMuted} />
               <Text style={styles.costInfoText}>Le paiement s'effectuera via Mobile Money.</Text>
             </View>
           </View>
@@ -327,7 +331,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
           disabled={!isFormValid}
           activeOpacity={0.8}
         >
-          <Ionicons name="flash" size={20} color={COLORS.textInverse} />
+          <Ionicons name="flash" size={20} color={theme.textInverse} />
           <Text style={styles.ctaText}>Publier pour 150 FCFA</Text>
         </TouchableOpacity>
       </View>
@@ -352,7 +356,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
               <Text style={styles.modalTitle}>Paiement Mobile Money</Text>
               {paymentStep !== 'processing' && paymentStep !== 'success' && (
                 <TouchableOpacity onPress={() => setPaymentModalVisible(false)}>
-                  <Ionicons name="close-circle" size={28} color={COLORS.textMuted} />
+                  <Ionicons name="close-circle" size={28} color={theme.textMuted} />
                 </TouchableOpacity>
               )}
             </View>
@@ -373,6 +377,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
                 <TextInput
                   style={styles.input}
                   placeholder="Ex: 76 00 00 00"
+                  placeholderTextColor={theme.textMuted}
                   keyboardType="numeric"
                   value={paymentPhone}
                   onChangeText={setPaymentPhone}
@@ -384,7 +389,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
                   onPress={performPaymentAndUpload}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="lock-closed" size={20} color={COLORS.textInverse} />
+                  <Ionicons name="lock-closed" size={20} color={theme.textInverse} />
                   <Text style={styles.ctaText}>Payer avec Orange Money</Text>
                 </TouchableOpacity>
               </View>
@@ -392,7 +397,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
 
             {paymentStep === 'processing' && (
               <View style={styles.processingContainer}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
+                <ActivityIndicator size="large" color={theme.primary} />
                 <Text style={styles.processingTitle}>Traitement en cours...</Text>
                 <Text style={styles.processingText}>Communication avec Orange Money et upload de vos photos. Ne quittez pas cette page.</Text>
               </View>
@@ -400,8 +405,8 @@ export default function PostAnnonceScreen({ navigation }: any) {
 
             {paymentStep === 'success' && (
               <View style={styles.processingContainer}>
-                <Ionicons name="checkmark-circle" size={80} color={COLORS.success} />
-                <Text style={[styles.processingTitle, { color: COLORS.success }]}>Paiement Réussi !</Text>
+                <Ionicons name="checkmark-circle" size={80} color={theme.success} />
+                <Text style={[styles.processingTitle, { color: theme.success }]}>Paiement Réussi !</Text>
                 <Text style={styles.processingText}>Votre paiement de 150 FCFA a été validé. Votre annonce est maintenant en ligne.</Text>
               </View>
             )}
@@ -409,63 +414,62 @@ export default function PostAnnonceScreen({ navigation }: any) {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: Platform.OS === 'ios' ? 54 : 36, paddingHorizontal: SPACING.xl, paddingBottom: SPACING.lg,
-    backgroundColor: COLORS.background, borderBottomWidth: 1, borderBottomColor: COLORS.borderLight,
+    backgroundColor: theme.background, borderBottomWidth: 1, borderBottomColor: theme.borderLight,
   },
-  headerTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: COLORS.textPrimary },
+  headerTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.textPrimary },
   scrollContent: { paddingHorizontal: SPACING.xl, paddingTop: SPACING.xl },
-  sectionTitle: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: COLORS.textPrimary, marginBottom: SPACING.sm, marginTop: SPACING.xl },
-  optionalLabel: { fontSize: FONTS.xs, fontWeight: '400', color: COLORS.textMuted },
-  sectionHint: { fontSize: FONTS.sm, color: COLORS.textMuted, marginBottom: SPACING.md },
+  sectionTitle: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: theme.textPrimary, marginBottom: SPACING.sm, marginTop: SPACING.xl },
+  optionalLabel: { fontSize: FONTS.xs, fontWeight: '400', color: theme.textMuted },
+  sectionHint: { fontSize: FONTS.sm, color: theme.textMuted, marginBottom: SPACING.md },
   imageRow: { gap: SPACING.md, paddingVertical: SPACING.sm },
-  imageAddButton: { width: 100, height: 100, borderRadius: RADIUS.lg, borderWidth: 2, borderStyle: 'dashed', borderColor: COLORS.primary, backgroundColor: COLORS.primaryFaded, justifyContent: 'center', alignItems: 'center', gap: 4 },
-  imageAddText: { fontSize: FONTS.xs, fontWeight: FONTS.semibold, color: COLORS.primary },
+  imageAddButton: { width: 100, height: 100, borderRadius: RADIUS.lg, borderWidth: 2, borderStyle: 'dashed', borderColor: theme.primary, backgroundColor: theme.primaryFaded, justifyContent: 'center', alignItems: 'center', gap: 4 },
+  imageAddText: { fontSize: FONTS.xs, fontWeight: FONTS.semibold, color: theme.primary },
   imagePreviewContainer: { position: 'relative' },
   imagePreview: { width: 100, height: 100, borderRadius: RADIUS.lg },
-  imageRemoveButton: { position: 'absolute', top: -6, right: -6, backgroundColor: COLORS.surface, borderRadius: 12 },
+  imageRemoveButton: { position: 'absolute', top: -6, right: -6, backgroundColor: theme.surface, borderRadius: 12 },
   mainPhotoBadge: { position: 'absolute', bottom: 4, left: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.6)', paddingVertical: 2, borderRadius: 4, alignItems: 'center' },
   mainPhotoText: { fontSize: 9, fontWeight: FONTS.bold, color: '#fff', textTransform: 'uppercase' },
-  input: { backgroundColor: COLORS.surfaceMuted, borderRadius: RADIUS.lg, paddingHorizontal: SPACING.lg, paddingVertical: 14, fontSize: FONTS.md, color: COLORS.textPrimary, borderWidth: 1, borderColor: COLORS.borderLight },
+  input: { backgroundColor: theme.surfaceMuted, borderRadius: RADIUS.lg, paddingHorizontal: SPACING.lg, paddingVertical: 14, fontSize: FONTS.md, color: theme.textPrimary, borderWidth: 1, borderColor: theme.borderLight },
   textArea: { height: 120, paddingTop: 14 },
   chipsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
-  chip: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm + 2, borderRadius: RADIUS.full, backgroundColor: COLORS.surfaceMuted, borderWidth: 1, borderColor: COLORS.borderLight },
-  chipSelected: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  chipText: { fontSize: FONTS.sm, fontWeight: FONTS.medium, color: COLORS.textSecondary },
-  chipTextSelected: { color: COLORS.textInverse },
-  priceInputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surfaceMuted, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.borderLight, paddingRight: SPACING.lg },
-  priceInput: { flex: 1, paddingHorizontal: SPACING.lg, paddingVertical: 14, fontSize: FONTS.lg, fontWeight: FONTS.bold, color: COLORS.textPrimary },
-  prixSuffix: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: COLORS.textMuted },
-  costCard: { backgroundColor: COLORS.surface, borderRadius: RADIUS.lg, padding: SPACING.lg, marginTop: SPACING.xxl, ...SHADOWS.sm },
+  chip: { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm + 2, borderRadius: RADIUS.full, backgroundColor: theme.surfaceMuted, borderWidth: 1, borderColor: theme.borderLight },
+  chipSelected: { backgroundColor: theme.primary, borderColor: theme.primary },
+  chipText: { fontSize: FONTS.sm, fontWeight: FONTS.medium, color: theme.textSecondary },
+  chipTextSelected: { color: theme.textInverse },
+  priceInputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surfaceMuted, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: theme.borderLight, paddingRight: SPACING.lg },
+  priceInput: { flex: 1, paddingHorizontal: SPACING.lg, paddingVertical: 14, fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.textPrimary },
+  prixSuffix: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textMuted },
+  costCard: { backgroundColor: theme.surface, borderRadius: RADIUS.lg, padding: SPACING.lg, marginTop: SPACING.xxl, ...SHADOWS.sm },
   costRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  costLabel: { fontSize: FONTS.md, color: COLORS.textSecondary },
-  costValue: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: COLORS.primary },
-  costDivider: { height: 1, backgroundColor: COLORS.divider, marginVertical: SPACING.md },
+  costLabel: { fontSize: FONTS.md, color: theme.textSecondary },
+  costValue: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.primary },
+  costDivider: { height: 1, backgroundColor: theme.borderLight, marginVertical: SPACING.md },
   costInfo: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
-  costInfoText: { flex: 1, fontSize: FONTS.sm, color: COLORS.textMuted, lineHeight: 20 },
-  ctaContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: SPACING.xl, paddingTop: SPACING.lg, paddingBottom: 34, backgroundColor: COLORS.surface, borderTopWidth: 1, borderTopColor: COLORS.borderLight },
-  ctaButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 56, backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, gap: SPACING.sm, ...SHADOWS.colored },
-  ctaButtonDisabled: { backgroundColor: COLORS.textMuted, shadowOpacity: 0, elevation: 0 },
-  ctaText: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: COLORS.textInverse },
+  costInfoText: { flex: 1, fontSize: FONTS.sm, color: theme.textMuted, lineHeight: 20 },
+  ctaContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: SPACING.xl, paddingTop: SPACING.lg, paddingBottom: Platform.OS === 'ios' ? 34 : 14, backgroundColor: theme.surface, borderTopWidth: 1, borderTopColor: theme.borderLight },
+  ctaButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 56, backgroundColor: theme.primary, borderRadius: RADIUS.lg, gap: SPACING.sm, ...SHADOWS.colored },
+  ctaButtonDisabled: { backgroundColor: theme.textMuted, shadowOpacity: 0, elevation: 0 },
+  ctaText: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.textInverse },
 
   // Modal Styles
   modalContainer: { flex: 1, justifyContent: 'flex-end' },
   modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalContent: { backgroundColor: COLORS.background, borderTopLeftRadius: RADIUS.xxl, borderTopRightRadius: RADIUS.xxl, padding: SPACING.xl, paddingBottom: 60, ...SHADOWS.md },
+  modalContent: { backgroundColor: theme.background, borderTopLeftRadius: RADIUS.xxl, borderTopRightRadius: RADIUS.xxl, padding: SPACING.xl, paddingBottom: 60, ...SHADOWS.md },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.xl },
-  modalTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: COLORS.textPrimary },
-  paymentSummaryCard: { backgroundColor: COLORS.surfaceMuted, padding: SPACING.md, borderRadius: RADIUS.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: COLORS.borderLight },
-  paymentSummaryLabel: { fontSize: FONTS.xs, color: COLORS.textMuted, textTransform: 'uppercase', marginBottom: 4 },
-  paymentSummaryTitle: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: COLORS.textPrimary },
+  modalTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.textPrimary },
+  paymentSummaryCard: { backgroundColor: theme.surfaceMuted, padding: SPACING.md, borderRadius: RADIUS.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: theme.borderLight },
+  paymentSummaryLabel: { fontSize: FONTS.xs, color: theme.textMuted, textTransform: 'uppercase', marginBottom: 4 },
+  paymentSummaryTitle: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: theme.textPrimary },
   processingContainer: { paddingVertical: SPACING.xxl, alignItems: 'center', justifyContent: 'center' },
-  processingTitle: { fontSize: FONTS.xl, fontWeight: FONTS.bold, color: COLORS.textPrimary, marginTop: SPACING.xl, marginBottom: SPACING.sm, textAlign: 'center' },
-  processingText: { fontSize: FONTS.md, color: COLORS.textSecondary, textAlign: 'center', lineHeight: 24, paddingHorizontal: SPACING.lg },
+  processingTitle: { fontSize: FONTS.xl, fontWeight: FONTS.bold, color: theme.textPrimary, marginTop: SPACING.xl, marginBottom: SPACING.sm, textAlign: 'center' },
+  processingText: { fontSize: FONTS.md, color: theme.textSecondary, textAlign: 'center', lineHeight: 24, paddingHorizontal: SPACING.lg },
 });

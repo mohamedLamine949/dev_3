@@ -14,7 +14,10 @@ interface Props {
 
 type AuthMethod = 'phone' | 'email';
 
+import { useTheme } from '../contexts/ThemeContext';
+
 export default function LoginScreen({ navigation }: Props) {
+  const { theme, isDark } = useTheme();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [authMethod, setAuthMethod] = useState<AuthMethod>('phone');
   const [prenom, setPrenom] = useState('');
@@ -27,6 +30,8 @@ export default function LoginScreen({ navigation }: Props) {
   // OTP State
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [userOtp, setUserOtp] = useState('');
+
+  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
   const isEmail = (val: string) => val.includes('@');
   
@@ -144,7 +149,7 @@ export default function LoginScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={theme.primary} />
 
       <View style={styles.header}>
         {navigation.canGoBack() && (
@@ -189,7 +194,7 @@ export default function LoginScreen({ navigation }: Props) {
                 <TextInput
                   style={styles.input}
                   placeholder="123456"
-                  placeholderTextColor={COLORS.textMuted}
+                  placeholderTextColor={theme.textMuted}
                   value={userOtp}
                   onChangeText={setUserOtp}
                   keyboardType="number-pad"
@@ -217,14 +222,14 @@ export default function LoginScreen({ navigation }: Props) {
                   style={[styles.methodBtn, authMethod === 'phone' && styles.methodBtnActive]} 
                   onPress={() => { setAuthMethod('phone'); setIdentifier(''); }}
                 >
-                  <Ionicons name="call" size={16} color={authMethod === 'phone' ? COLORS.primary : COLORS.textMuted} />
+                  <Ionicons name="call" size={16} color={authMethod === 'phone' ? theme.primary : theme.textMuted} />
                   <Text style={[styles.methodText, authMethod === 'phone' && styles.methodTextActive]}>Téléphone</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={[styles.methodBtn, authMethod === 'email' && styles.methodBtnActive]} 
                   onPress={() => { setAuthMethod('email'); setIdentifier(''); }}
                 >
-                  <Ionicons name="mail" size={16} color={authMethod === 'email' ? COLORS.primary : COLORS.textMuted} />
+                  <Ionicons name="mail" size={16} color={authMethod === 'email' ? theme.primary : theme.textMuted} />
                   <Text style={[styles.methodText, authMethod === 'email' && styles.methodTextActive]}>Email</Text>
                 </TouchableOpacity>
               </View>
@@ -233,12 +238,12 @@ export default function LoginScreen({ navigation }: Props) {
                 <View style={styles.row}>
                   <View style={[styles.inputGroup, { flex: 1 }]}>
                     <Text style={styles.label}>Prénom</Text>
-                    <TextInput style={styles.input} placeholder="Amadou" placeholderTextColor={COLORS.textMuted} value={prenom} onChangeText={setPrenom} autoCapitalize="words" />
+                    <TextInput style={styles.input} placeholder="Amadou" placeholderTextColor={theme.textMuted} value={prenom} onChangeText={setPrenom} autoCapitalize="words" />
                   </View>
                   <View style={styles.rowSpacer} />
                   <View style={[styles.inputGroup, { flex: 1 }]}>
                     <Text style={styles.label}>Nom</Text>
-                    <TextInput style={styles.input} placeholder="Coulibaly" placeholderTextColor={COLORS.textMuted} value={nom} onChangeText={setNom} autoCapitalize="words" />
+                    <TextInput style={styles.input} placeholder="Coulibaly" placeholderTextColor={theme.textMuted} value={nom} onChangeText={setNom} autoCapitalize="words" />
                   </View>
                 </View>
               )}
@@ -246,11 +251,11 @@ export default function LoginScreen({ navigation }: Props) {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>{authMethod === 'phone' ? 'Numéro de téléphone' : 'Adresse Email'}</Text>
                 <View style={styles.inputWithIcon}>
-                  <Ionicons name={authMethod === 'phone' ? "call-outline" : "mail-outline"} size={18} color={COLORS.textMuted} style={styles.inputIcon} />
+                  <Ionicons name={authMethod === 'phone' ? "call-outline" : "mail-outline"} size={18} color={theme.textMuted} style={styles.inputIcon} />
                   <TextInput
                     style={styles.inputFlex}
                     placeholder={authMethod === 'phone' ? "Ex: 70 00 00 00" : "exemple@gmail.com"}
-                    placeholderTextColor={COLORS.textMuted}
+                    placeholderTextColor={theme.textMuted}
                     value={identifier}
                     onChangeText={setIdentifier}
                     keyboardType={authMethod === 'phone' ? "phone-pad" : "email-address"}
@@ -262,18 +267,18 @@ export default function LoginScreen({ navigation }: Props) {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Mot de passe</Text>
                 <View style={styles.inputWithIcon}>
-                  <Ionicons name="lock-closed-outline" size={18} color={COLORS.textMuted} style={styles.inputIcon} />
+                  <Ionicons name="lock-closed-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
                   <TextInput
                     style={styles.inputFlex}
                     placeholder="6 caractères minimum"
-                    placeholderTextColor={COLORS.textMuted}
+                    placeholderTextColor={theme.textMuted}
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
                   />
                   <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-                    <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={COLORS.textMuted} />
+                    <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={theme.textMuted} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -284,15 +289,28 @@ export default function LoginScreen({ navigation }: Props) {
             </>
           )}
 
-          <Text style={styles.footer}>En continuant, vous acceptez nos <Text style={styles.footerLink}>Conditions d'utilisation</Text></Text>
+          <View style={styles.footerLinks}>
+            <TouchableOpacity onPress={() => navigation.navigate('Legal', { type: 'cgu' })}>
+              <Text style={styles.footerLink}>CGU</Text>
+            </TouchableOpacity>
+            <Text style={styles.footerDot}> • </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Legal', { type: 'cgv' })}>
+              <Text style={styles.footerLink}>CGV</Text>
+            </TouchableOpacity>
+            <Text style={styles.footerDot}> • </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Legal', { type: 'privacy' })}>
+              <Text style={styles.footerLink}>Protection des données</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.footerCopyright}>© 2026 Flash Market. Tous droits réservés.</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.primary },
+const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.primary },
   header: { alignItems: 'center', paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingBottom: SPACING.xxl },
   backBtn: {
     position: 'absolute', top: Platform.OS === 'ios' ? 70 : 50, left: SPACING.lg,
@@ -305,35 +323,58 @@ const styles = StyleSheet.create({
   appName: { fontSize: FONTS.xxxl, fontWeight: FONTS.extrabold, color: '#fff', letterSpacing: -0.5 },
   tagline: { fontSize: FONTS.sm, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
   cardWrapper: { flex: 1 },
-  card: { flex: 1, backgroundColor: COLORS.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
+  card: { flex: 1, backgroundColor: theme.background, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
   cardContent: { padding: SPACING.xxl, paddingBottom: 40, gap: SPACING.lg },
-  toggle: { flexDirection: 'row', backgroundColor: COLORS.surfaceMuted, borderRadius: RADIUS.lg, padding: 4 },
+  toggle: { flexDirection: 'row', backgroundColor: theme.surfaceMuted, borderRadius: RADIUS.lg, padding: 4 },
   toggleBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: RADIUS.md },
-  toggleBtnActive: { backgroundColor: COLORS.surface, ...SHADOWS.sm },
-  toggleText: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: COLORS.textMuted },
-  toggleTextActive: { color: COLORS.primary },
+  toggleBtnActive: { backgroundColor: theme.surface, ...SHADOWS.sm },
+  toggleText: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textMuted },
+  toggleTextActive: { color: theme.primary },
   methodSelector: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.xs },
-  methodBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.borderLight, backgroundColor: COLORS.surface },
-  methodBtnActive: { borderColor: COLORS.primary, backgroundColor: COLORS.surface },
-  methodText: { fontSize: FONTS.sm, fontWeight: FONTS.medium, color: COLORS.textMuted },
-  methodTextActive: { color: COLORS.primary },
+  methodBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: RADIUS.md, borderWidth: 1, borderColor: theme.borderLight, backgroundColor: theme.surface },
+  methodBtnActive: { borderColor: theme.primary, backgroundColor: theme.surface },
+  methodText: { fontSize: FONTS.sm, fontWeight: FONTS.medium, color: theme.textMuted },
+  methodTextActive: { color: theme.primary },
   row: { flexDirection: 'row' },
   rowSpacer: { width: SPACING.md },
   inputGroup: { gap: 6 },
-  label: { fontSize: FONTS.xs, fontWeight: FONTS.semibold, color: COLORS.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
-  input: { backgroundColor: COLORS.surfaceMuted, borderRadius: RADIUS.md, paddingHorizontal: SPACING.lg, paddingVertical: 13, fontSize: FONTS.md, color: COLORS.textPrimary, borderWidth: 1, borderColor: COLORS.borderLight },
-  inputWithIcon: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surfaceMuted, borderRadius: RADIUS.md, borderWidth: 1, borderColor: COLORS.borderLight, paddingHorizontal: SPACING.lg },
+  label: { fontSize: FONTS.xs, fontWeight: FONTS.semibold, color: theme.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  input: { backgroundColor: theme.surfaceMuted, borderRadius: RADIUS.md, paddingHorizontal: SPACING.lg, paddingVertical: 13, fontSize: FONTS.md, color: theme.textPrimary, borderWidth: 1, borderColor: theme.borderLight },
+  inputWithIcon: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surfaceMuted, borderRadius: RADIUS.md, borderWidth: 1, borderColor: theme.borderLight, paddingHorizontal: SPACING.lg },
   inputIcon: { marginRight: SPACING.sm },
-  inputFlex: { flex: 1, paddingVertical: 13, fontSize: FONTS.md, color: COLORS.textPrimary },
+  inputFlex: { flex: 1, paddingVertical: 13, fontSize: FONTS.md, color: theme.textPrimary },
   eyeBtn: { padding: 4 },
-  ctaBtn: { height: 54, backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, justifyContent: 'center', alignItems: 'center', marginTop: SPACING.sm, ...SHADOWS.colored },
-  ctaBtnDisabled: { backgroundColor: COLORS.textMuted, shadowOpacity: 0, elevation: 0 },
+  ctaBtn: { height: 54, backgroundColor: theme.primary, borderRadius: RADIUS.lg, justifyContent: 'center', alignItems: 'center', marginTop: SPACING.sm, ...SHADOWS.colored },
+  ctaBtnDisabled: { backgroundColor: theme.textMuted, shadowOpacity: 0, elevation: 0 },
   ctaText: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
-  footer: { fontSize: FONTS.xs, color: COLORS.textMuted, textAlign: 'center', lineHeight: 18, marginTop: SPACING.sm },
-  footerLink: { color: COLORS.primary, fontWeight: FONTS.medium },
+  footerLinks: { 
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginTop: SPACING.md,
+    flexWrap: 'wrap',
+    paddingHorizontal: SPACING.lg,
+  },
+  footerLink: { 
+    color: theme.primary, 
+    fontSize: FONTS.xs, 
+    fontWeight: FONTS.semibold 
+  },
+  footerDot: { 
+    color: theme.textMuted, 
+    marginHorizontal: 4,
+    fontSize: FONTS.xs,
+  },
+  footerCopyright: { 
+    fontSize: 10, 
+    color: theme.textMuted, 
+    textAlign: 'center', 
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
   otpContainer: { gap: SPACING.lg, paddingVertical: SPACING.md },
-  otpTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: COLORS.textPrimary, textAlign: 'center' },
-  otpSubtitle: { fontSize: FONTS.sm, color: COLORS.textSecondary, textAlign: 'center', paddingHorizontal: SPACING.md },
+  otpTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.textPrimary, textAlign: 'center' },
+  otpSubtitle: { fontSize: FONTS.sm, color: theme.textSecondary, textAlign: 'center', paddingHorizontal: SPACING.md },
   cancelBtn: { alignItems: 'center', padding: SPACING.sm },
-  cancelText: { color: COLORS.textMuted, fontSize: FONTS.sm, fontWeight: FONTS.medium },
+  cancelText: { color: theme.textMuted, fontSize: FONTS.sm, fontWeight: FONTS.medium },
 });

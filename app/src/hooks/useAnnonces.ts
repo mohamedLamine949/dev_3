@@ -10,6 +10,10 @@ export function useAnnonces(options?: {
   categorie?: string | null;
   search?: string;
   limit?: number;
+  minPrice?: number | null;
+  maxPrice?: number | null;
+  etat?: string | null;
+  orderBy?: 'newest' | 'price_asc' | 'price_desc';
 }) {
   const [annonces, setAnnonces] = useState<Annonce[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,8 +36,17 @@ export function useAnnonces(options?: {
         .from('annonces')
         .select('*, images:images_annonce(id, image_url, ordre)')
         .eq('statut', 'active')
-        .eq('est_payee', true)
-        .order('date_creation', { ascending: false });
+        .eq('est_payee', true);
+
+      // Tri
+      const sort = options?.orderBy || 'newest';
+      if (sort === 'newest') {
+        query = query.order('date_creation', { ascending: false });
+      } else if (sort === 'price_asc') {
+        query = query.order('prix', { ascending: true });
+      } else if (sort === 'price_desc') {
+        query = query.order('prix', { ascending: false });
+      }
 
       if (options?.categorie) {
         query = query.eq('categorie', options.categorie);
@@ -41,6 +54,18 @@ export function useAnnonces(options?: {
 
       if (options?.search) {
         query = query.ilike('titre', `%${options.search}%`);
+      }
+
+      if (options?.minPrice !== undefined && options?.minPrice !== null) {
+        query = query.gte('prix', options.minPrice);
+      }
+
+      if (options?.maxPrice !== undefined && options?.maxPrice !== null) {
+        query = query.lte('prix', options.maxPrice);
+      }
+
+      if (options?.etat) {
+        query = query.eq('etat_article', options.etat);
       }
 
       if (options?.limit) {
@@ -70,7 +95,7 @@ export function useAnnonces(options?: {
     } finally {
       if (!timedOut) setLoading(false);
     }
-  }, [options?.categorie, options?.search, options?.limit]);
+  }, [options?.categorie, options?.search, options?.limit, options?.minPrice, options?.maxPrice, options?.etat, options?.orderBy]);
 
   useEffect(() => {
     fetchAnnonces();

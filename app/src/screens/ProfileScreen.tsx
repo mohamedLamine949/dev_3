@@ -5,8 +5,9 @@ import {
   Linking, Platform, KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
 
-function StarRow({ note, size = 16 }: { note: number; size?: number }) {
+function StarRow({ note, size = 16, theme }: { note: number; size?: number; theme: any }) {
   return (
     <View style={{ flexDirection: 'row', gap: 2 }}>
       {[1, 2, 3, 4, 5].map(i => (
@@ -14,7 +15,7 @@ function StarRow({ note, size = 16 }: { note: number; size?: number }) {
           key={i}
           name={i <= Math.round(note) ? 'star' : 'star-outline'}
           size={size}
-          color={i <= Math.round(note) ? '#f59e0b' : '#D1D5DB'}
+          color={i <= Math.round(note) ? '#f59e0b' : theme.borderLight}
         />
       ))}
     </View>
@@ -22,6 +23,7 @@ function StarRow({ note, size = 16 }: { note: number; size?: number }) {
 }
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
@@ -44,10 +46,25 @@ const MENU_ITEMS = [
       { icon: 'heart', label: 'Mes favoris', screen: 'Favoris', private: true },
     ],
   },
+  {
+    section: 'Paramètres',
+    items: [
+      { icon: 'moon', label: 'Mode Sombre', type: 'toggle' },
+    ],
+  },
+  {
+    section: 'Informations',
+    items: [
+      { icon: 'file-text', label: 'CGU', screen: 'Legal', params: { type: 'cgu' } },
+      { icon: 'shopping-cart', label: 'CGV', screen: 'Legal', params: { type: 'cgv' } },
+      { icon: 'shield', label: 'Protection des données', screen: 'Legal', params: { type: 'privacy' } },
+    ],
+  },
 ];
 
 export default function ProfileScreen({ navigation }: Props) {
   const { session, user, signOut, refreshUser } = useAuth();
+  const { theme, toggleTheme, isDark } = useTheme();
 
   const [isEditing, setIsEditing] = useState(false);
   const [editPrenom, setEditPrenom] = useState('');
@@ -63,6 +80,8 @@ export default function ProfileScreen({ navigation }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [stats, setStats] = useState({ annonces: 0, avis: 0, avgNote: null as number | null });
+
+  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
   useEffect(() => {
     if (!session) return;
@@ -197,8 +216,8 @@ export default function ProfileScreen({ navigation }: Props) {
 
   const onMenuItemPress = (item: any) => {
     if (item.private && !session) { navigation.navigate('Login'); return; }
-    if (item.screen === 'MesAnnonces' || item.screen === 'Favoris') {
-      navigation.navigate(item.screen);
+    if (item.screen) {
+      navigation.navigate(item.screen, item.params || {});
     } else {
       navigation.navigate('Placeholder', { title: item.label });
     }
@@ -301,7 +320,7 @@ export default function ProfileScreen({ navigation }: Props) {
               <View style={styles.statItem}>
                 {stats.avgNote !== null ? (
                   <>
-                    <StarRow note={stats.avgNote} size={14} />
+                    <StarRow note={stats.avgNote} size={14} theme={theme} />
                     <Text style={styles.statLabel}>{stats.avgNote.toFixed(1)} / 5</Text>
                   </>
                 ) : (
@@ -350,24 +369,32 @@ export default function ProfileScreen({ navigation }: Props) {
           {/* Menu */}
           {MENU_ITEMS.map((section) => (
             <View key={section.section} style={styles.menuSection}>
-              <Text style={styles.sectionLabel}>{section.section}</Text>
-              <View style={styles.menuCard}>
+              <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>{section.section}</Text>
+              <View style={[styles.menuCard, { backgroundColor: theme.surface }]}>
                 {section.items.map((item, index) => (
                   <TouchableOpacity
                     key={item.label}
-                    style={[styles.menuItem, index < section.items.length - 1 && styles.menuItemBorder]}
+                    style={[styles.menuItem, index < section.items.length - 1 && [styles.menuItemBorder, { borderBottomColor: theme.divider }]]}
                     activeOpacity={0.7}
-                    onPress={() => onMenuItemPress(item)}
+                    onPress={() => item.type === 'toggle' ? toggleTheme() : onMenuItemPress(item)}
                   >
                     <View style={styles.menuItemLeft}>
-                      <View style={styles.menuIconBox}>
-                        <Feather name={item.icon as any} size={17} color={COLORS.primary} />
+                      <View style={[styles.menuIconBox, { backgroundColor: theme.primaryFaded }]}>
+                        <Feather name={item.icon as any} size={17} color={theme.primary} />
                       </View>
-                      <Text style={styles.menuItemLabel}>{item.label}</Text>
+                      <Text style={[styles.menuItemLabel, { color: theme.textPrimary }]}>{item.label}</Text>
                     </View>
                     <View style={styles.menuItemRight}>
-                      {'value' in item && <Text style={styles.menuItemValue}>{(item as any).value}</Text>}
-                      <Ionicons name="chevron-forward" size={17} color={COLORS.textMuted} />
+                      {item.type === 'toggle' ? (
+                        <View style={[styles.toggleContainer, { backgroundColor: isDark ? theme.primary : theme.border }]}>
+                          <View style={[styles.toggleCircle, { transform: [{ translateX: isDark ? 20 : 0 }] }]} />
+                        </View>
+                      ) : (
+                        <>
+                          {'value' in item && <Text style={[styles.menuItemValue, { color: theme.textMuted }]}>{(item as any).value}</Text>}
+                          <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
+                        </>
+                      )}
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -391,6 +418,29 @@ export default function ProfileScreen({ navigation }: Props) {
             <Text style={[styles.logoutText, !session && { color: COLORS.primary }]}>
               {session ? 'Déconnexion' : 'Se connecter'}
             </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.menuItem, { marginTop: SPACING.md, backgroundColor: theme.surface, borderRadius: RADIUS.lg }]}
+            onPress={async () => {
+              await Notifications.scheduleNotificationAsync({
+                content: {
+                  title: "Nouveau message ! 📬",
+                  body: "Vous avez reçu un message pour l'annonce 'iPhone 15 Pro'",
+                  data: { conversationId: 'test-id', titreAnnonce: 'iPhone 15 Pro' },
+                },
+                trigger: { seconds: 2 },
+              });
+              Alert.alert("Notification test", "La notification arrivera dans 2 secondes. Fermez l'app ou attendez.");
+            }}
+          >
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuIconBox, { backgroundColor: theme.primaryFaded }]}>
+                <Ionicons name="notifications-outline" size={17} color={theme.primary} />
+              </View>
+              <Text style={styles.menuItemLabel}>Tester les notifications</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
           </TouchableOpacity>
 
           <Text style={styles.version}>Flash Market v2.0</Text>
@@ -489,12 +539,12 @@ export default function ProfileScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
 
   // Header vert
   header: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: theme.primary,
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingBottom: SPACING.xxxl,
     alignItems: 'center',
@@ -529,7 +579,7 @@ const styles = StyleSheet.create({
   avatarCameraBadge: {
     position: 'absolute', bottom: 2, right: 2,
     width: 24, height: 24, borderRadius: 12,
-    backgroundColor: COLORS.primaryDark,
+    backgroundColor: theme.primaryDark,
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 2, borderColor: '#fff',
   },
@@ -550,7 +600,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xxl, paddingVertical: 11,
     backgroundColor: '#fff', borderRadius: RADIUS.full,
   },
-  loginPromptText: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: COLORS.primary },
+  loginPromptText: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.primary },
 
   // Body
   body: { padding: SPACING.xl },
@@ -558,67 +608,80 @@ const styles = StyleSheet.create({
   // Stats
   statsCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.surface, borderRadius: RADIUS.xl,
+    backgroundColor: theme.surface, borderRadius: RADIUS.xl,
     padding: SPACING.xl, marginBottom: SPACING.xl,
     ...SHADOWS.sm,
   },
   statItem: { flex: 1, alignItems: 'center' },
-  statValue: { fontSize: FONTS.xxl, fontWeight: FONTS.extrabold, color: COLORS.textPrimary },
-  statLabel: { fontSize: FONTS.xs, color: COLORS.textMuted, marginTop: 2 },
-  statDivider: { width: 1, height: 36, backgroundColor: COLORS.divider },
+  statValue: { fontSize: FONTS.xxl, fontWeight: FONTS.extrabold, color: theme.textPrimary },
+  statLabel: { fontSize: FONTS.xs, color: theme.textMuted, marginTop: 2 },
+  statDivider: { width: 1, height: 36, backgroundColor: theme.borderLight },
 
   // Contact card
   contactCard: {
-    backgroundColor: COLORS.surface, borderRadius: RADIUS.xl,
+    backgroundColor: theme.surface, borderRadius: RADIUS.xl,
     marginBottom: SPACING.xl, overflow: 'hidden', ...SHADOWS.sm,
   },
   contactRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: SPACING.lg, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: COLORS.borderLight,
+    borderBottomWidth: 1, borderBottomColor: theme.borderLight,
     gap: SPACING.md,
   },
   contactIconBox: {
     width: 36, height: 36, borderRadius: RADIUS.md,
     justifyContent: 'center', alignItems: 'center',
   },
-  contactText: { flex: 1, fontSize: FONTS.md, color: COLORS.textPrimary, fontWeight: FONTS.medium },
+  contactText: { flex: 1, fontSize: FONTS.md, color: theme.textPrimary, fontWeight: FONTS.medium },
 
   // Sections
   sectionLabel: {
     fontSize: FONTS.xs, fontWeight: FONTS.semibold,
-    color: COLORS.textMuted, textTransform: 'uppercase',
+    color: theme.textMuted, textTransform: 'uppercase',
     letterSpacing: 0.5, marginBottom: SPACING.md, marginLeft: 2,
   },
   menuSection: { marginBottom: SPACING.xl },
-  menuCard: { backgroundColor: COLORS.surface, borderRadius: RADIUS.xl, overflow: 'hidden', ...SHADOWS.sm },
+  menuCard: { backgroundColor: theme.surface, borderRadius: RADIUS.xl, overflow: 'hidden', ...SHADOWS.sm },
   menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: SPACING.lg, paddingHorizontal: SPACING.lg },
-  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: COLORS.divider },
+  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: theme.borderLight },
   menuItemLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
-  menuIconBox: { width: 36, height: 36, borderRadius: RADIUS.md, backgroundColor: COLORS.primaryFaded, justifyContent: 'center', alignItems: 'center' },
-  menuItemLabel: { fontSize: FONTS.md, fontWeight: FONTS.medium, color: COLORS.textPrimary },
+  menuIconBox: { width: 36, height: 36, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center' },
+  menuItemLabel: { fontSize: FONTS.md, fontWeight: FONTS.medium, color: theme.textPrimary },
   menuItemRight: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  menuItemValue: { fontSize: FONTS.sm, color: COLORS.textMuted },
+  menuItemValue: { fontSize: FONTS.sm, color: theme.textMuted },
 
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, paddingVertical: SPACING.lg, marginTop: SPACING.md },
-  logoutText: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: COLORS.error },
-  version: { textAlign: 'center', fontSize: FONTS.xs, color: COLORS.textMuted, marginTop: SPACING.sm },
+  logoutText: { fontSize: FONTS.md, fontWeight: FONTS.semibold },
+  version: { textAlign: 'center', fontSize: FONTS.xs, color: theme.textMuted, marginTop: SPACING.sm },
+
+  toggleContainer: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    padding: 2,
+  },
+  toggleCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+  },
 
   // Modal
-  modal: { flex: 1, backgroundColor: COLORS.background },
+  modal: { flex: 1, backgroundColor: theme.background },
   modalHeader: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: Platform.OS === 'ios' ? 60 : 20,
     paddingHorizontal: SPACING.xl, paddingBottom: SPACING.lg,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1, borderBottomColor: COLORS.borderLight,
+    backgroundColor: theme.surface,
+    borderBottomWidth: 1, borderBottomColor: theme.borderLight,
   },
-  modalTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: COLORS.textPrimary },
-  modalSave: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: COLORS.primary },
+  modalTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.textPrimary },
+  modalSave: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.primary },
   modalBody: { padding: SPACING.xl },
   modalAvatar: {
     width: 90, height: 90, borderRadius: 45,
-    backgroundColor: COLORS.primary,
+    backgroundColor: theme.primary,
     alignSelf: 'center', marginBottom: SPACING.xxl,
     justifyContent: 'center', alignItems: 'center', overflow: 'hidden',
   },
@@ -629,17 +692,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   modalSectionLabel: {
-    fontSize: FONTS.sm, fontWeight: FONTS.bold, color: COLORS.textSecondary,
+    fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.textSecondary,
     textTransform: 'uppercase', letterSpacing: 0.5,
     marginBottom: SPACING.md, marginTop: SPACING.xl,
   },
   modalRow: { flexDirection: 'row' },
   modalField: { marginBottom: SPACING.lg },
   fieldLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 },
-  fieldLabel: { fontSize: FONTS.xs, fontWeight: FONTS.semibold, color: COLORS.textSecondary, marginBottom: 6 },
+  fieldLabel: { fontSize: FONTS.xs, fontWeight: FONTS.semibold, color: theme.textSecondary, marginBottom: 6 },
   fieldInput: {
-    backgroundColor: COLORS.surface, borderWidth: 1,
-    borderColor: COLORS.borderLight, borderRadius: RADIUS.md,
-    padding: SPACING.md, fontSize: FONTS.md, color: COLORS.textPrimary,
+    backgroundColor: theme.surface, borderWidth: 1,
+    borderColor: theme.borderLight, borderRadius: RADIUS.md,
+    padding: SPACING.md, fontSize: FONTS.md, color: theme.textPrimary,
   },
 });

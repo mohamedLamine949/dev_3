@@ -3,17 +3,22 @@ import { View, Text, StyleSheet, TouchableOpacity, StatusBar } from 'react-nativ
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 
+import { useTheme } from '../contexts/ThemeContext';
+
 export default function PlaceholderScreen({ route, navigation }: any) {
   const { title } = route.params || { title: 'Bientôt disponible' };
+  const { theme, isDark } = useTheme();
+
+  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.surface} />
       
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={theme.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{title}</Text>
         <View style={{ width: 40 }} />
@@ -21,7 +26,7 @@ export default function PlaceholderScreen({ route, navigation }: any) {
 
       <View style={styles.content}>
         <View style={styles.iconContainer}>
-          <Ionicons name="construct-outline" size={64} color={COLORS.primary} />
+          <Ionicons name="construct-outline" size={64} color={theme.primary} />
         </View>
         <Text style={styles.title}>En cours de construction 🚀</Text>
         <Text style={styles.text}>
@@ -36,8 +41,8 @@ export default function PlaceholderScreen({ route, navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -45,12 +50,12 @@ const styles = StyleSheet.create({
     paddingTop: 54,
     paddingHorizontal: SPACING.md,
     paddingBottom: SPACING.md,
-    backgroundColor: COLORS.surface,
+    backgroundColor: theme.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
+    borderBottomColor: theme.borderLight,
   },
   backButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: COLORS.textPrimary },
+  headerTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.textPrimary },
   content: {
     flex: 1,
     alignItems: 'center',
@@ -59,24 +64,24 @@ const styles = StyleSheet.create({
   },
   iconContainer: {
     width: 120, height: 120, borderRadius: 60,
-    backgroundColor: COLORS.primaryFaded,
+    backgroundColor: theme.primaryFaded,
     justifyContent: 'center', alignItems: 'center',
     marginBottom: SPACING.xl,
   },
   title: {
-    fontSize: FONTS.xl, fontWeight: FONTS.bold, color: COLORS.textPrimary,
+    fontSize: FONTS.xl, fontWeight: FONTS.bold, color: theme.textPrimary,
     marginBottom: SPACING.md, textAlign: 'center'
   },
   text: {
-    fontSize: FONTS.md, color: COLORS.textSecondary, textAlign: 'center',
+    fontSize: FONTS.md, color: theme.textSecondary, textAlign: 'center',
     lineHeight: 24, marginBottom: SPACING.xxl,
   },
   button: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: theme.surface,
     paddingHorizontal: SPACING.xl, paddingVertical: SPACING.lg,
-    borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.borderLight,
+    borderRadius: RADIUS.lg, borderWidth: 1, borderColor: theme.borderLight,
   },
   buttonText: {
-    fontSize: FONTS.md, fontWeight: FONTS.semibold, color: COLORS.textPrimary
+    fontSize: FONTS.md, fontWeight: FONTS.semibold, color: theme.textPrimary
   }
 });

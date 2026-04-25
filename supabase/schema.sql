@@ -65,16 +65,14 @@ CREATE TABLE IF NOT EXISTS users (
   instagram TEXT,
   tiktok TEXT,
   facebook TEXT,
+  push_token TEXT,
   date_creation TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Assurer que la clé étrangère vers auth.users existe
-DO $$ 
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'users_id_fkey') THEN
-        ALTER TABLE users ADD CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
-    END IF;
 END $$;
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS push_token TEXT;
 
 -- 2. Table Annonces
 CREATE TABLE IF NOT EXISTS annonces (

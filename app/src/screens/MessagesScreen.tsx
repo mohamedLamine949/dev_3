@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useConversations } from '../hooks/useChat';
 
 function timeAgo(dateStr: string): string {
@@ -30,9 +31,12 @@ interface Props {
 
 export default function MessagesScreen({ navigation }: Props) {
   const { session } = useAuth();
+  const { theme, isDark } = useTheme();
   const userId = session?.user?.id;
   
   const { conversations, loading, refetch } = useConversations(userId);
+
+  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
   const renderConversation = ({ item }: { item: any }) => {
     const imageUrl = item.annonce?.images?.[0]?.image_url || null;
@@ -52,8 +56,8 @@ export default function MessagesScreen({ navigation }: Props) {
         {/* Image de l'annonce */}
         {imageUrl
           ? <Image source={{ uri: imageUrl }} style={styles.conversationImage} />
-          : <View style={[styles.conversationImage, { backgroundColor: COLORS.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
-              <Ionicons name="pricetag-outline" size={20} color={COLORS.border} />
+          : <View style={[styles.conversationImage, { backgroundColor: theme.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
+              <Ionicons name="pricetag-outline" size={20} color={theme.border} />
             </View>
         }
 
@@ -63,7 +67,7 @@ export default function MessagesScreen({ navigation }: Props) {
             <Text style={[styles.conversationTitle, hasUnread && styles.textBold]} numberOfLines={1}>
               {item.annonce?.titre || 'Annonce supprimée'}
             </Text>
-            <Text style={[styles.conversationTime, hasUnread && { color: COLORS.primary }]}>
+            <Text style={[styles.conversationTime, hasUnread && { color: theme.primary }]}>
               {timeAgo(item.date_dernier_message)}
             </Text>
           </View>
@@ -87,15 +91,15 @@ export default function MessagesScreen({ navigation }: Props) {
 
   if (!userId) {
     return (
-      <View style={[styles.container, styles.emptyContainer]}>
-        <Ionicons name="log-in-outline" size={56} color={COLORS.textMuted} />
+      <View style={[styles.container, styles.emptyContainer, { backgroundColor: theme.background }]}>
+        <Ionicons name="log-in-outline" size={56} color={theme.textMuted} />
         <Text style={styles.emptyTitle}>Non connecté</Text>
         <Text style={styles.emptyText}>Connectez-vous pour voir vos messages.</Text>
         <TouchableOpacity 
-          style={{ marginTop: 20, backgroundColor: COLORS.primary, padding: 12, borderRadius: 8 }}
+          style={{ marginTop: 20, backgroundColor: theme.primary, padding: 12, borderRadius: 8 }}
           onPress={() => navigation.navigate('Profil')}
         >
-          <Text style={{ color: 'white', fontWeight: 'bold' }}>Se connecter</Text>
+          <Text style={{ color: '#fff', fontWeight: 'bold' }}>Se connecter</Text>
         </TouchableOpacity>
       </View>
     );
@@ -103,19 +107,19 @@ export default function MessagesScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.background} />
 
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
         <TouchableOpacity activeOpacity={0.7}>
-          <Ionicons name="ellipsis-horizontal" size={24} color={COLORS.textPrimary} />
+          <Ionicons name="ellipsis-horizontal" size={24} color={theme.textPrimary} />
         </TouchableOpacity>
       </View>
 
       {loading && conversations.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color={theme.primary} />
         </View>
       ) : (
         <FlatList
@@ -129,7 +133,7 @@ export default function MessagesScreen({ navigation }: Props) {
           refreshing={loading}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Ionicons name="chatbubbles-outline" size={56} color={COLORS.textMuted} />
+              <Ionicons name="chatbubbles-outline" size={56} color={theme.textMuted} />
               <Text style={styles.emptyTitle}>Pas encore de messages</Text>
               <Text style={styles.emptyText}>
                 Contactez un vendeur pour commencer une conversation
@@ -142,10 +146,10 @@ export default function MessagesScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   header: {
     flexDirection: 'row',
@@ -154,12 +158,12 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.lg,
-    backgroundColor: COLORS.background,
+    backgroundColor: theme.background,
   },
   headerTitle: {
     fontSize: FONTS.xxl,
     fontWeight: FONTS.extrabold,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
 
   listContainer: {
@@ -169,7 +173,7 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 1,
-    backgroundColor: COLORS.divider,
+    backgroundColor: theme.borderLight,
     marginLeft: 76,
   },
 
@@ -182,14 +186,14 @@ const styles = StyleSheet.create({
   },
   conversationCardUnread: {
     borderLeftWidth: 3,
-    borderLeftColor: COLORS.primary,
+    borderLeftColor: theme.primary,
     paddingLeft: SPACING.md - 3,
   },
   conversationImage: {
     width: 56,
     height: 56,
     borderRadius: RADIUS.md,
-    backgroundColor: COLORS.surfaceMuted,
+    backgroundColor: theme.surfaceMuted,
   },
   conversationContent: {
     flex: 1,
@@ -204,12 +208,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: FONTS.md,
     fontWeight: FONTS.medium,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
     marginRight: SPACING.sm,
   },
   conversationTime: {
     fontSize: FONTS.xs,
-    color: COLORS.textMuted,
+    color: theme.textMuted,
   },
   conversationBottom: {
     flexDirection: 'row',
@@ -219,18 +223,18 @@ const styles = StyleSheet.create({
   conversationMessage: {
     flex: 1,
     fontSize: FONTS.sm,
-    color: COLORS.textMuted,
+    color: theme.textMuted,
     marginRight: SPACING.sm,
   },
   textBold: {
     fontWeight: FONTS.semibold,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   unreadBadge: {
     minWidth: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: COLORS.primary,
+    backgroundColor: theme.primary,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 6,
@@ -238,7 +242,7 @@ const styles = StyleSheet.create({
   unreadText: {
     fontSize: 11,
     fontWeight: FONTS.bold,
-    color: COLORS.textInverse,
+    color: theme.textInverse,
   },
 
   // Empty
@@ -251,11 +255,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: FONTS.lg,
     fontWeight: FONTS.bold,
-    color: COLORS.textPrimary,
+    color: theme.textPrimary,
   },
   emptyText: {
     fontSize: FONTS.sm,
-    color: COLORS.textMuted,
+    color: theme.textMuted,
     textAlign: 'center',
     maxWidth: 250,
   },
