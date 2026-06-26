@@ -1,13 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  StatusBar, Alert, Image, Modal, TextInput, ActivityIndicator,
-  Linking, Platform, KeyboardAvoidingView,
+  View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
+  StatusBar, ActivityIndicator, Alert, Modal, TextInput,
+  KeyboardAvoidingView, Platform, Dimensions, Linking,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import * as Notifications from 'expo-notifications';
+import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { supabase, Annonce } from '../lib/supabase';
+import { useSellerAvis, Avis } from '../hooks/useAvis';
+import * as ImagePicker from 'expo-image-picker';
+import { decode } from 'base64-arraybuffer';
 
-function StarRow({ note, size = 16, theme }: { note: number; size?: number; theme: any }) {
+const { width: W } = Dimensions.get('window');
+const CARD_W = (W - SPACING.xl * 2 - SPACING.md) / 2;
+
+function formatPrix(prix: number): string {
+  if (prix >= 1000000) return (prix / 1000000).toFixed(1) + 'M FCFA';
+  return prix.toLocaleString('fr-FR') + ' FCFA';
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (diff < 3600) return `${Math.floor(diff / 60)} min`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)}j`;
+  return `${Math.floor(diff / 604800)}sem`;
+}
+
+function StarRow({ note, size = 14, theme }: { note: number; size?: number; theme: any }) {
   return (
     <View style={{ flexDirection: 'row', gap: 2 }}>
       {[1, 2, 3, 4, 5].map(i => (
@@ -21,14 +43,10 @@ function StarRow({ note, size = 16, theme }: { note: number; size?: number; them
     </View>
   );
 }
-import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
-import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
-import { supabase } from '../lib/supabase';
-import * as ImagePicker from 'expo-image-picker';
-import { decode } from 'base64-arraybuffer';
 
-interface Props { navigation: any; }
+interface Props {
+  navigation: any;
+}
 
 const SOCIAL_FIELDS = [
   { key: 'telephone', label: 'Téléphone', icon: 'call-outline', color: '#15803d', prefix: 'tel:', placeholder: '+223 XX XX XX XX' },
@@ -38,34 +56,15 @@ const SOCIAL_FIELDS = [
   { key: 'facebook', label: 'Facebook',  icon: 'logo-facebook', color: '#1877F2', prefix: 'https://facebook.com/', placeholder: 'Votre page' },
 ] as const;
 
-const MENU_ITEMS = [
-  {
-    section: 'Mon compte',
-    items: [
-      { icon: 'list', label: 'Mes annonces', screen: 'MesAnnonces', private: true },
-      { icon: 'heart', label: 'Mes favoris', screen: 'Favoris', private: true },
-    ],
-  },
-  {
-    section: 'Paramètres',
-    items: [
-      { icon: 'moon', label: 'Mode Sombre', type: 'toggle' },
-    ],
-  },
-  {
-    section: 'Informations',
-    items: [
-      { icon: 'file-text', label: 'CGU', screen: 'Legal', params: { type: 'cgu' } },
-      { icon: 'shopping-cart', label: 'CGV', screen: 'Legal', params: { type: 'cgv' } },
-      { icon: 'shield', label: 'Protection des données', screen: 'Legal', params: { type: 'privacy' } },
-    ],
-  },
-];
-
 export default function ProfileScreen({ navigation }: Props) {
   const { session, user, signOut, refreshUser } = useAuth();
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { theme, isDark } = useTheme();
+  const { avis, avgNote, loading: loadingAvis } = useSellerAvis(session?.user?.id);
 
+  // Tabs state
+  const [activeTab, setActiveTab] = useState<'vitrine' | 'annonces' | 'avis'>('vitrine');
+
+  // Edit states
   const [isEditing, setIsEditing] = useState(false);
   const [editPrenom, setEditPrenom] = useState('');
   const [editNom, setEditNom] = useState('');
@@ -79,30 +78,34 @@ export default function ProfileScreen({ navigation }: Props) {
   const [editAvatarUri, setEditAvatarUri] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  const [stats, setStats] = useState({ annonces: 0, avis: 0, avgNote: null as number | null });
   const [editTypeCompte, setEditTypeCompte] = useState<'particulier' | 'professionnel'>('particulier');
   const [editBanniereUri, setEditBanniereUri] = useState<string | null>(null);
   const [editBanniereBase64, setEditBanniereBase64] = useState<string | null>(null);
   const [editImagesBusiness, setEditImagesBusiness] = useState<string[]>([]);
   const [editImagesBusinessBase64, setEditImagesBusinessBase64] = useState<(string | null)[]>([]);
 
+  // User's listings states
+  const [annonces, setAnnonces] = useState<Annonce[]>([]);
+  const [loadingAnnonces, setLoadingAnnonces] = useState(false);
+
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
+  // Fetch own listings
   useEffect(() => {
     if (!session) return;
-    const userId = session.user.id;
-    Promise.all([
-      supabase.from('annonces').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('statut', 'active'),
-      supabase.from('avis').select('note').eq('vendeur_id', userId),
-    ]).then(([annoncesRes, avisRes]) => {
-      const annoncesCount = annoncesRes.count ?? 0;
-      const avisData = (avisRes.data || []) as { note: number }[];
-      const avgNote = avisData.length > 0
-        ? avisData.reduce((s, a) => s + a.note, 0) / avisData.length
-        : null;
-      setStats({ annonces: annoncesCount, avis: avisData.length, avgNote });
-    });
-  }, [session?.user?.id]);
+    setLoadingAnnonces(true);
+    supabase
+      .from('annonces')
+      .select('*, images:images_annonce(image_url, ordre)')
+      .eq('user_id', session.user.id)
+      .eq('statut', 'active')
+      .eq('est_payee', true)
+      .order('date_creation', { ascending: false })
+      .then(({ data }) => {
+        if (data) setAnnonces(data as Annonce[]);
+        setLoadingAnnonces(false);
+      });
+  }, [session?.user?.id, isEditing]);
 
   const openEditModal = () => {
     if (!session) return;
@@ -268,15 +271,6 @@ export default function ProfileScreen({ navigation }: Props) {
     Linking.openURL(url).catch(() => Alert.alert('Impossible d\'ouvrir ce lien.'));
   };
 
-  const onMenuItemPress = (item: any) => {
-    if (item.private && !session) { navigation.navigate('Login'); return; }
-    if (item.screen) {
-      navigation.navigate(item.screen, item.params || {});
-    } else {
-      navigation.navigate('Placeholder', { title: item.label });
-    }
-  };
-
   const displayName = session
     ? `${user?.prenom || 'Nouveau'} ${user?.nom || 'Client'}`.trim()
     : 'Invité';
@@ -285,10 +279,10 @@ export default function ProfileScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={theme.primary} />
       <ScrollView showsVerticalScrollIndicator={false}>
 
-        {/* Header vert avec avatar */}
+        {/* Header avec bannière et avatar */}
         <View style={styles.header}>
           {user?.type_compte === 'professionnel' && user?.banniere_url ? (
             <Image source={{ uri: user.banniere_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
@@ -296,16 +290,16 @@ export default function ProfileScreen({ navigation }: Props) {
           {user?.type_compte === 'professionnel' && user?.banniere_url ? (
             <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)' }]} />
           ) : null}
+
+          {/* Top Bar - Titre et Paramètres */}
           <View style={styles.headerTop}>
             <Text style={styles.headerTitle}>Profil</Text>
-            {session && (
-              <TouchableOpacity style={styles.editBtn} onPress={openEditModal} activeOpacity={0.8}>
-                <Feather name="edit-2" size={16} color="#fff" />
-                <Text style={styles.editBtnText}>Modifier</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Settings')} activeOpacity={0.8}>
+              <Ionicons name="settings-outline" size={22} color="#fff" />
+            </TouchableOpacity>
           </View>
 
+          {/* Photo de profil */}
           <TouchableOpacity
             style={styles.avatarWrapper}
             onPress={session ? handleAvatarPress : undefined}
@@ -331,7 +325,8 @@ export default function ProfileScreen({ navigation }: Props) {
             ) : null}
           </TouchableOpacity>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.sm }}>
+          {/* Nom et type de compte */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.xs }}>
             <Text style={styles.displayName}>{displayName}</Text>
             {session && (
               <View style={{ backgroundColor: user?.type_compte === 'professionnel' ? '#fff' : 'rgba(255,255,255,0.25)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: RADIUS.xs }}>
@@ -341,438 +336,475 @@ export default function ProfileScreen({ navigation }: Props) {
               </View>
             )}
           </View>
-          {user?.bio ? (
-            <Text style={styles.bioText}>{user.bio}</Text>
-          ) : session ? (
-            <TouchableOpacity onPress={openEditModal}>
-              <Text style={styles.addBioText}>+ Ajouter une bio</Text>
-            </TouchableOpacity>
-          ) : null}
 
-          {/* Réseaux sociaux actifs */}
-          {activeSocials.length > 0 && (
-            <View style={styles.socialsRow}>
-              {activeSocials.map(f => (
-                <TouchableOpacity
-                  key={f.key}
-                  style={[styles.socialIcon, { backgroundColor: f.color }]}
-                  onPress={() => openLink(f.prefix, user![f.key]!)}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name={f.icon as any} size={18} color="#fff" />
-                </TouchableOpacity>
-              ))}
+          {/* Note globale (étoiles) */}
+          {session && (
+            <View style={styles.ratingHeaderRow}>
+              {avgNote !== null ? (
+                <>
+                  <StarRow note={avgNote} size={14} theme={theme} />
+                  <Text style={styles.ratingHeaderText}>{avgNote.toFixed(1)} / 5 ({avis.length} avis)</Text>
+                </>
+              ) : (
+                <Text style={styles.ratingHeaderText}>Aucun avis reçu</Text>
+              )}
             </View>
           )}
 
-          {!session && (
+          {/* Boutons d'action principaux */}
+          {session ? (
+            <TouchableOpacity style={styles.editProfileBtn} onPress={openEditModal} activeOpacity={0.8}>
+              <Feather name="edit-3" size={15} color="#fff" />
+              <Text style={styles.editProfileBtnText}>Modifier le profil vitrine</Text>
+            </TouchableOpacity>
+          ) : (
             <TouchableOpacity style={styles.loginPromptBtn} onPress={() => navigation.navigate('Login')}>
               <Text style={styles.loginPromptText}>Se connecter / S'inscrire</Text>
             </TouchableOpacity>
           )}
         </View>
 
-        <View style={styles.body}>
-          {/* Photos d'activité (Vitrine) */}
-          {user?.type_compte === 'professionnel' && user?.images_business && user.images_business.length > 0 && (
-            <View style={[styles.contactCard, { marginBottom: SPACING.lg }]}>
-              <Text style={styles.sectionLabel}>Photos d'activité (Vitrine)</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.md, paddingVertical: SPACING.sm }}>
-                {user.images_business.map((imgUrl, idx) => (
-                  <Image key={idx} source={{ uri: imgUrl }} style={{ width: 120, height: 120, borderRadius: RADIUS.md }} />
-                ))}
-              </ScrollView>
-            </View>
-          )}
+        {/* Body du Profil */}
+        {session ? (
+          <View style={styles.body}>
 
-          {/* Stats */}
-          {session && (
-            <View style={styles.statsCard}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.annonces}</Text>
-                <Text style={styles.statLabel}>Annonces</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.avis}</Text>
-                <Text style={styles.statLabel}>Avis reçus</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                {stats.avgNote !== null ? (
-                  <>
-                    <StarRow note={stats.avgNote} size={14} theme={theme} />
-                    <Text style={styles.statLabel}>{stats.avgNote.toFixed(1)} / 5</Text>
-                  </>
+            {/* Barre d'onglets (Vitrine, Annonces, Avis) */}
+            <View style={styles.tabsContainer}>
+              <TouchableOpacity 
+                style={[styles.tabButton, activeTab === 'vitrine' && styles.tabButtonActive]} 
+                onPress={() => setActiveTab('vitrine')}
+              >
+                <Ionicons name="storefront-outline" size={18} color={activeTab === 'vitrine' ? theme.primary : theme.textMuted} />
+                <Text style={[styles.tabLabel, { color: activeTab === 'vitrine' ? theme.textPrimary : theme.textMuted }]}>Vitrine</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.tabButton, activeTab === 'annonces' && styles.tabButtonActive]} 
+                onPress={() => setActiveTab('annonces')}
+              >
+                <Ionicons name="pricetags-outline" size={18} color={activeTab === 'annonces' ? theme.primary : theme.textMuted} />
+                <Text style={[styles.tabLabel, { color: activeTab === 'annonces' ? theme.textPrimary : theme.textMuted }]}>
+                  Annonces ({loadingAnnonces ? '…' : annonces.length})
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.tabButton, activeTab === 'avis' && styles.tabButtonActive]} 
+                onPress={() => setActiveTab('avis')}
+              >
+                <Ionicons name="star-outline" size={18} color={activeTab === 'avis' ? theme.primary : theme.textMuted} />
+                <Text style={[styles.tabLabel, { color: activeTab === 'avis' ? theme.textPrimary : theme.textMuted }]}>
+                  Avis ({loadingAvis ? '…' : avis.length})
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Contenu de l'onglet actif */}
+            {activeTab === 'vitrine' && (
+              <View style={styles.tabContent}>
+                
+                {/* Section Biographie / Description de la boutique */}
+                <Text style={styles.sectionLabel}>À propos / Biographie</Text>
+                <View style={[styles.card, styles.bioCard]}>
+                  {user?.bio ? (
+                    <Text style={styles.bioText}>{user.bio}</Text>
+                  ) : (
+                    <TouchableOpacity onPress={openEditModal} style={styles.addBioPlaceholder}>
+                      <Ionicons name="add-circle-outline" size={24} color={theme.textMuted} />
+                      <Text style={styles.addBioPlaceholderText}>Ajouter une description pour votre boutique vitrine</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Section Photos d'activité (Vitrine) */}
+                <Text style={styles.sectionLabel}>Photos d'activité (Vitrine)</Text>
+                {user?.type_compte === 'professionnel' ? (
+                  <View style={[styles.card, { paddingVertical: SPACING.md }]}>
+                    {user.images_business && user.images_business.length > 0 ? (
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.md, paddingHorizontal: SPACING.lg }}>
+                        {user.images_business.map((imgUrl, idx) => (
+                          <Image key={idx} source={{ uri: imgUrl }} style={styles.vitrineImage} />
+                        ))}
+                      </ScrollView>
+                    ) : (
+                      <TouchableOpacity onPress={openEditModal} style={styles.addPhotosPlaceholder}>
+                        <Ionicons name="images-outline" size={28} color={theme.primary} />
+                        <Text style={styles.addPhotosPlaceholderText}>+ Ajouter des photos de vos produits/plats (Max 10)</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 ) : (
-                  <>
-                    <Text style={styles.statValue}>—</Text>
-                    <Text style={styles.statLabel}>Note</Text>
-                  </>
+                  <View style={[styles.card, styles.proOnlyCard]}>
+                    <Ionicons name="lock-closed-outline" size={24} color={theme.textMuted} style={{ marginBottom: 4 }} />
+                    <Text style={styles.proOnlyText}>Passez votre compte en mode "Professionnel" pour afficher des photos de votre vitrine d'activité (limite de 10 photos).</Text>
+                    <TouchableOpacity style={styles.upgradeBtn} onPress={openEditModal}>
+                      <Text style={styles.upgradeBtnText}>Devenir Professionnel</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Section Contacts Publics */}
+                <Text style={styles.sectionLabel}>Contacts & Réseaux Sociaux</Text>
+                <View style={[styles.card, { padding: 0 }]}>
+                  {/* Téléphone */}
+                  <TouchableOpacity
+                    style={styles.contactRow}
+                    onPress={user?.telephone ? () => Linking.openURL(`tel:${user.telephone}`) : openEditModal}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.contactIconBox, { backgroundColor: '#15803d15' }]}>
+                      <Ionicons name="call-outline" size={18} color={theme.primary} />
+                    </View>
+                    <Text style={[styles.contactText, !user?.telephone && { color: theme.textMuted }]}>
+                      {user?.telephone || 'Ajouter un numéro de téléphone public'}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
+                  </TouchableOpacity>
+
+                  {/* WhatsApp */}
+                  <TouchableOpacity
+                    style={styles.contactRow}
+                    onPress={user?.whatsapp ? () => Linking.openURL(`https://wa.me/${user.whatsapp?.replace(/[^0-9]/g, '')}`) : openEditModal}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.contactIconBox, { backgroundColor: '#25D36615' }]}>
+                      <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+                    </View>
+                    <Text style={[styles.contactText, !user?.whatsapp && { color: theme.textMuted }]}>
+                      {user?.whatsapp || 'Ajouter un contact WhatsApp'}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
+                  </TouchableOpacity>
+
+                  {/* Réseaux sociaux actifs */}
+                  {activeSocials.length > 0 ? (
+                    <View style={styles.socialsBadgeContainer}>
+                      {activeSocials.map(f => (
+                        <TouchableOpacity
+                          key={f.key}
+                          style={[styles.socialBadge, { backgroundColor: f.color }]}
+                          onPress={() => openLink(f.prefix, user![f.key]!)}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name={f.icon as any} size={15} color="#fff" />
+                          <Text style={styles.socialBadgeLabel}>{f.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  ) : (
+                    <TouchableOpacity onPress={openEditModal} style={styles.addSocialPlaceholder}>
+                      <Ionicons name="logo-instagram" size={16} color={theme.textMuted} />
+                      <Text style={styles.addSocialPlaceholderText}>Lier vos réseaux (Instagram, TikTok, Facebook...)</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {activeTab === 'annonces' && (
+              <View style={styles.tabContent}>
+                {loadingAnnonces ? (
+                  <ActivityIndicator color={theme.primary} style={{ marginVertical: 32 }} />
+                ) : annonces.length === 0 ? (
+                  <View style={styles.emptyContainer}>
+                    <Ionicons name="pricetags-outline" size={48} color={theme.borderLight} />
+                    <Text style={styles.emptyText}>Aucune annonce en ligne</Text>
+                    <TouchableOpacity style={styles.publishPromptBtn} onPress={() => navigation.navigate('Publier')}>
+                      <Text style={styles.publishPromptText}>Publier ma première annonce</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.grid}>
+                    {annonces.map((item, index) => {
+                      const imageUrl = item.images?.[0]?.image_url || null;
+                      return (
+                        <TouchableOpacity
+                          key={item.id}
+                          style={[styles.annonceCard, index % 2 === 1 && { marginLeft: SPACING.md }]}
+                          onPress={() => navigation.navigate('AnnonceDetail', { annonce: item })}
+                          activeOpacity={0.8}
+                        >
+                          {imageUrl ? (
+                            <Image source={{ uri: imageUrl }} style={styles.annonceImage} />
+                          ) : (
+                            <View style={[styles.annonceImage, { backgroundColor: theme.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
+                              <Ionicons name="image-outline" size={28} color={theme.borderLight} />
+                            </View>
+                          )}
+                          <View style={styles.annonceInfo}>
+                            <Text style={styles.annonceTitle} numberOfLines={2}>{item.titre}</Text>
+                            <Text style={styles.annoncePrice}>{formatPrix(item.prix)}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
                 )}
               </View>
-            </View>
-          )}
+            )}
 
-          {/* Contacts rapides */}
-          {session && (user?.telephone || user?.whatsapp) && (
-            <View style={styles.contactCard}>
-              <Text style={styles.sectionLabel}>Mes contacts publics</Text>
-              {user.telephone && (
-                <TouchableOpacity
-                  style={styles.contactRow}
-                  onPress={() => Linking.openURL(`tel:${user.telephone}`)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.contactIconBox, { backgroundColor: '#15803d22' }]}>
-                    <Ionicons name="call-outline" size={18} color={COLORS.primary} />
+            {activeTab === 'avis' && (
+              <View style={styles.tabContent}>
+                {loadingAvis ? (
+                  <ActivityIndicator color={theme.primary} style={{ marginVertical: 32 }} />
+                ) : avis.length === 0 ? (
+                  <View style={styles.emptyContainer}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={48} color={theme.borderLight} />
+                    <Text style={styles.emptyText}>Vous n'avez pas encore reçu d'avis.</Text>
                   </View>
-                  <Text style={styles.contactText}>{user.telephone}</Text>
-                  <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-                </TouchableOpacity>
-              )}
-              {user.whatsapp && (
-                <TouchableOpacity
-                  style={[styles.contactRow, !user.telephone && {}]}
-                  onPress={() => Linking.openURL(`https://wa.me/${user.whatsapp?.replace(/[^0-9]/g, '')}`)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.contactIconBox, { backgroundColor: '#25D36622' }]}>
-                    <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
-                  </View>
-                  <Text style={styles.contactText}>{user.whatsapp}</Text>
-                  <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
-
-          {/* Menu */}
-          {MENU_ITEMS.map((section) => (
-            <View key={section.section} style={styles.menuSection}>
-              <Text style={[styles.sectionLabel, { color: theme.textMuted }]}>{section.section}</Text>
-              <View style={[styles.menuCard, { backgroundColor: theme.surface }]}>
-                {section.items.map((item, index) => (
-                  <TouchableOpacity
-                    key={item.label}
-                    style={[styles.menuItem, index < section.items.length - 1 && [styles.menuItemBorder, { borderBottomColor: theme.divider }]]}
-                    activeOpacity={0.7}
-                    onPress={() => item.type === 'toggle' ? toggleTheme() : onMenuItemPress(item)}
-                  >
-                    <View style={styles.menuItemLeft}>
-                      <View style={[styles.menuIconBox, { backgroundColor: theme.primaryFaded }]}>
-                        <Feather name={item.icon as any} size={17} color={theme.primary} />
-                      </View>
-                      <Text style={[styles.menuItemLabel, { color: theme.textPrimary }]}>{item.label}</Text>
-                    </View>
-                    <View style={styles.menuItemRight}>
-                      {item.type === 'toggle' ? (
-                        <View style={[styles.toggleContainer, { backgroundColor: isDark ? theme.primary : theme.border }]}>
-                          <View style={[styles.toggleCircle, { transform: [{ translateX: isDark ? 20 : 0 }] }]} />
+                ) : (
+                  <View style={{ gap: SPACING.md }}>
+                    {avis.map((a: Avis) => {
+                      const authorName = a.auteur
+                        ? `${a.auteur.prenom || ''} ${a.auteur.nom || ''}`.trim() || 'Anonyme'
+                        : 'Anonyme';
+                      
+                      return (
+                        <View key={a.id} style={[styles.card, styles.avisCard]}>
+                          <View style={styles.avisHeader}>
+                            {a.auteur?.avatar_url ? (
+                              <Image source={{ uri: a.auteur.avatar_url }} style={styles.avisAvatar} />
+                            ) : (
+                              <View style={[styles.avisAvatar, { backgroundColor: theme.primaryFaded, justifyContent: 'center', alignItems: 'center' }]}>
+                                <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.primary }}>{authorName.charAt(0).toUpperCase()}</Text>
+                              </View>
+                            )}
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textPrimary, marginBottom: 2 }}>{authorName}</Text>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <StarRow note={a.note} size={12} theme={theme} />
+                                <Text style={{ fontSize: FONTS.xs, color: theme.textMuted }}>{timeAgo(a.date_creation)}</Text>
+                              </View>
+                            </View>
+                          </View>
+                          {a.commentaire ? <Text style={styles.avisCommentaire}>{a.commentaire}</Text> : null}
                         </View>
-                      ) : (
-                        <>
-                          {'value' in item && <Text style={[styles.menuItemValue, { color: theme.textMuted }]}>{(item as any).value}</Text>}
-                          <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
-                        </>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                      );
+                    })}
+                  </View>
+                )}
               </View>
-            </View>
-          ))}
+            )}
 
-          {/* Déconnexion */}
-          <TouchableOpacity
-            style={styles.logoutBtn}
-            onPress={() => {
-              if (!session) { navigation.navigate('Login'); return; }
-              Alert.alert('Déconnexion', 'Êtes-vous sûr ?', [
-                { text: 'Annuler', style: 'cancel' },
-                { text: 'Déconnexion', style: 'destructive', onPress: signOut },
-              ]);
-            }}
-            activeOpacity={0.7}
-          >
-            <Feather name={session ? 'log-out' : 'log-in'} size={18} color={session ? COLORS.error : COLORS.primary} />
-            <Text style={[styles.logoutText, !session && { color: COLORS.primary }]}>
-              {session ? 'Déconnexion' : 'Se connecter'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.menuItem, { marginTop: SPACING.md, backgroundColor: theme.surface, borderRadius: RADIUS.lg }]}
-            onPress={async () => {
-              const { status: existingStatus } = await Notifications.getPermissionsAsync();
-              let finalStatus = existingStatus;
-              if (existingStatus !== 'granted') {
-                const { status } = await Notifications.requestPermissionsAsync();
-                finalStatus = status;
-              }
-              
-              if (finalStatus !== 'granted') {
-                Alert.alert("Permission refusée", "Vous devez autoriser les notifications dans les réglages de votre appareil pour tester cette fonctionnalité.");
-                return;
-              }
-
-              await Notifications.scheduleNotificationAsync({
-                content: {
-                  title: "Test de notification 🔔",
-                  body: "Ceci est un test local. Cliquez pour simuler l'ouverture d'un message.",
-                  data: { conversationId: 'test-id', titreAnnonce: 'Annonce Test' },
-                },
-                trigger: { seconds: 3 },
-              });
-              
-              Alert.alert(
-                "Test lancé", 
-                "La notification arrivera dans 3 secondes.\n\nCONSEIL : Verrouillez votre téléphone ou quittez l'application pour la voir apparaître comme une vraie notification."
-              );
-            }}
-          >
-            <View style={styles.menuItemLeft}>
-              <View style={[styles.menuIconBox, { backgroundColor: theme.primaryFaded }]}>
-                <Ionicons name="notifications-outline" size={17} color={theme.primary} />
-              </View>
-              <Text style={styles.menuItemLabel}>Tester les notifications</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
-          </TouchableOpacity>
-
-          <Text style={styles.version}>Flash Market v2.0</Text>
-          <View style={{ height: 100 }} />
-        </View>
+          </View>
+        ) : (
+          <View style={styles.guestBody}>
+            <Ionicons name="storefront-outline" size={64} color={theme.borderLight} style={{ marginBottom: SPACING.lg }} />
+            <Text style={styles.guestTitle}>Votre Espace Vitrine</Text>
+            <Text style={styles.guestText}>Connectez-vous pour configurer votre boutique vitrine, ajouter des photos de vos plats/produits, gérer vos annonces de vente et recevoir les avis de vos clients.</Text>
+            <TouchableOpacity style={styles.guestLoginBtn} onPress={() => navigation.navigate('Login')}>
+              <Text style={styles.guestLoginBtnText}>Créer ou connecter mon compte</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
 
       {/* Modal d'édition */}
       <Modal visible={isEditing} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setIsEditing(false)}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <View style={styles.modal}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setIsEditing(false)}>
-              <Ionicons name="close" size={26} color={COLORS.textPrimary} />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Modifier le profil</Text>
-            <TouchableOpacity onPress={handleSaveProfile} disabled={isSaving}>
-              {isSaving
-                ? <ActivityIndicator size="small" color={COLORS.primary} />
-                : <Text style={styles.modalSave}>Valider</Text>
-              }
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {/* Avatar */}
-            <TouchableOpacity style={styles.modalAvatar} onPress={pickImage} activeOpacity={0.8}>
-              {editAvatarUri
-                ? <Image source={{ uri: editAvatarUri }} style={styles.modalAvatarImage} />
-                : <Ionicons name="camera" size={32} color={COLORS.textInverse} />
-              }
-              <View style={styles.modalAvatarOverlay}>
-                <Ionicons name="pencil" size={14} color="#fff" />
-              </View>
-            </TouchableOpacity>
-
-            {/* Type de compte */}
-            <Text style={styles.modalSectionLabel}>Type de compte</Text>
-            <View style={{ flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.lg }}>
-              <TouchableOpacity
-                style={[
-                  { flex: 1, height: 46, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: theme.border },
-                  editTypeCompte === 'particulier' ? { backgroundColor: theme.primary, borderColor: theme.primary } : { backgroundColor: theme.surfaceMuted }
-                ]}
-                onPress={() => setEditTypeCompte('particulier')}
-                activeOpacity={0.8}
-              >
-                <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: editTypeCompte === 'particulier' ? '#fff' : theme.textSecondary }}>
-                  Particulier
-                </Text>
+          <View style={styles.modal}>
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => setIsEditing(false)}>
+                <Ionicons name="close" size={26} color={COLORS.textPrimary} />
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  { flex: 1, height: 46, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: theme.border },
-                  editTypeCompte === 'professionnel' ? { backgroundColor: theme.primary, borderColor: theme.primary } : { backgroundColor: theme.surfaceMuted }
-                ]}
-                onPress={() => setEditTypeCompte('professionnel')}
-                activeOpacity={0.8}
-              >
-                <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: editTypeCompte === 'professionnel' ? '#fff' : theme.textSecondary }}>
-                  Professionnel (Vitrine)
-                </Text>
+              <Text style={styles.modalTitle}>Modifier le profil vitrine</Text>
+              <TouchableOpacity onPress={handleSaveProfile} disabled={isSaving}>
+                {isSaving
+                  ? <ActivityIndicator size="small" color={COLORS.primary} />
+                  : <Text style={styles.modalSave}>Valider</Text>
+                }
               </TouchableOpacity>
             </View>
 
-            {editTypeCompte === 'professionnel' && (
-              <View>
-                {/* Couverture/Bannière */}
-                <Text style={styles.modalSectionLabel}>Bannière de couverture (Vitrine)</Text>
+            <ScrollView contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {/* Avatar */}
+              <TouchableOpacity style={styles.modalAvatar} onPress={pickImage} activeOpacity={0.8}>
+                {editAvatarUri ? (
+                  <Image source={{ uri: editAvatarUri }} style={styles.modalAvatarImage} />
+                ) : (
+                  <Ionicons name="camera" size={32} color={COLORS.textInverse} />
+                )}
+                <View style={styles.modalAvatarOverlay}>
+                  <Ionicons name="pencil" size={14} color="#fff" />
+                </View>
+              </TouchableOpacity>
+
+              {/* Type de compte */}
+              <Text style={styles.modalSectionLabel}>Type de compte</Text>
+              <View style={{ flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.lg }}>
                 <TouchableOpacity
-                  style={{
-                    width: '100%',
-                    height: 120,
-                    borderRadius: RADIUS.lg,
-                    borderWidth: 2,
-                    borderStyle: 'dashed',
-                    borderColor: theme.primary,
-                    backgroundColor: theme.primaryFaded,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    overflow: 'hidden',
-                    marginBottom: SPACING.lg
-                  }}
-                  onPress={async () => {
-                    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                    if (status !== 'granted') { Alert.alert('Permission requise pour accéder aux photos.'); return; }
-                    const result = await ImagePicker.launchImageLibraryAsync({
-                      mediaTypes: ['images'],
-                      allowsEditing: true, aspect: [16, 9], quality: 0.7, base64: true,
-                    });
-                    if (!result.canceled && result.assets[0].base64) {
-                      setEditBanniereUri(result.assets[0].uri);
-                      setEditBanniereBase64(result.assets[0].base64);
-                    }
-                  }}
+                  style={[
+                    styles.accountTypeOption,
+                    editTypeCompte === 'particulier' ? { backgroundColor: theme.primary, borderColor: theme.primary } : { backgroundColor: theme.surfaceMuted }
+                  ]}
+                  onPress={() => setEditTypeCompte('particulier')}
                   activeOpacity={0.8}
                 >
-                  {editBanniereUri ? (
-                    <Image source={{ uri: editBanniereUri }} style={{ width: '100%', height: '100%' }} />
-                  ) : (
-                    <View style={{ alignItems: 'center', gap: 4 }}>
-                      <Ionicons name="image-outline" size={24} color={theme.primary} />
-                      <Text style={{ fontSize: FONTS.xs, color: theme.primary, fontWeight: FONTS.semibold }}>
-                        Choisir une bannière
-                      </Text>
-                    </View>
-                  )}
-                  {editBanniereUri && (
-                    <TouchableOpacity
-                      style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12, padding: 2 }}
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        setEditBanniereUri(null);
-                        setEditBanniereBase64(null);
-                      }}
-                    >
-                      <Ionicons name="close" size={16} color="#fff" />
-                    </TouchableOpacity>
-                  )}
+                  <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: editTypeCompte === 'particulier' ? '#fff' : theme.textSecondary }}>
+                    Particulier
+                  </Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.accountTypeOption,
+                    editTypeCompte === 'professionnel' ? { backgroundColor: theme.primary, borderColor: theme.primary } : { backgroundColor: theme.surfaceMuted }
+                  ]}
+                  onPress={() => setEditTypeCompte('professionnel')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: editTypeCompte === 'professionnel' ? '#fff' : theme.textSecondary }}>
+                    Professionnel (Vitrine)
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
-                {/* Photos d'activité */}
-                <Text style={styles.modalSectionLabel}>Photos d'activité (Max 5)</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.md, paddingVertical: SPACING.sm, marginBottom: SPACING.lg }}>
+              {editTypeCompte === 'professionnel' && (
+                <View>
+                  {/* Couverture/Bannière */}
+                  <Text style={styles.modalSectionLabel}>Bannière de couverture (Vitrine)</Text>
                   <TouchableOpacity
-                    style={{
-                      width: 100,
-                      height: 100,
-                      borderRadius: RADIUS.lg,
-                      borderWidth: 2,
-                      borderStyle: 'dashed',
-                      borderColor: theme.primary,
-                      backgroundColor: theme.primaryFaded,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      gap: 4
-                    }}
+                    style={styles.modalBannerSelector}
                     onPress={async () => {
-                      if (editImagesBusiness.length >= 5) {
-                        Alert.alert('Maximum atteint', 'Vous pouvez ajouter 5 photos maximum.');
-                        return;
-                      }
                       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
                       if (status !== 'granted') { Alert.alert('Permission requise pour accéder aux photos.'); return; }
                       const result = await ImagePicker.launchImageLibraryAsync({
                         mediaTypes: ['images'],
-                        allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true,
+                        allowsEditing: true, aspect: [16, 9], quality: 0.7, base64: true,
                       });
                       if (!result.canceled && result.assets[0].base64) {
-                        setEditImagesBusiness([...editImagesBusiness, result.assets[0].uri]);
-                        setEditImagesBusinessBase64([...editImagesBusinessBase64, result.assets[0].base64]);
+                        setEditBanniereUri(result.assets[0].uri);
+                        setEditBanniereBase64(result.assets[0].base64);
                       }
                     }}
-                    activeOpacity={0.7}
+                    activeOpacity={0.8}
                   >
-                    <Ionicons name="camera" size={28} color={theme.primary} />
-                    <Text style={{ fontSize: FONTS.xs, fontWeight: FONTS.semibold, color: theme.primary }}>
-                      {editImagesBusiness.length}/5
-                    </Text>
-                  </TouchableOpacity>
-
-                  {editImagesBusiness.map((uri, idx) => (
-                    <View key={idx} style={{ position: 'relative' }}>
-                      <Image source={{ uri }} style={{ width: 100, height: 100, borderRadius: RADIUS.lg }} />
+                    {editBanniereUri ? (
+                      <Image source={{ uri: editBanniereUri }} style={{ width: '100%', height: '100%' }} />
+                    ) : (
+                      <View style={{ alignItems: 'center', gap: 4 }}>
+                        <Ionicons name="image-outline" size={24} color={theme.primary} />
+                        <Text style={{ fontSize: FONTS.xs, color: theme.primary, fontWeight: FONTS.semibold }}>
+                          Choisir une bannière
+                        </Text>
+                      </View>
+                    )}
+                    {editBanniereUri && (
                       <TouchableOpacity
-                        style={{ position: 'absolute', top: -6, right: -6, backgroundColor: theme.surface, borderRadius: 12 }}
-                        onPress={() => {
-                          setEditImagesBusiness(editImagesBusiness.filter((_, i) => i !== idx));
-                          setEditImagesBusinessBase64(editImagesBusinessBase64.filter((_, i) => i !== idx));
+                        style={styles.deleteBannerBtn}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          setEditBanniereUri(null);
+                          setEditBanniereBase64(null);
                         }}
                       >
-                        <Ionicons name="close-circle" size={22} color={COLORS.error} />
+                        <Ionicons name="close" size={16} color="#fff" />
                       </TouchableOpacity>
-                    </View>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
+                    )}
+                  </TouchableOpacity>
 
-            {/* Identité */}
-            <Text style={styles.modalSectionLabel}>Identité</Text>
-            <View style={styles.modalRow}>
-              <View style={[styles.modalField, { flex: 1 }]}>
-                <Text style={styles.fieldLabel}>Prénom</Text>
-                <TextInput style={styles.fieldInput} value={editPrenom} onChangeText={setEditPrenom} placeholder="Amadou" />
-              </View>
-              <View style={{ width: SPACING.md }} />
-              <View style={[styles.modalField, { flex: 1 }]}>
-                <Text style={styles.fieldLabel}>Nom</Text>
-                <TextInput style={styles.fieldInput} value={editNom} onChangeText={setEditNom} placeholder="Coulibaly" />
-              </View>
-            </View>
+                  {/* Photos d'activité (Augmenté à 10 max) */}
+                  <Text style={styles.modalSectionLabel}>Photos de vitrine (Max 10)</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.md, paddingVertical: SPACING.sm, marginBottom: SPACING.lg }}>
+                    <TouchableOpacity
+                      style={styles.modalActivityPhotoAdd}
+                      onPress={async () => {
+                        if (editImagesBusiness.length >= 10) {
+                          Alert.alert('Maximum atteint', 'Vous pouvez ajouter 10 photos maximum.');
+                          return;
+                        }
+                        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                        if (status !== 'granted') { Alert.alert('Permission requise pour accéder aux photos.'); return; }
+                        const result = await ImagePicker.launchImageLibraryAsync({
+                          mediaTypes: ['images'],
+                          allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true,
+                        });
+                        if (!result.canceled && result.assets[0].base64) {
+                          setEditImagesBusiness([...editImagesBusiness, result.assets[0].uri]);
+                          setEditImagesBusinessBase64([...editImagesBusinessBase64, result.assets[0].base64]);
+                        }
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="camera" size={28} color={theme.primary} />
+                      <Text style={{ fontSize: FONTS.xs, fontWeight: FONTS.semibold, color: theme.primary }}>
+                        {editImagesBusiness.length}/10
+                      </Text>
+                    </TouchableOpacity>
 
-            <View style={styles.modalField}>
-              <Text style={styles.fieldLabel}>Bio / Description</Text>
-              <TextInput
-                style={[styles.fieldInput, { height: 80, textAlignVertical: 'top' }]}
-                value={editBio}
-                onChangeText={setEditBio}
-                placeholder="Vendeur de téléphones à Bamako · Livraison disponible"
-                multiline
-              />
-            </View>
-
-            {/* Contacts */}
-            <Text style={styles.modalSectionLabel}>Contacts & Réseaux</Text>
-            {SOCIAL_FIELDS.map(f => (
-              <View key={f.key} style={styles.modalField}>
-                <View style={styles.fieldLabelRow}>
-                  <Ionicons name={f.icon as any} size={15} color={f.color} />
-                  <Text style={styles.fieldLabel}>{f.label}</Text>
+                    {editImagesBusiness.map((uri, idx) => (
+                      <View key={idx} style={{ position: 'relative' }}>
+                        <Image source={{ uri }} style={styles.modalActivityPhotoItem} />
+                        <TouchableOpacity
+                          style={styles.deleteActivityPhotoBtn}
+                          onPress={() => {
+                            setEditImagesBusiness(editImagesBusiness.filter((_, i) => i !== idx));
+                            setEditImagesBusinessBase64(editImagesBusinessBase64.filter((_, i) => i !== idx));
+                          }}
+                        >
+                          <Ionicons name="close-circle" size={22} color={COLORS.error} />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </ScrollView>
                 </View>
+              )}
+
+              {/* Identité */}
+              <Text style={styles.modalSectionLabel}>Identité</Text>
+              <View style={styles.modalRow}>
+                <View style={[styles.modalField, { flex: 1 }]}>
+                  <Text style={styles.fieldLabel}>Prénom</Text>
+                  <TextInput style={styles.fieldInput} value={editPrenom} onChangeText={setEditPrenom} placeholder="Amadou" />
+                </View>
+                <View style={{ width: SPACING.md }} />
+                <View style={[styles.modalField, { flex: 1 }]}>
+                  <Text style={styles.fieldLabel}>Nom</Text>
+                  <TextInput style={styles.fieldInput} value={editNom} onChangeText={setEditNom} placeholder="Coulibaly" />
+                </View>
+              </View>
+
+              <View style={styles.modalField}>
+                <Text style={styles.fieldLabel}>Bio / Description de la vitrine</Text>
                 <TextInput
-                  style={styles.fieldInput}
-                  value={
-                    f.key === 'telephone' ? editTelephone :
-                    f.key === 'whatsapp' ? editWhatsapp :
-                    f.key === 'instagram' ? editInstagram :
-                    f.key === 'tiktok' ? editTiktok : editFacebook
-                  }
-                  onChangeText={
-                    f.key === 'telephone' ? setEditTelephone :
-                    f.key === 'whatsapp' ? setEditWhatsapp :
-                    f.key === 'instagram' ? setEditInstagram :
-                    f.key === 'tiktok' ? setEditTiktok : setEditFacebook
-                  }
-                  placeholder={f.placeholder}
-                  keyboardType={f.key === 'telephone' || f.key === 'whatsapp' ? 'phone-pad' : 'default'}
-                  autoCapitalize="none"
+                  style={[styles.fieldInput, { height: 100, textAlignVertical: 'top' }]}
+                  value={editBio}
+                  onChangeText={setEditBio}
+                  placeholder="Vendeur de téléphones à Bamako · Livraison disponible · Boutique physique à Faladié"
+                  multiline
                 />
               </View>
-            ))}
-            <View style={{ height: 80 }} />
-          </ScrollView>
-        </View>
+
+              {/* Contacts */}
+              <Text style={styles.modalSectionLabel}>Contacts & Réseaux</Text>
+              {SOCIAL_FIELDS.map(f => (
+                <View key={f.key} style={styles.modalField}>
+                  <View style={styles.fieldLabelRow}>
+                    <Ionicons name={f.icon as any} size={15} color={f.color} />
+                    <Text style={styles.fieldLabel}>{f.label}</Text>
+                  </View>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={
+                      f.key === 'telephone' ? editTelephone :
+                      f.key === 'whatsapp' ? editWhatsapp :
+                      f.key === 'instagram' ? editInstagram :
+                      f.key === 'tiktok' ? editTiktok : editFacebook
+                    }
+                    onChangeText={
+                      f.key === 'telephone' ? setEditTelephone :
+                      f.key === 'whatsapp' ? setEditWhatsapp :
+                      f.key === 'instagram' ? setEditInstagram :
+                      f.key === 'tiktok' ? setEditTiktok : setEditFacebook
+                    }
+                    placeholder={f.placeholder}
+                    keyboardType={f.key === 'telephone' || f.key === 'whatsapp' ? 'phone-pad' : 'default'}
+                    autoCapitalize="none"
+                  />
+                </View>
+              ))}
+              <View style={{ height: 80 }} />
+            </ScrollView>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
     </View>
@@ -786,28 +818,28 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   header: {
     backgroundColor: theme.primary,
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: SPACING.xxxl,
+    paddingBottom: SPACING.xl,
     alignItems: 'center',
     paddingHorizontal: SPACING.xl,
+    position: 'relative',
+    ...SHADOWS.md,
   },
   headerTop: {
     width: '100%',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.lg,
   },
   headerTitle: { fontSize: FONTS.xxl, fontWeight: FONTS.extrabold, color: '#fff' },
-  editBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
+  settingsBtn: {
+    width: 40, height: 40, borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: SPACING.md, paddingVertical: 7,
-    borderRadius: RADIUS.full,
+    justifyContent: 'center', alignItems: 'center',
   },
-  editBtnText: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: '#fff' },
 
   // Avatar
-  avatarWrapper: { position: 'relative', marginBottom: SPACING.lg },
+  avatarWrapper: { position: 'relative', marginBottom: SPACING.md },
   avatarImage: { width: 90, height: 90, borderRadius: 45, borderWidth: 3, borderColor: '#fff' },
   avatarFallback: {
     width: 90, height: 90, borderRadius: 45,
@@ -824,87 +856,298 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     borderWidth: 2, borderColor: '#fff',
   },
 
-  displayName: { fontSize: FONTS.xl, fontWeight: FONTS.extrabold, color: '#fff', marginBottom: 4 },
-  bioText: { fontSize: FONTS.sm, color: 'rgba(255,255,255,0.8)', textAlign: 'center', lineHeight: 18, marginBottom: SPACING.md, paddingHorizontal: SPACING.lg },
-  addBioText: { fontSize: FONTS.sm, color: 'rgba(255,255,255,0.6)', marginBottom: SPACING.md },
+  displayName: { fontSize: FONTS.xl, fontWeight: FONTS.extrabold, color: '#fff' },
+  ratingHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.md },
+  ratingHeaderText: { fontSize: FONTS.xs, color: '#fff', fontWeight: FONTS.semibold, opacity: 0.9 },
 
-  socialsRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm },
-  socialIcon: {
-    width: 42, height: 42, borderRadius: 21,
-    justifyContent: 'center', alignItems: 'center',
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
+  editProfileBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    paddingHorizontal: SPACING.xl, paddingVertical: 10,
+    borderRadius: RADIUS.full,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
   },
+  editProfileBtnText: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: '#fff' },
 
   loginPromptBtn: {
-    marginTop: SPACING.lg,
+    marginTop: SPACING.md,
     paddingHorizontal: SPACING.xxl, paddingVertical: 11,
     backgroundColor: '#fff', borderRadius: RADIUS.full,
   },
   loginPromptText: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.primary },
 
   // Body
-  body: { padding: SPACING.xl },
+  body: { padding: SPACING.lg },
 
-  // Stats
-  statsCard: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: theme.surface, borderRadius: RADIUS.xl,
-    padding: SPACING.xl, marginBottom: SPACING.xl,
+  // Tabs navigation
+  tabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: theme.surface,
+    borderRadius: RADIUS.xl,
+    padding: 4,
+    marginBottom: SPACING.lg,
     ...SHADOWS.sm,
   },
-  statItem: { flex: 1, alignItems: 'center' },
-  statValue: { fontSize: FONTS.xxl, fontWeight: FONTS.extrabold, color: theme.textPrimary },
-  statLabel: { fontSize: FONTS.xs, color: theme.textMuted, marginTop: 2 },
-  statDivider: { width: 1, height: 36, backgroundColor: theme.borderLight },
-
-  // Contact card
-  contactCard: {
-    backgroundColor: theme.surface, borderRadius: RADIUS.xl,
-    marginBottom: SPACING.xl, overflow: 'hidden', ...SHADOWS.sm,
+  tabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: RADIUS.lg,
   },
+  tabButtonActive: {
+    backgroundColor: theme.primaryFaded,
+  },
+  tabLabel: { fontSize: FONTS.xs, fontWeight: FONTS.bold },
+  tabContent: { gap: SPACING.md },
+
+  // Cards & Layouts
+  card: {
+    backgroundColor: theme.surface,
+    borderRadius: RADIUS.xl,
+    padding: SPACING.lg,
+    ...SHADOWS.sm,
+  },
+  bioCard: {
+    paddingVertical: SPACING.xl,
+  },
+  bioText: {
+    fontSize: FONTS.md,
+    color: theme.textSecondary,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  addBioPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.sm,
+  },
+  addBioPlaceholderText: {
+    fontSize: FONTS.sm,
+    color: theme.textMuted,
+    fontWeight: FONTS.medium,
+  },
+  sectionLabel: {
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.bold,
+    color: theme.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
+    marginLeft: 4,
+  },
+
+  // Pro features
+  vitrineImage: {
+    width: 140,
+    height: 140,
+    borderRadius: RADIUS.lg,
+  },
+  addPhotosPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.lg,
+  },
+  addPhotosPlaceholderText: {
+    fontSize: FONTS.xs,
+    color: theme.primary,
+    fontWeight: FONTS.bold,
+  },
+  proOnlyCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.xl,
+  },
+  proOnlyText: {
+    fontSize: FONTS.xs,
+    color: theme.textMuted,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.md,
+  },
+  upgradeBtn: {
+    backgroundColor: theme.primary,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 8,
+    borderRadius: RADIUS.full,
+  },
+  upgradeBtnText: {
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.bold,
+    color: '#fff',
+  },
+
+  // Contacts Publics
   contactRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: SPACING.lg, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: theme.borderLight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.borderLight,
     gap: SPACING.md,
   },
   contactIconBox: {
-    width: 36, height: 36, borderRadius: RADIUS.md,
-    justifyContent: 'center', alignItems: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: RADIUS.md,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  contactText: { flex: 1, fontSize: FONTS.md, color: theme.textPrimary, fontWeight: FONTS.medium },
-
-  // Sections
-  sectionLabel: {
-    fontSize: FONTS.xs, fontWeight: FONTS.semibold,
-    color: theme.textMuted, textTransform: 'uppercase',
-    letterSpacing: 0.5, marginBottom: SPACING.md, marginLeft: 2,
+  contactText: {
+    flex: 1,
+    fontSize: FONTS.md,
+    color: theme.textPrimary,
+    fontWeight: FONTS.medium,
   },
-  menuSection: { marginBottom: SPACING.xl },
-  menuCard: { backgroundColor: theme.surface, borderRadius: RADIUS.xl, overflow: 'hidden', ...SHADOWS.sm },
-  menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: SPACING.lg, paddingHorizontal: SPACING.lg },
-  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: theme.borderLight },
-  menuItemLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
-  menuIconBox: { width: 36, height: 36, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center' },
-  menuItemLabel: { fontSize: FONTS.md, fontWeight: FONTS.medium, color: theme.textPrimary },
-  menuItemRight: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  menuItemValue: { fontSize: FONTS.sm, color: theme.textMuted },
-
-  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, paddingVertical: SPACING.lg, marginTop: SPACING.md },
-  logoutText: { fontSize: FONTS.md, fontWeight: FONTS.semibold },
-  version: { textAlign: 'center', fontSize: FONTS.xs, color: theme.textMuted, marginTop: SPACING.sm },
-
-  toggleContainer: {
-    width: 44,
-    height: 24,
-    borderRadius: 12,
-    padding: 2,
+  socialsBadgeContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+    padding: SPACING.lg,
   },
-  toggleCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#fff',
+  socialBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+  },
+  socialBadgeLabel: {
+    fontSize: FONTS.xs,
+    color: '#fff',
+    fontWeight: FONTS.bold,
+  },
+  addSocialPlaceholder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: SPACING.lg,
+  },
+  addSocialPlaceholderText: {
+    fontSize: FONTS.xs,
+    color: theme.textMuted,
+    fontWeight: FONTS.semibold,
+  },
+
+  // Active listings Tab
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    gap: SPACING.sm,
+  },
+  emptyText: {
+    fontSize: FONTS.md,
+    color: theme.textMuted,
+    fontWeight: FONTS.medium,
+  },
+  publishPromptBtn: {
+    backgroundColor: theme.primary,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: 10,
+    borderRadius: RADIUS.full,
+    marginTop: SPACING.sm,
+  },
+  publishPromptText: {
+    fontSize: FONTS.sm,
+    fontWeight: FONTS.bold,
+    color: '#fff',
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: SPACING.md,
+  },
+  annonceCard: {
+    width: CARD_W,
+    backgroundColor: theme.surface,
+    borderRadius: RADIUS.lg,
+    overflow: 'hidden',
+    ...SHADOWS.sm,
+  },
+  annonceImage: {
+    width: '100%',
+    height: CARD_W,
+  },
+  annonceInfo: {
+    padding: SPACING.md,
+  },
+  annonceTitle: {
+    fontSize: FONTS.sm,
+    fontWeight: FONTS.semibold,
+    color: theme.textPrimary,
+    height: 38,
+    lineHeight: 18,
+  },
+  annoncePrice: {
+    fontSize: FONTS.md,
+    fontWeight: FONTS.extrabold,
+    color: theme.primary,
+    marginTop: 4,
+  },
+
+  // Reviews Tab
+  avisCard: {
+    padding: SPACING.lg,
+  },
+  avisHeader: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    alignItems: 'center',
+  },
+  avisAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  avisCommentaire: {
+    fontSize: FONTS.sm,
+    color: theme.textSecondary,
+    lineHeight: 20,
+    marginTop: SPACING.md,
+    paddingLeft: 2,
+  },
+
+  // Guest Space styling
+  guestBody: {
+    paddingHorizontal: SPACING.xxl,
+    paddingVertical: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guestTitle: {
+    fontSize: FONTS.xl,
+    fontWeight: FONTS.extrabold,
+    color: theme.textPrimary,
+    marginBottom: SPACING.sm,
+  },
+  guestText: {
+    fontSize: FONTS.sm,
+    color: theme.textMuted,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: SPACING.xxl,
+  },
+  guestLoginBtn: {
+    backgroundColor: theme.primary,
+    paddingHorizontal: SPACING.xxl,
+    paddingVertical: 14,
+    borderRadius: RADIUS.full,
+    ...SHADOWS.md,
+  },
+  guestLoginBtnText: {
+    fontSize: FONTS.md,
+    fontWeight: FONTS.bold,
+    color: '#fff',
   },
 
   // Modal
@@ -931,6 +1174,37 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     height: 26, backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center', alignItems: 'center',
   },
+  accountTypeOption: {
+    flex: 1, height: 46, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: theme.border
+  },
+  modalBannerSelector: {
+    width: '100%',
+    height: 120,
+    borderRadius: RADIUS.lg,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: theme.primary,
+    backgroundColor: theme.primaryFaded,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    marginBottom: SPACING.lg
+  },
+  deleteBannerBtn: { position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12, padding: 2 },
+  modalActivityPhotoAdd: {
+    width: 100,
+    height: 100,
+    borderRadius: RADIUS.lg,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: theme.primary,
+    backgroundColor: theme.primaryFaded,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4
+  },
+  modalActivityPhotoItem: { width: 100, height: 100, borderRadius: RADIUS.lg },
+  deleteActivityPhotoBtn: { position: 'absolute', top: -6, right: -6, backgroundColor: theme.surface, borderRadius: 12 },
   modalSectionLabel: {
     fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.textSecondary,
     textTransform: 'uppercase', letterSpacing: 0.5,

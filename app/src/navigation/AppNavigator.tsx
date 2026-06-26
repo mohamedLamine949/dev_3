@@ -19,6 +19,7 @@ import PostAnnonceScreen from '../screens/PostAnnonceScreen';
 import MessagesScreen from '../screens/MessagesScreen';
 import ChatConversationScreen from '../screens/ChatConversationScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 import LoginScreen from '../screens/LoginScreen';
 import MesAnnoncesScreen from '../screens/MesAnnoncesScreen';
 import FavorisScreen from '../screens/FavorisScreen';
@@ -80,6 +81,11 @@ function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
+      <Stack.Screen 
+        name="Settings" 
+        component={SettingsScreen} 
+        options={{ animation: 'slide_from_right' }}
+      />
       <Stack.Screen 
         name="MesAnnonces" 
         component={MesAnnoncesScreen} 
