@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.flashmarket.app"
+      "bundleIdentifier": "com.chapchap.flashmarket"
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +24,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.flashmarket.app"
+      "package": "com.chapchap.flashmarket"
     },
     "web": {
       "favicon": "./assets/favicon.png"
