@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, CATEGORIES, SHADOWS, ETAT_ARTICLE } from '../constants/theme';
-import { Annonce } from '../lib/supabase';
+import { supabase, Annonce, User } from '../lib/supabase';
 import { useAnnonces } from '../hooks/useAnnonces';
 import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
 import { useTheme } from '../contexts/ThemeContext';
@@ -52,6 +52,136 @@ const CAT_EMOJIS: Record<string, string> = {
   services:                '🔧',
 };
 
+function calculateRelevanceScore(query: string, item: any, isUser: boolean): number {
+  if (!query) return 0;
+  
+  const cleanQuery = query.toLowerCase().trim();
+  const queryWords = cleanQuery.split(/[\s,.-]+/).filter(w => w.length > 0);
+  if (queryWords.length === 0) return 0;
+  
+  let score = 0;
+  
+  if (!isUser) {
+    const title = (item.titre || '').toLowerCase();
+    const desc = (item.description || '').toLowerCase();
+    const category = (item.categorie || '').toLowerCase();
+    const location = `${item.ville || ''} ${item.quartier || ''}`.toLowerCase();
+    
+    // Check if full exact query matches title/description
+    if (title.includes(cleanQuery)) {
+      score += 20;
+    } else if (desc.includes(cleanQuery)) {
+      score += 10;
+    }
+    
+    // Check word matches
+    let matchingWordsCount = 0;
+    queryWords.forEach(word => {
+      let wordMatched = false;
+      if (title.includes(word)) {
+        score += 8;
+        wordMatched = true;
+        // Exact word match bonus (e.g. not just substring)
+        if (title.split(/[\s,.-]+/).includes(word)) {
+          score += 4;
+        }
+      }
+      if (desc.includes(word)) {
+        score += 3;
+        wordMatched = true;
+        if (desc.split(/[\s,.-]+/).includes(word)) {
+          score += 1.5;
+        }
+      }
+      if (category.includes(word)) {
+        score += 4;
+        wordMatched = true;
+      }
+      if (location.includes(word)) {
+        score += 2;
+        wordMatched = true;
+      }
+      
+      // Fuzzy prefix/suffix/closeness match (character matching)
+      if (!wordMatched && word.length > 2) {
+        const titleWords = title.split(/[\s,.-]+/);
+        const partialMatch = titleWords.some((tw: string) => tw.includes(word) || word.includes(tw));
+        if (partialMatch) {
+          score += 2.5;
+        }
+      }
+      
+      if (wordMatched) {
+        matchingWordsCount++;
+      }
+    });
+    
+    // Bonus for matching multiple query words
+    if (queryWords.length > 1 && matchingWordsCount > 0) {
+      score += (matchingWordsCount / queryWords.length) * 10;
+    }
+  } else {
+    const prenom = (item.prenom || '').toLowerCase();
+    const nom = (item.nom || '').toLowerCase();
+    const fullName = `${prenom} ${nom}`;
+    const bio = (item.bio || '').toLowerCase();
+    
+    if (fullName.includes(cleanQuery)) {
+      score += 20;
+    }
+    
+    let matchingWordsCount = 0;
+    queryWords.forEach(word => {
+      let wordMatched = false;
+      if (prenom.includes(word) || nom.includes(word)) {
+        score += 8;
+        wordMatched = true;
+        if (prenom === word || nom === word) {
+          score += 4;
+        }
+      }
+      if (bio.includes(word)) {
+        score += 3;
+        wordMatched = true;
+      }
+      
+      if (wordMatched) {
+        matchingWordsCount++;
+      }
+    });
+    
+    if (queryWords.length > 1 && matchingWordsCount > 0) {
+      score += (matchingWordsCount / queryWords.length) * 8;
+    }
+  }
+  
+  return score;
+}
+
+function mergeResults(posts: any[], users: any[]): any[] {
+  const merged: any[] = [];
+  let postIndex = 0;
+  let userIndex = 0;
+  
+  while (postIndex < posts.length || userIndex < users.length) {
+    // Add up to 3 posts
+    let postsAdded = 0;
+    while (postsAdded < 3 && postIndex < posts.length) {
+      merged.push(posts[postIndex]);
+      postIndex++;
+      postsAdded++;
+    }
+    
+    // Add 1 user profile
+    if (userIndex < users.length) {
+      merged.push(users[userIndex]);
+      userIndex++;
+    }
+  }
+  
+  return merged;
+}
+
 interface Props {
   navigation: any;
 }
@@ -69,6 +199,11 @@ export default function SearchScreen({ navigation }: Props) {
   const [selectedEtat, setSelectedEtat] = useState<string | null>(null);
   const [orderBy, setOrderBy] = useState<'newest' | 'price_asc' | 'price_desc'>('newest');
 
+  // Nouvelle recherche par pertinence
+  const [users, setUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+
   const { location } = useLocation();
   const inResultsMode = debouncedSearch.length > 0 || selectedCategory !== null;
 
@@ -77,7 +212,8 @@ export default function SearchScreen({ navigation }: Props) {
     return () => clearTimeout(t);
   }, [searchQuery]);
 
-  const { annonces, loading } = useAnnonces({
+  // Fetch les annonces correspondant aux critères
+  const { annonces, loading: loadingAnnonces } = useAnnonces({
     categorie: selectedCategory,
     search: debouncedSearch || undefined,
     minPrice: minPrice ? parseInt(minPrice) : null,
@@ -86,13 +222,114 @@ export default function SearchScreen({ navigation }: Props) {
     orderBy: orderBy,
   });
 
+  // Fetch les utilisateurs en parallèle quand une requête texte est présente
+  useEffect(() => {
+    const cleanSearch = debouncedSearch.trim();
+    if (cleanSearch.length > 0) {
+      setLoadingUsers(true);
+      const fetchUsers = async () => {
+        try {
+          const { data, error } = await supabase.from('users').select('*');
+          if (data) {
+            setUsers(data as User[]);
+          } else if (error) {
+            console.error('Error fetching users for search:', error);
+          }
+        } catch (e) {
+          console.error('Exception fetching users:', e);
+        } finally {
+          setLoadingUsers(false);
+        }
+      };
+      fetchUsers();
+    } else {
+      setUsers([]);
+    }
+  }, [debouncedSearch]);
+
+  // Calcul de la pertinence et entrelacement (Ratio 3/4 posts, 1/4 profils)
+  useEffect(() => {
+    const query = debouncedSearch.trim();
+    if (!query) {
+      setSearchResults(annonces.map(a => ({ ...a, isUserProfile: false })));
+      return;
+    }
+
+    // 1. Noter les posts
+    const scoredAnnonces = annonces
+      .map(annonce => {
+        const score = calculateRelevanceScore(query, annonce, false);
+        return { ...annonce, isUserProfile: false, searchScore: score };
+      })
+      .filter(a => a.searchScore > 0);
+
+    // 2. Noter les utilisateurs
+    const scoredUsers = users
+      .map(user => {
+        const score = calculateRelevanceScore(query, user, true);
+        return { ...user, isUserProfile: true, searchScore: score };
+      })
+      .filter(u => u.searchScore > 0);
+
+    // 3. Trier par pertinence décroissante
+    scoredAnnonces.sort((a, b) => b.searchScore - a.searchScore);
+    scoredUsers.sort((a, b) => b.searchScore - a.searchScore);
+
+    // 4. Fusionner avec le ratio
+    const merged = mergeResults(scoredAnnonces, scoredUsers);
+    setSearchResults(merged);
+  }, [annonces, users, debouncedSearch]);
+
+  const loading = loadingAnnonces || loadingUsers;
+
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedCategory(null);
   };
 
   // ---- Rendu carte résultat ----
-  const renderResult = ({ item }: { item: Annonce }) => {
+  const renderResult = ({ item }: { item: any }) => {
+    if (item.isUserProfile) {
+      const authorName = `${item.prenom || ''} ${item.nom || ''}`.trim() || 'Utilisateur';
+      const isPro = item.type_compte === 'professionnel';
+      
+      return (
+        <TouchableOpacity
+          style={[styles.resultCard, styles.profileCardBorder]}
+          activeOpacity={0.75}
+          onPress={() => navigation.navigate('VendeurProfile', { vendeurId: item.id })}
+        >
+          {item.avatar_url ? (
+            <Image source={{ uri: item.avatar_url }} style={styles.resultImageProfile} />
+          ) : (
+            <View style={[styles.resultImageProfile, { backgroundColor: theme.primaryFaded, justifyContent: 'center', alignItems: 'center' }]}>
+              <Text style={{ fontSize: 24, fontWeight: FONTS.bold, color: theme.primary }}>{authorName.charAt(0).toUpperCase()}</Text>
+            </View>
+          )}
+          <View style={styles.resultInfo}>
+            <View style={styles.profileHeaderRow}>
+              <Text style={styles.profileName} numberOfLines={1}>{authorName}</Text>
+              {isPro ? (
+                <View style={styles.proBadge}>
+                  <Text style={styles.proBadgeText}>PRO</Text>
+                </View>
+              ) : (
+                <View style={styles.particulierBadge}>
+                  <Text style={styles.particulierBadgeText}>Particulier</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.profileBio} numberOfLines={1}>{item.bio || 'Aucune description disponible.'}</Text>
+            <View style={styles.resultMeta}>
+              <Ionicons name="storefront-outline" size={12} color={theme.textMuted} />
+              <Text style={styles.resultMetaText}>Voir la vitrine de l'utilisateur</Text>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={theme.primary} />
+        </TouchableOpacity>
+      );
+    }
+
     const imageUrl = item.images?.[0]?.image_url || null;
     const dist =
       location && (item as any).latitude && (item as any).longitude
@@ -217,7 +454,7 @@ export default function SearchScreen({ navigation }: Props) {
             </View>
             {!inResultsMode || (
               <Text style={styles.resultCount}>
-                {loading ? '…' : `${annonces.length} résultat${annonces.length !== 1 ? 's' : ''}`}
+                {loading ? '…' : `${searchResults.length} résultat${searchResults.length !== 1 ? 's' : ''}`}
               </Text>
             )}
           </View>
@@ -266,15 +503,15 @@ export default function SearchScreen({ navigation }: Props) {
           </View>
         ) : (
           <FlatList
-            data={annonces}
+            data={searchResults}
             keyExtractor={(item) => item.id}
             renderItem={renderResult}
             contentContainerStyle={styles.resultsList}
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={
-              annonces.length > 0 ? (
+              searchResults.length > 0 ? (
                 <Text style={styles.resultCount}>
-                  {annonces.length} résultat{annonces.length !== 1 ? 's' : ''}
+                  {searchResults.length} résultat{searchResults.length !== 1 ? 's' : ''}
                   {activeCatLabel ? ` · ${activeCatLabel}` : ''}
                 </Text>
               ) : null
@@ -584,6 +821,56 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   resultMeta: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   resultMetaText: { fontSize: FONTS.xs, color: theme.textMuted },
   dot: { fontSize: FONTS.xs, color: theme.textMuted, marginHorizontal: 1 },
+  profileCardBorder: {
+    borderColor: theme.primary + '33',
+    borderWidth: 1,
+  },
+  resultImageProfile: {
+    width: 76,
+    height: 76,
+    borderRadius: RADIUS.full,
+    backgroundColor: theme.surfaceMuted,
+  },
+  profileHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    justifyContent: 'flex-start',
+  },
+  profileName: {
+    fontSize: FONTS.md,
+    fontWeight: FONTS.bold,
+    color: theme.textPrimary,
+    flexShrink: 1,
+  },
+  proBadge: {
+    backgroundColor: theme.primaryFaded,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  proBadgeText: {
+    color: theme.primary,
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  particulierBadge: {
+    backgroundColor: theme.surfaceMuted,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  particulierBadgeText: {
+    color: theme.textMuted,
+    fontSize: 9,
+    fontWeight: 'semibold',
+  },
+  profileBio: {
+    color: theme.textMuted,
+    fontSize: FONTS.sm,
+    marginTop: 2,
+    marginBottom: 4,
+  },
 
   // Empty
   emptyContainer: { paddingVertical: 80, alignItems: 'center' },
