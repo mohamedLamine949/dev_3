@@ -1,342 +1,380 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  StatusBar,
-  Animated,
+  View, Text, StyleSheet, TextInput, TouchableOpacity,
+  KeyboardAvoidingView, Platform, StatusBar, ScrollView,
+  Alert, ActivityIndicator, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
-
-import { Alert } from 'react-native';
-import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
 interface Props {
   navigation: any;
 }
 
+type AuthMethod = 'phone' | 'email';
+
+import { useTheme } from '../contexts/ThemeContext';
+
 export default function LoginScreen({ navigation }: Props) {
-  const { signInWithOtp, verifyOtp } = useAuth();
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
-  const [isLoading, setIsLoading] = useState(false);
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const { theme, isDark } = useTheme();
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [authMethod, setAuthMethod] = useState<AuthMethod>('phone');
+  const [prenom, setPrenom] = useState('');
+  const [nom, setNom] = useState('');
+  const [identifier, setIdentifier] = useState(''); // phone or email
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSendOtp = async () => {
-    const cleanPhone = phone.replace(/\s+/g, '');
-    if (cleanPhone.length < 8) return;
-    setIsLoading(true);
+  // OTP State
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [userOtp, setUserOtp] = useState('');
+
+  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
+  const isEmail = (val: string) => val.includes('@');
+  
+  const formatPhone = (phone: string) => {
+    const cleaned = phone.replace(/[^0-9+]/g, '');
+    if (cleaned.startsWith('+')) return cleaned;
+    if (cleaned.length === 8) return `+223${cleaned}`; // Mali default
+    return cleaned;
+  };
+
+  const isIdentifierValid = authMethod === 'email' 
+    ? identifier.includes('@') && identifier.includes('.')
+    : identifier.replace(/[^0-9]/g, '').length >= 8;
+
+  const isLoginValid = isIdentifierValid && password.length >= 6;
+  const isRegisterValid = isLoginValid && prenom.length >= 2 && nom.length >= 2;
+  const canSubmit = mode === 'login' ? isLoginValid : isRegisterValid;
+
+  async function handleSubmit() {
+    if (!canSubmit) return;
+    
+    setLoading(true);
+    const formattedIdentifier = authMethod === 'phone' ? formatPhone(identifier) : identifier.toLowerCase().trim();
 
     try {
-      const fullPhone = cleanPhone.startsWith('+') ? cleanPhone : '+223' + cleanPhone;
-      const { error } = await signInWithOtp(fullPhone);
+      if (mode === 'login') {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          [authMethod]: formattedIdentifier,
+          password,
+        } as any);
 
-      if (error) {
-        setIsLoading(false);
-        Alert.alert('Erreur', error.message || 'Impossible d\'envoyer le code SMS.');
+        if (error) throw error;
+        
+        if (data.session) {
+          navigation.goBack();
+        } else {
+          Alert.alert('Vérification requise', 'Veuillez vérifier votre compte.');
+        }
+      } else {
+        // Inscription
+        const { data, error } = await supabase.auth.signUp({
+          [authMethod]: formattedIdentifier,
+          password,
+          options: {
+            data: {
+              first_name: prenom.trim(),
+              last_name: nom.trim(),
+            }
+          }
+        } as any);
+
+        // Si erreur de fournisseur SMS, on simule quand même pour le dev
+        if (error) {
+          if (authMethod === 'phone' && (error.message.includes('SMS') || error.message.includes('provider'))) {
+            console.warn("SMS Provider non configuré. Mode simulation activé.");
+            setShowOtpInput(true);
+            return;
+          }
+          throw error;
+        }
+
+        if (authMethod === 'phone') {
+          // Si Supabase est configuré sans confirmation (auto-confirm), data.session existe déjà
+          // Mais on affiche l'écran OTP pour la simulation demandée
+          setShowOtpInput(true);
+          if (data.session) {
+             console.log("Compte auto-confirmé, mais on affiche l'OTP pour simulation");
+          }
+        } else {
+          Alert.alert('Succès', 'Veuillez vérifier votre email pour confirmer l\'inscription.');
+          setMode('login');
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Erreur', err.message || 'Une erreur est survenue.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleVerifyOtp() {
+    if (!userOtp || userOtp.length < 6) return;
+
+    setLoading(true);
+    try {
+      // Simulation pour le moment
+      if (userOtp === '123456') {
+        Alert.alert('Succès (Simulation)', 'Votre numéro a été vérifié.');
+        navigation.goBack();
         return;
       }
 
-      setIsLoading(false);
-      setStep('otp');
-      fadeAnim.setValue(1);
-    } catch (err: any) {
-      setIsLoading(false);
-      Alert.alert('Erreur système', err.message || 'Une erreur est survenue.');
-    }
-  };
+      const formattedPhone = formatPhone(identifier);
+      const { data, error } = await supabase.auth.verifyOTP({
+        phone: formattedPhone,
+        token: userOtp,
+        type: 'sms',
+      });
 
-  const handleVerifyOtp = async () => {
-    const cleanOtp = otp.replace(/\s+/g, '');
-    if (cleanOtp.length < 6) return;
-    setIsLoading(true);
+      if (error) throw error;
 
-    try {
-      const cleanPhone = phone.replace(/\s+/g, '');
-      const fullPhone = cleanPhone.startsWith('+') ? cleanPhone : '+223' + cleanPhone;
-      const { error } = await verifyOtp(fullPhone, cleanOtp);
-
-      setIsLoading(false);
-      if (error) {
-        Alert.alert('Code invalide', 'Le code renseigné est incorrect ou expiré.');
-        return;
+      if (data.session) {
+        Alert.alert('Succès', 'Votre compte a été créé avec succès.');
+        navigation.goBack();
       }
-
-      // Navigation sur succès
-      navigation.goBack();
     } catch (err: any) {
-      setIsLoading(false);
-      Alert.alert('Erreur', err.message || 'La vérification a échoué.');
+      console.error(err);
+      // En mode simulation, on accepte n'importe quel code si l'erreur vient du manque de provider
+      Alert.alert('Note', 'Mode simulation : utilisez 123456');
+    } finally {
+      setLoading(false);
     }
-  };
+  }
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" backgroundColor={theme.primary} />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.content}
-      >
-        {/* Logo & Titre */}
-        <View style={styles.heroSection}>
-          <View style={styles.logoContainer}>
-            <Text style={styles.logoEmoji}>⚡</Text>
-          </View>
-          <Text style={styles.appName}>Chap Chap</Text>
-          <Text style={styles.tagline}>
-            {step === 'phone'
-              ? 'Connectez-vous avec votre\nnuméro de téléphone'
-              : `Code envoyé au\n+223 ${phone}`}
-          </Text>
+      <View style={styles.header}>
+        {navigation.canGoBack() && (
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
+            <Ionicons name="arrow-back" size={22} color="#fff" />
+          </TouchableOpacity>
+        )}
+        <View style={styles.logoContainer}>
+          <Image source={require('../../assets/icon.png')} style={styles.logoImage} />
         </View>
+        <Text style={styles.appName}>Flash Market</Text>
+        <Text style={styles.tagline}>Achetez & Vendez en toute confiance</Text>
+      </View>
 
-        {/* Form */}
-        <Animated.View style={[styles.formSection, { opacity: fadeAnim }]}>
-          {step === 'phone' ? (
-            <>
-              <Text style={styles.inputLabel}>Numéro de téléphone</Text>
-              <View style={styles.phoneInputContainer}>
-                <View style={styles.countryCode}>
-                  <Text style={styles.flag}>🇲🇱</Text>
-                  <Text style={styles.countryCodeText}>+223</Text>
-                </View>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.cardWrapper}>
+        <ScrollView
+          style={styles.card}
+          contentContainerStyle={styles.cardContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {!showOtpInput && (
+            <View style={styles.toggle}>
+              <TouchableOpacity style={[styles.toggleBtn, mode === 'login' && styles.toggleBtnActive]} onPress={() => setMode('login')}>
+                <Text style={[styles.toggleText, mode === 'login' && styles.toggleTextActive]}>Se connecter</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.toggleBtn, mode === 'register' && styles.toggleBtnActive]} onPress={() => setMode('register')}>
+                <Text style={[styles.toggleText, mode === 'register' && styles.toggleTextActive]}>S'inscrire</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {showOtpInput ? (
+            <View style={styles.otpContainer}>
+              <Text style={styles.otpTitle}>Vérification du numéro</Text>
+              <Text style={styles.otpSubtitle}>
+                Un code à 6 chiffres a été envoyé par SMS au {formatPhone(identifier)}.
+              </Text>
+              
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Code de validation</Text>
                 <TextInput
-                  style={styles.phoneInput}
-                  placeholder="76 XX XX XX"
-                  placeholderTextColor={COLORS.textMuted}
-                  value={phone}
-                  onChangeText={setPhone}
-                  keyboardType="phone-pad"
-                  maxLength={10}
-                  autoFocus
+                  style={styles.input}
+                  placeholder="123456"
+                  placeholderTextColor={theme.textMuted}
+                  value={userOtp}
+                  onChangeText={setUserOtp}
+                  keyboardType="number-pad"
+                  maxLength={6}
                 />
               </View>
 
               <TouchableOpacity
-                style={[styles.ctaButton, phone.length < 8 && styles.ctaButtonDisabled]}
-                onPress={handleSendOtp}
-                disabled={phone.length < 8 || isLoading}
-                activeOpacity={0.8}
+                style={[styles.ctaBtn, userOtp.length < 6 && styles.ctaBtnDisabled]}
+                onPress={handleVerifyOtp}
+                disabled={userOtp.length < 6 || loading}
               >
-                {isLoading ? (
-                  <Text style={styles.ctaText}>Envoi en cours...</Text>
-                ) : (
-                  <>
-                    <Text style={styles.ctaText}>Recevoir le code</Text>
-                    <Ionicons name="arrow-forward" size={20} color={COLORS.textInverse} />
-                  </>
-                )}
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Valider et s'inscrire</Text>}
               </TouchableOpacity>
-            </>
+
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowOtpInput(false)}>
+                <Text style={styles.cancelText}>Annuler</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             <>
-              <Text style={styles.inputLabel}>Code de vérification</Text>
-              <TextInput
-                style={styles.otpInput}
-                placeholder="• • • • • •"
-                placeholderTextColor={COLORS.textMuted}
-                value={otp}
-                onChangeText={setOtp}
-                keyboardType="number-pad"
-                maxLength={6}
-                autoFocus
-              />
+              {/* Auth Method Selector */}
+              <View style={styles.methodSelector}>
+                <TouchableOpacity 
+                  style={[styles.methodBtn, authMethod === 'phone' && styles.methodBtnActive]} 
+                  onPress={() => { setAuthMethod('phone'); setIdentifier(''); }}
+                >
+                  <Ionicons name="call" size={16} color={authMethod === 'phone' ? theme.primary : theme.textMuted} />
+                  <Text style={[styles.methodText, authMethod === 'phone' && styles.methodTextActive]}>Téléphone</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.methodBtn, authMethod === 'email' && styles.methodBtnActive]} 
+                  onPress={() => { setAuthMethod('email'); setIdentifier(''); }}
+                >
+                  <Ionicons name="mail" size={16} color={authMethod === 'email' ? theme.primary : theme.textMuted} />
+                  <Text style={[styles.methodText, authMethod === 'email' && styles.methodTextActive]}>Email</Text>
+                </TouchableOpacity>
+              </View>
 
-              <TouchableOpacity
-                style={[styles.ctaButton, otp.length < 6 && styles.ctaButtonDisabled]}
-                onPress={handleVerifyOtp}
-                disabled={otp.length < 6 || isLoading}
-                activeOpacity={0.8}
-              >
-                {isLoading ? (
-                  <Text style={styles.ctaText}>Vérification...</Text>
-                ) : (
-                  <>
-                    <Text style={styles.ctaText}>Vérifier</Text>
-                    <Ionicons name="checkmark" size={20} color={COLORS.textInverse} />
-                  </>
-                )}
-              </TouchableOpacity>
+              {mode === 'register' && (
+                <View style={styles.row}>
+                  <View style={[styles.inputGroup, { flex: 1 }]}>
+                    <Text style={styles.label}>Prénom</Text>
+                    <TextInput style={styles.input} placeholder="Amadou" placeholderTextColor={theme.textMuted} value={prenom} onChangeText={setPrenom} autoCapitalize="words" />
+                  </View>
+                  <View style={styles.rowSpacer} />
+                  <View style={[styles.inputGroup, { flex: 1 }]}>
+                    <Text style={styles.label}>Nom</Text>
+                    <TextInput style={styles.input} placeholder="Coulibaly" placeholderTextColor={theme.textMuted} value={nom} onChangeText={setNom} autoCapitalize="words" />
+                  </View>
+                </View>
+              )}
 
-              <TouchableOpacity
-                style={styles.resendButton}
-                onPress={() => setStep('phone')}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.resendText}>Modifier le numéro</Text>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>{authMethod === 'phone' ? 'Numéro de téléphone' : 'Adresse Email'}</Text>
+                <View style={styles.inputWithIcon}>
+                  <Ionicons name={authMethod === 'phone' ? "call-outline" : "mail-outline"} size={18} color={theme.textMuted} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.inputFlex}
+                    placeholder={authMethod === 'phone' ? "Ex: 70 00 00 00" : "exemple@gmail.com"}
+                    placeholderTextColor={theme.textMuted}
+                    value={identifier}
+                    onChangeText={setIdentifier}
+                    keyboardType={authMethod === 'phone' ? "phone-pad" : "email-address"}
+                    autoCapitalize="none"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Mot de passe</Text>
+                <View style={styles.inputWithIcon}>
+                  <Ionicons name="lock-closed-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.inputFlex}
+                    placeholder="6 caractères minimum"
+                    placeholderTextColor={theme.textMuted}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                    <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={theme.textMuted} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <TouchableOpacity style={[styles.ctaBtn, !canSubmit && styles.ctaBtnDisabled]} onPress={handleSubmit} disabled={!canSubmit || loading} activeOpacity={0.85}>
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>{mode === 'login' ? 'Se connecter' : 'Créer mon compte'}</Text>}
               </TouchableOpacity>
             </>
           )}
-        </Animated.View>
 
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            En continuant, vous acceptez nos{' '}
-            <Text style={styles.footerLink}>Conditions d'utilisation</Text>
-          </Text>
-        </View>
+          <View style={styles.footerLinks}>
+            <TouchableOpacity onPress={() => navigation.navigate('Legal', { type: 'cgu' })}>
+              <Text style={styles.footerLink}>CGU</Text>
+            </TouchableOpacity>
+            <Text style={styles.footerDot}> • </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Legal', { type: 'cgv' })}>
+              <Text style={styles.footerLink}>CGV</Text>
+            </TouchableOpacity>
+            <Text style={styles.footerDot}> • </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Legal', { type: 'privacy' })}>
+              <Text style={styles.footerLink}>Protection des données</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.footerCopyright}>© 2026 Flash Market. Tous droits réservés.</Text>
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
+const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.primary },
+  header: { alignItems: 'center', paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingBottom: SPACING.xxl },
+  backBtn: {
+    position: 'absolute', top: Platform.OS === 'ios' ? 70 : 50, left: SPACING.lg,
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center', alignItems: 'center',
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: SPACING.xxl,
-    justifyContent: 'center',
-  },
-
-  // Hero
-  heroSection: {
-    alignItems: 'center',
-    marginBottom: SPACING.section,
-  },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: RADIUS.xxl,
-    backgroundColor: COLORS.primaryFaded,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: SPACING.xl,
-  },
-  logoEmoji: {
-    fontSize: 40,
-  },
-  appName: {
-    fontSize: FONTS.xxxl,
-    fontWeight: FONTS.extrabold,
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.sm,
-  },
-  tagline: {
-    fontSize: FONTS.md,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-
-  // Form
-  formSection: {
-    gap: SPACING.lg,
-  },
-  inputLabel: {
-    fontSize: FONTS.sm,
-    fontWeight: FONTS.semibold,
-    color: COLORS.textSecondary,
-    marginBottom: -SPACING.sm,
-    marginLeft: SPACING.xs,
-  },
-
-  phoneInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surfaceMuted,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1.5,
-    borderColor: COLORS.borderLight,
-    overflow: 'hidden',
-  },
-  countryCode: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  logoContainer: { width: 80, height: 80, borderRadius: RADIUS.xxl, overflow: 'hidden', marginBottom: SPACING.lg },
+  logoImage: { width: 80, height: 80 },
+  appName: { fontSize: FONTS.xxxl, fontWeight: FONTS.extrabold, color: '#fff', letterSpacing: -0.5 },
+  tagline: { fontSize: FONTS.sm, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
+  cardWrapper: { flex: 1 },
+  card: { flex: 1, backgroundColor: theme.background, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
+  cardContent: { padding: SPACING.xxl, paddingBottom: 40, gap: SPACING.lg },
+  toggle: { flexDirection: 'row', backgroundColor: theme.surfaceMuted, borderRadius: RADIUS.lg, padding: 4 },
+  toggleBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: RADIUS.md },
+  toggleBtnActive: { backgroundColor: theme.surface, ...SHADOWS.sm },
+  toggleText: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textMuted },
+  toggleTextActive: { color: theme.primary },
+  methodSelector: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.xs },
+  methodBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: RADIUS.md, borderWidth: 1, borderColor: theme.borderLight, backgroundColor: theme.surface },
+  methodBtnActive: { borderColor: theme.primary, backgroundColor: theme.surface },
+  methodText: { fontSize: FONTS.sm, fontWeight: FONTS.medium, color: theme.textMuted },
+  methodTextActive: { color: theme.primary },
+  row: { flexDirection: 'row' },
+  rowSpacer: { width: SPACING.md },
+  inputGroup: { gap: 6 },
+  label: { fontSize: FONTS.xs, fontWeight: FONTS.semibold, color: theme.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  input: { backgroundColor: theme.surfaceMuted, borderRadius: RADIUS.md, paddingHorizontal: SPACING.lg, paddingVertical: 13, fontSize: FONTS.md, color: theme.textPrimary, borderWidth: 1, borderColor: theme.borderLight },
+  inputWithIcon: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surfaceMuted, borderRadius: RADIUS.md, borderWidth: 1, borderColor: theme.borderLight, paddingHorizontal: SPACING.lg },
+  inputIcon: { marginRight: SPACING.sm },
+  inputFlex: { flex: 1, paddingVertical: 13, fontSize: FONTS.md, color: theme.textPrimary },
+  eyeBtn: { padding: 4 },
+  ctaBtn: { height: 54, backgroundColor: theme.primary, borderRadius: RADIUS.lg, justifyContent: 'center', alignItems: 'center', marginTop: SPACING.sm, ...SHADOWS.colored },
+  ctaBtnDisabled: { backgroundColor: theme.textMuted, shadowOpacity: 0, elevation: 0 },
+  ctaText: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
+  footerLinks: { 
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginTop: SPACING.md,
+    flexWrap: 'wrap',
     paddingHorizontal: SPACING.lg,
-    paddingVertical: 16,
-    borderRightWidth: 1,
-    borderRightColor: COLORS.borderLight,
-    gap: 6,
   },
-  flag: {
-    fontSize: 20,
+  footerLink: { 
+    color: theme.primary, 
+    fontSize: FONTS.xs, 
+    fontWeight: FONTS.semibold 
   },
-  countryCodeText: {
-    fontSize: FONTS.md,
-    fontWeight: FONTS.semibold,
-    color: COLORS.textPrimary,
-  },
-  phoneInput: {
-    flex: 1,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: 16,
-    fontSize: FONTS.lg,
-    fontWeight: FONTS.semibold,
-    color: COLORS.textPrimary,
-    letterSpacing: 1,
-  },
-
-  otpInput: {
-    backgroundColor: COLORS.surfaceMuted,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1.5,
-    borderColor: COLORS.borderLight,
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: 18,
-    fontSize: FONTS.xxl,
-    fontWeight: FONTS.bold,
-    color: COLORS.textPrimary,
-    textAlign: 'center',
-    letterSpacing: 10,
-  },
-
-  // CTA
-  ctaButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 56,
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.lg,
-    gap: SPACING.sm,
-    marginTop: SPACING.sm,
-    ...SHADOWS.colored,
-  },
-  ctaButtonDisabled: {
-    backgroundColor: COLORS.textMuted,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  ctaText: {
-    fontSize: FONTS.md,
-    fontWeight: FONTS.bold,
-    color: COLORS.textInverse,
-  },
-
-  resendButton: {
-    alignItems: 'center',
-    paddingVertical: SPACING.md,
-  },
-  resendText: {
-    fontSize: FONTS.sm,
-    fontWeight: FONTS.semibold,
-    color: COLORS.primary,
-  },
-
-  // Footer
-  footer: {
-    alignItems: 'center',
-    marginTop: SPACING.section,
-  },
-  footerText: {
+  footerDot: { 
+    color: theme.textMuted, 
+    marginHorizontal: 4,
     fontSize: FONTS.xs,
-    color: COLORS.textMuted,
-    textAlign: 'center',
-    lineHeight: 18,
   },
-  footerLink: {
-    color: COLORS.primary,
-    fontWeight: FONTS.medium,
+  footerCopyright: { 
+    fontSize: 10, 
+    color: theme.textMuted, 
+    textAlign: 'center', 
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.md,
   },
+  otpContainer: { gap: SPACING.lg, paddingVertical: SPACING.md },
+  otpTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.textPrimary, textAlign: 'center' },
+  otpSubtitle: { fontSize: FONTS.sm, color: theme.textSecondary, textAlign: 'center', paddingHorizontal: SPACING.md },
+  cancelBtn: { alignItems: 'center', padding: SPACING.sm },
+  cancelText: { color: theme.textMuted, fontSize: FONTS.sm, fontWeight: FONTS.medium },
 });

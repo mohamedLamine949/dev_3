@@ -1,11 +1,15 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet, Platform } from 'react-native';
 
 import { COLORS, FONTS, RADIUS, SHADOWS } from '../constants/theme';
+import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { useUnreadCount } from '../hooks/useChat';
+import { DefaultTheme, DarkTheme } from '@react-navigation/native';
 
 // Screens
 import HomeScreen from '../screens/HomeScreen';
@@ -19,9 +23,15 @@ import LoginScreen from '../screens/LoginScreen';
 import MesAnnoncesScreen from '../screens/MesAnnoncesScreen';
 import FavorisScreen from '../screens/FavorisScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
+import VendeurProfileScreen from '../screens/VendeurProfileScreen';
+import LegalScreen from '../screens/LegalScreen';
+import TermsModal from '../components/TermsModal';
+import NotificationManager from '../components/NotificationManager';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+
+export const navigationRef = createNavigationContainerRef();
 
 // Stack pour l'onglet Accueil
 function HomeStack() {
@@ -96,6 +106,10 @@ function ProfileStack() {
 
 // Barre de navigation principale (Tabs)
 function MainTabs() {
+  const { session } = useAuth();
+  const unreadCount = useUnreadCount(session?.user?.id);
+  const { theme } = useTheme();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -117,15 +131,15 @@ function MainTabs() {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.textMuted,
         tabBarLabelStyle: {
           fontSize: FONTS.xs,
           fontWeight: FONTS.medium,
           marginTop: -2,
         },
         tabBarStyle: {
-          backgroundColor: COLORS.surface,
+          backgroundColor: theme.surface,
           borderTopWidth: 0,
           height: Platform.OS === 'ios' ? 88 : 65,
           paddingBottom: Platform.OS === 'ios' ? 28 : 10,
@@ -141,8 +155,8 @@ function MainTabs() {
         component={PostAnnonceScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <View style={styles.publishButton}>
-              <Ionicons name="add" size={28} color={COLORS.textInverse} />
+            <View style={[styles.publishButton, { backgroundColor: theme.primary }]}>
+              <Ionicons name="add" size={28} color={theme.textInverse} />
             </View>
           ),
           tabBarLabel: () => null,
@@ -152,9 +166,9 @@ function MainTabs() {
         name="Messages"
         component={MessagesStack}
         options={{
-          tabBarBadge: 3,
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
           tabBarBadgeStyle: {
-            backgroundColor: COLORS.primary,
+            backgroundColor: theme.primary,
             fontSize: 10,
             fontWeight: '700',
             minWidth: 18,
@@ -170,8 +184,36 @@ function MainTabs() {
 
 // Root Navigator
 export default function AppNavigator() {
+  const { isDark } = useTheme();
+  
+  const MyDarkTheme = {
+    ...DarkTheme,
+    colors: {
+      ...DarkTheme.colors,
+      background: '#0F172A',
+      card: '#1E293B',
+      text: '#F8FAFC',
+      border: '#334155',
+      primary: '#16a34a',
+    },
+  };
+
+  const MyDefaultTheme = {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      background: '#FAFBFD',
+      card: '#FFFFFF',
+      text: '#1A1D26',
+      border: '#E8ECF1',
+      primary: '#15803d',
+    },
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef} theme={isDark ? MyDarkTheme : MyDefaultTheme}>
+      <NotificationManager />
+      <TermsModal />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {/* Pour l'instant, on affiche directement les tabs (démo) */}
         <Stack.Screen name="Main" component={MainTabs} />
@@ -180,10 +222,19 @@ export default function AppNavigator() {
           component={LoginScreen}
           options={{ animation: 'slide_from_bottom' }}
         />
-        {/* Le chat peut aussi être ouvert depuis le détail */}
         <Stack.Screen
           name="ChatConversation"
           component={ChatConversationScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="VendeurProfile"
+          component={VendeurProfileScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="Legal"
+          component={LegalScreen}
           options={{ animation: 'slide_from_right' }}
         />
       </Stack.Navigator>

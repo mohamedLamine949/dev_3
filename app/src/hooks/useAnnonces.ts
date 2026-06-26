@@ -10,26 +10,43 @@ export function useAnnonces(options?: {
   categorie?: string | null;
   search?: string;
   limit?: number;
+  minPrice?: number | null;
+  maxPrice?: number | null;
+  etat?: string | null;
+  orderBy?: 'newest' | 'price_asc' | 'price_desc';
 }) {
   const [annonces, setAnnonces] = useState<Annonce[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchAnnonces = useCallback(async () => {
+    let timedOut = false;
+    const timeoutId = setTimeout(() => {
+      timedOut = true;
+      console.error('⏱️ Timeout Supabase — requête bloquée après 10s');
+      setError('Impossible de charger les annonces. Vérifiez votre connexion.');
+      setLoading(false);
+    }, 10000);
+
     try {
       setLoading(true);
       setError(null);
 
       let query = supabase
         .from('annonces')
-        .select(`
-          *,
-          images:images_annonce(id, image_url, ordre),
-          user:users(id, prenom, nom, avatar_url)
-        `)
+        .select('*, images:images_annonce(id, image_url, ordre)')
         .eq('statut', 'active')
-        .eq('est_payee', true)
-        .order('date_creation', { ascending: false });
+        .eq('est_payee', true);
+
+      // Tri
+      const sort = options?.orderBy || 'newest';
+      if (sort === 'newest') {
+        query = query.order('date_creation', { ascending: false });
+      } else if (sort === 'price_asc') {
+        query = query.order('prix', { ascending: true });
+      } else if (sort === 'price_desc') {
+        query = query.order('prix', { ascending: false });
+      }
 
       if (options?.categorie) {
         query = query.eq('categorie', options.categorie);
@@ -39,21 +56,46 @@ export function useAnnonces(options?: {
         query = query.ilike('titre', `%${options.search}%`);
       }
 
+      if (options?.minPrice !== undefined && options?.minPrice !== null) {
+        query = query.gte('prix', options.minPrice);
+      }
+
+      if (options?.maxPrice !== undefined && options?.maxPrice !== null) {
+        query = query.lte('prix', options.maxPrice);
+      }
+
+      if (options?.etat) {
+        query = query.eq('etat_article', options.etat);
+      }
+
       if (options?.limit) {
         query = query.limit(options.limit);
       }
 
       const { data, error: fetchError } = await query;
 
-      if (fetchError) throw fetchError;
+      if (timedOut) return;
+      clearTimeout(timeoutId);
+
+      if (fetchError) {
+        console.error('❌ Supabase error:', JSON.stringify(fetchError));
+        throw fetchError;
+      }
+      
+      console.log('✅ Annonces reçues:', data?.length ?? 0);
+      if (data && data.length > 0) {
+        console.log('📸 [DEBUG] Première annonce - images:', JSON.stringify(data[0].images));
+      }
       setAnnonces((data as Annonce[]) || []);
     } catch (err: any) {
+      if (timedOut) return;
+      clearTimeout(timeoutId);
       setError(err.message || 'Erreur lors du chargement');
       console.error('Erreur fetchAnnonces:', err);
     } finally {
-      setLoading(false);
+      if (!timedOut) setLoading(false);
     }
-  }, [options?.categorie, options?.search, options?.limit]);
+  }, [options?.categorie, options?.search, options?.limit, options?.minPrice, options?.maxPrice, options?.etat, options?.orderBy]);
 
   useEffect(() => {
     fetchAnnonces();
@@ -107,13 +149,19 @@ export async function createAnnonce(
 ): Promise<{ annonce: Annonce | null; error: string | null }> {
   try {
     // 1. Insérer l'annonce
+    console.log("📝 [CreateAnnonce] Insertion de l'annonce...", annonceData.titre);
     const { data: annonce, error: insertError } = await supabase
       .from('annonces')
       .insert(annonceData)
       .select()
       .single();
 
-    if (insertError) throw insertError;
+    if (insertError) {
+      console.error("❌ [CreateAnnonce Error] Insertion annonce:", insertError);
+      throw insertError;
+    }
+
+    console.log("✅ [CreateAnnonce] Annonce créée avec ID:", annonce.id);
 
     // 2. Upload des images et insertion des URLs
     if (annonce && imageUris.length > 0) {
@@ -122,39 +170,69 @@ export async function createAnnonce(
         const fileExt = 'jpg';
         const fileName = `${annonce.id}/${i}.${fileExt}`;
 
-        // Upload vers Supabase Storage via Base64 pour React Native
-        const base64 = await FileSystem.readAsStringAsync(uri, { 
-          encoding: 'base64' as any
-        });
+        console.log(`📤 [CreateAnnonce] Upload image ${i+1}/${imageUris.length}...`);
 
-        const { error: uploadError } = await supabase.storage
-          .from('annonces-images')
-          .upload(fileName, decode(base64), { 
-            contentType: 'image/jpeg',
-            upsert: true
+        try {
+          // Upload vers Supabase Storage via Base64 pour React Native
+          const base64 = await FileSystem.readAsStringAsync(uri, { 
+            encoding: 'base64' as any
           });
 
-        if (uploadError) {
-          console.error('Erreur upload image:', uploadError);
-          continue;
+          const { error: uploadError } = await supabase.storage
+            .from('annonces-images')
+            .upload(fileName, decode(base64), { 
+              contentType: 'image/jpeg',
+              upsert: true
+            });
+
+          if (uploadError) {
+            console.error(`❌ [CreateAnnonce Error] Upload image ${i}:`, uploadError);
+            continue;
+          }
+
+          // Récupérer l'URL publique
+          const { data: urlData } = supabase.storage
+            .from('annonces-images')
+            .getPublicUrl(fileName);
+
+          console.log(`🔗 [CreateAnnonce] Image ${i} URL:`, urlData.publicUrl);
+
+          // Insérer la référence dans images_annonce
+          const { error: imgTableError } = await supabase.from('images_annonce').insert({
+            annonce_id: annonce.id,
+            image_url: urlData.publicUrl,
+            ordre: i,
+          });
+
+          if (imgTableError) {
+            console.error(`❌ [CreateAnnonce Error] Table images_annonce:`, imgTableError);
+          }
+        } catch (uploadErr) {
+          console.error(`❌ [CreateAnnonce Exception] Image ${i}:`, uploadErr);
         }
-
-        // Récupérer l'URL publique
-        const { data: urlData } = supabase.storage
-          .from('annonces-images')
-          .getPublicUrl(fileName);
-
-        // Insérer la référence dans images_annonce
-        await supabase.from('images_annonce').insert({
-          annonce_id: annonce.id,
-          image_url: urlData.publicUrl,
-          ordre: i,
-        });
       }
     }
 
-    return { annonce: annonce as Annonce, error: null };
+    // 3. Récupérer l'annonce complète avec ses images pour le retour
+    console.log("🔄 [CreateAnnonce] Récupération de l'annonce finale...");
+    const { data: finalAnnonce, error: finalError } = await supabase
+      .from('annonces')
+      .select(`
+        *,
+        images:images_annonce(image_url, ordre)
+      `)
+      .eq('id', annonce.id)
+      .single();
+
+    if (finalError) {
+      console.warn("⚠️ [CreateAnnonce] Erreur récup finale (non bloquant):", finalError);
+      return { annonce: annonce as Annonce, error: null };
+    }
+
+    console.log("✨ [CreateAnnonce] Annonce complète prête !");
+    return { annonce: finalAnnonce as Annonce, error: null };
   } catch (err: any) {
+    console.error("🔥 [CreateAnnonce Exception]:", err);
     return { annonce: null, error: err.message || 'Erreur lors de la création' };
   }
 }

@@ -1,5 +1,47 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, Conversation, Message } from '../lib/supabase';
+import { supabase, Message } from '../lib/supabase';
+
+/**
+ * Compte les messages non lus pour l'utilisateur (pour le badge de la tab)
+ */
+export function useUnreadCount(userId: string | undefined) {
+  const [count, setCount] = useState(0);
+
+  const fetchCount = useCallback(async () => {
+    if (!userId) { setCount(0); return; }
+
+    const { data: convs } = await supabase
+      .from('conversations')
+      .select('id')
+      .or(`acheteur_id.eq.${userId},vendeur_id.eq.${userId}`);
+
+    if (!convs || convs.length === 0) { setCount(0); return; }
+
+    const convIds = convs.map((c) => c.id);
+    const { count: unread } = await supabase
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .in('conversation_id', convIds)
+      .eq('lu', false)
+      .neq('expediteur_id', userId);
+
+    setCount(unread || 0);
+  }, [userId]);
+
+  useEffect(() => {
+    fetchCount();
+    if (!userId) return;
+
+    const channel = supabase
+      .channel(`unread_count_${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, fetchCount)
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [userId, fetchCount]);
+
+  return count;
+}
 
 /**
  * Récupère la liste des conversations de l'utilisateur actif
@@ -17,7 +59,6 @@ export function useConversations(userId: string | undefined) {
 
     try {
       setLoading(true);
-      // Récupérer toutes les conversations où l'utilisateur est soit acheteur, soit vendeur
       const { data, error } = await supabase
         .from('conversations')
         .select(`
@@ -28,7 +69,27 @@ export function useConversations(userId: string | undefined) {
         .order('date_dernier_message', { ascending: false });
 
       if (error) throw error;
-      setConversations(data || []);
+
+      // Enrichir chaque conversation avec le nombre de messages non lus
+      const convData = data || [];
+      if (convData.length > 0) {
+        const convIds = convData.map((c) => c.id);
+        const { data: unreadMsgs } = await supabase
+          .from('messages')
+          .select('conversation_id')
+          .in('conversation_id', convIds)
+          .eq('lu', false)
+          .neq('expediteur_id', userId);
+
+        const unreadMap: Record<string, number> = {};
+        (unreadMsgs || []).forEach((m) => {
+          unreadMap[m.conversation_id] = (unreadMap[m.conversation_id] || 0) + 1;
+        });
+
+        setConversations(convData.map((c) => ({ ...c, unread_count: unreadMap[c.id] || 0 })));
+      } else {
+        setConversations([]);
+      }
     } catch (err) {
       console.error('Erreur fetchConversations:', err);
     } finally {
@@ -174,18 +235,35 @@ export function useChat(conversationId: string | undefined, currentUserId: strin
  * Trouve ou crée une conversation entre acheteur et vendeur pour une annonce
  */
 export async function getOrCreateConversation(acheteurId: string, vendeurId: string, annonceId: string) {
-  // 1. Chercher si la conversation existe (UNIQUE index)
-  const { data: existing, error: findError } = await supabase
+  if (!acheteurId || !vendeurId || !annonceId) {
+    console.error("getOrCreateConversation: paramètres manquants", { acheteurId, vendeurId, annonceId });
+    return null;
+  }
+
+  // 1. Vérifier que l'annonce existe encore en base
+  const { data: annonceCheck, error: annonceError } = await supabase
+    .from('annonces')
+    .select('id')
+    .eq('id', annonceId)
+    .maybeSingle();
+
+  if (annonceError || !annonceCheck) {
+    console.error("getOrCreateConversation: annonce introuvable", annonceId, annonceError);
+    return null;
+  }
+
+  // 2. Chercher si la conversation existe déjà
+  const { data: existing } = await supabase
     .from('conversations')
     .select('*')
     .eq('acheteur_id', acheteurId)
     .eq('vendeur_id', vendeurId)
     .eq('annonce_id', annonceId)
-    .single();
+    .maybeSingle();
 
   if (existing) return existing;
 
-  // 2. Sinon, on la crée
+  // 3. Sinon, on la crée
   const { data: newConv, error: createError } = await supabase
     .from('conversations')
     .insert({

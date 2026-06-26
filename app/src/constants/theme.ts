@@ -1,54 +1,86 @@
 /**
  * Chap Chap - Design System & Theme
- * Palette vibrante, moderne, inspirée de l'Afrique de l'Ouest
+ * Palette vibrante, moderne, avec support Mode Sombre
  */
 
-export const COLORS = {
-  // Couleur principale - Orange chaleureux (vitaux pour le Mali)
-  primary: '#FF6B35',
-  primaryLight: '#FF8C5A',
-  primaryDark: '#E05520',
-  primaryFaded: 'rgba(255, 107, 53, 0.12)',
+export const LIGHT_COLORS = {
+  primary: '#15803d',
+  primaryLight: '#16a34a',
+  primaryDark: '#166534',
+  primaryFaded: 'rgba(21, 128, 61, 0.12)',
 
-  // Couleur secondaire - Vert confiance
-  secondary: '#00B894',
-  secondaryLight: '#55EFC4',
-  secondaryDark: '#00A381',
+  secondary: '#ca8a04',
+  secondaryLight: '#eab308',
+  secondaryDark: '#a16207',
 
-  // Couleur d'accent - Doré premium
-  accent: '#FDCB6E',
-  accentDark: '#E1A844',
+  accent: '#34d399',
+  accentDark: '#10b981',
 
-  // Arrière-plans
   background: '#FAFBFD',
   surface: '#FFFFFF',
   surfaceElevated: '#FFFFFF',
   surfaceMuted: '#F4F5F7',
 
-  // Textes
   textPrimary: '#1A1D26',
   textSecondary: '#6B7280',
   textMuted: '#9CA3AF',
   textInverse: '#FFFFFF',
 
-  // États
   success: '#00B894',
   warning: '#FDCB6E',
   error: '#FF6B6B',
   info: '#74B9FF',
 
-  // Bordures & séparateurs
   border: '#E8ECF1',
   borderLight: '#F0F2F5',
   divider: '#F0F2F5',
 
-  // Overlay
   overlay: 'rgba(0, 0, 0, 0.5)',
   overlayLight: 'rgba(0, 0, 0, 0.2)',
 };
 
+export const DARK_COLORS = {
+  primary: '#16a34a', // Slightly brighter in dark mode
+  primaryLight: '#22c55e',
+  primaryDark: '#15803d',
+  primaryFaded: 'rgba(22, 163, 74, 0.15)',
+
+  secondary: '#eab308',
+  secondaryLight: '#facc15',
+  secondaryDark: '#ca8a04',
+
+  accent: '#34d399',
+  accentDark: '#10b981',
+
+  background: '#0F172A',
+  surface: '#1E293B',
+  surfaceElevated: '#334155',
+  surfaceMuted: '#1E293B',
+
+  textPrimary: '#F8FAFC',
+  textSecondary: '#94A3B8',
+  textMuted: '#64748B',
+  textInverse: '#FFFFFF',
+
+  success: '#00B894',
+  warning: '#FDCB6E',
+  error: '#FF6B6B',
+  info: '#74B9FF',
+
+  border: '#334155',
+  borderLight: '#1E293B',
+  divider: '#334155',
+
+  overlay: 'rgba(0, 0, 0, 0.7)',
+  overlayLight: 'rgba(0, 0, 0, 0.4)',
+};
+
+export type ThemeColors = typeof LIGHT_COLORS;
+
+// Par défaut pour la compatibilité
+export const COLORS = LIGHT_COLORS;
+
 export const FONTS = {
-  // Tailles
   xs: 11,
   sm: 13,
   md: 15,
@@ -57,8 +89,6 @@ export const FONTS = {
   xxl: 24,
   xxxl: 32,
   hero: 40,
-
-  // Poids
   regular: '400' as const,
   medium: '500' as const,
   semibold: '600' as const,
@@ -110,7 +140,7 @@ export const SHADOWS = {
     elevation: 8,
   },
   colored: {
-    shadowColor: '#FF6B35',
+    shadowColor: '#15803d',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -119,21 +149,31 @@ export const SHADOWS = {
 };
 
 export const CATEGORIES = [
-  { id: 'telephonie', label: 'Téléphones', icon: 'smartphone' },
-  { id: 'electronique', label: 'Électronique', icon: 'monitor' },
-  { id: 'vehicules', label: 'Véhicules', icon: 'truck' },
+  { id: 'telephonie_electronique', label: 'Téléphonie & Électronique', icon: 'smartphone' },
+  { id: 'mode_beaute', label: 'Mode & Beauté', icon: 'shopping-bag' },
+  { id: 'maison_electromenager', label: 'Maison & Électroménager', icon: 'box' },
+  { id: 'voitures', label: 'Voitures', icon: 'car' },
+  { id: 'motos', label: 'Motos', icon: 'bicycle' },
   { id: 'immobilier', label: 'Immobilier', icon: 'home' },
-  { id: 'mode', label: 'Mode', icon: 'shopping-bag' },
-  { id: 'maison', label: 'Maison', icon: 'box' },
-  { id: 'emploi', label: 'Emploi', icon: 'briefcase' },
+  { id: 'nourriture', label: 'Nourriture', icon: 'coffee' },
   { id: 'services', label: 'Services', icon: 'tool' },
-  { id: 'loisirs', label: 'Loisirs', icon: 'play-circle' },
-  { id: 'autres', label: 'Autres', icon: 'grid' },
 ];
+
+export const CATEGORY_PRICES: Record<string, number> = {
+  telephonie_electronique: 250,
+  mode_beaute:             250,
+  maison_electromenager:   250,
+  voitures:                5000,
+  motos:                   1000,
+  immobilier:              2500,
+  nourriture:              500,
+  services:                500,
+};
 
 export const ETAT_ARTICLE = [
   { id: 'neuf', label: 'Neuf' },
   { id: 'comme_neuf', label: 'Comme neuf' },
   { id: 'bon_etat', label: 'Bon état' },
   { id: 'etat_moyen', label: 'État moyen' },
+  { id: 'non_specifie', label: 'Non précisé' },
 ];

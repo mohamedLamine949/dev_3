@@ -4,15 +4,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.warn('⚠️ Erreur: URL ou Clé Supabase manquante dans le fichier .env');
-}
-
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: AsyncStorage,
-    autoRefreshToken: true,
     persistSession: true,
+    autoRefreshToken: true,
     detectSessionInUrl: false,
   },
 });
@@ -22,11 +18,19 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
  */
 export interface User {
   id: string;
-  num_telephone: string;
   prenom: string;
   nom: string;
+  bio?: string;
   avatar_url?: string;
-  date_creation: string;
+  telephone?: string;
+  whatsapp?: string;
+  instagram?: string;
+  tiktok?: string;
+  facebook?: string;
+  type_compte?: 'particulier' | 'professionnel';
+  banniere_url?: string;
+  images_business?: string[];
+  date_creation?: string;
 }
 
 export interface Annonce {
@@ -41,6 +45,9 @@ export interface Annonce {
   est_payee: boolean;
   id_transaction_paiement?: string;
   ville: string;
+  quartier?: string;
+  latitude?: number;
+  longitude?: number;
   date_creation: string;
   // Joined
   images?: ImageAnnonce[];
@@ -73,5 +80,6 @@ export interface Message {
   expediteur_id: string;
   contenu: string;
   date_envoi: string;
+
   lu: boolean;
 }

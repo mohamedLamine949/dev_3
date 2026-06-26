@@ -9,6 +9,7 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
@@ -16,20 +17,25 @@ import { Annonce } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useMesAnnonces, updateAnnonceStatus, deleteAnnonceById } from '../hooks/useAnnonces';
 
+import { useTheme } from '../contexts/ThemeContext';
+
 function formatPrix(prix: number): string {
   return prix.toLocaleString('fr-FR') + ' FCFA';
 }
 
-function getStatusBadge(statut: string, est_payee: boolean) {
-  if (statut === 'vendu') return { bg: COLORS.surfaceMuted, text: COLORS.textMuted, label: 'Vendu' };
-  if (!est_payee) return { bg: 'rgba(253, 203, 110, 0.2)', text: COLORS.warning, label: 'Attente Paiement' };
-  if (statut === 'active') return { bg: 'rgba(0, 184, 148, 0.2)', text: COLORS.success, label: 'En ligne' };
-  return { bg: COLORS.surfaceMuted, text: COLORS.textSecondary, label: statut };
+function getStatusBadge(statut: string, est_payee: boolean, theme: any) {
+  if (statut === 'vendu') return { bg: theme.surfaceMuted, text: theme.textMuted, label: 'Vendu' };
+  if (!est_payee) return { bg: 'rgba(253, 203, 110, 0.2)', text: theme.warning || '#f1c40f', label: 'Attente Paiement' };
+  if (statut === 'active') return { bg: 'rgba(0, 184, 148, 0.2)', text: theme.success || '#2ecc71', label: 'En ligne' };
+  return { bg: theme.surfaceMuted, text: theme.textSecondary, label: statut };
 }
 
 export default function MesAnnoncesScreen({ navigation }: any) {
   const { session } = useAuth();
+  const { theme, isDark } = useTheme();
   const { annonces, loading, refetch } = useMesAnnonces(session?.user?.id);
+
+  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
   const handleManage = (annonce: Annonce) => {
     Alert.alert(
@@ -62,8 +68,8 @@ export default function MesAnnoncesScreen({ navigation }: any) {
   };
 
   const renderItem = ({ item }: { item: Annonce }) => {
-    const imageUrl = item.images?.[0]?.image_url || 'https://picsum.photos/200';
-    const badge = getStatusBadge(item.statut, item.est_payee);
+    const imageUrl = item.images?.[0]?.image_url || null;
+    const badge = getStatusBadge(item.statut, item.est_payee, theme);
 
     return (
       <TouchableOpacity
@@ -72,7 +78,12 @@ export default function MesAnnoncesScreen({ navigation }: any) {
         onPress={() => navigation.navigate('AnnonceDetail', { annonce: item })}
         onLongPress={() => handleManage(item)}
       >
-        <Image source={{ uri: imageUrl }} style={styles.image} />
+        {imageUrl
+          ? <Image source={{ uri: imageUrl }} style={styles.image} />
+          : <View style={[styles.image, { backgroundColor: theme.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
+              <Ionicons name="image-outline" size={24} color={theme.borderLight} />
+            </View>
+        }
         <View style={styles.info}>
           <View style={styles.headerRow}>
             <Text style={styles.title} numberOfLines={1}>{item.titre}</Text>
@@ -83,12 +94,12 @@ export default function MesAnnoncesScreen({ navigation }: any) {
           <Text style={styles.price}>{formatPrix(item.prix)}</Text>
           <View style={styles.statsRow}>
             <View style={styles.stat}>
-              <Ionicons name="eye-outline" size={14} color={COLORS.textMuted} />
+              <Ionicons name="eye-outline" size={14} color={theme.textMuted} />
               <Text style={styles.statText}>0</Text>
             </View>
             <View style={styles.stat}>
               <TouchableOpacity onPress={() => handleManage(item)}>
-                <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.textMuted} />
+                <Ionicons name="ellipsis-horizontal" size={20} color={theme.textMuted} />
               </TouchableOpacity>
             </View>
           </View>
@@ -99,27 +110,27 @@ export default function MesAnnoncesScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.surface} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.surface} />
       
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.textPrimary} />
+          <Ionicons name="arrow-back" size={24} color={theme.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mes Annonces</Text>
         <TouchableOpacity onPress={refetch} style={styles.backButton}>
-           <Ionicons name="refresh" size={20} color={COLORS.primary} />
+           <Ionicons name="refresh" size={20} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
       {loading ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-           <ActivityIndicator size="large" color={COLORS.primary} />
+           <ActivityIndicator size="large" color={theme.primary} />
         </View>
       ) : annonces.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: SPACING.xl }}>
-           <Ionicons name="albums-outline" size={60} color={COLORS.textMuted} style={{ marginBottom: SPACING.md }} />
-           <Text style={{ fontSize: FONTS.md, color: COLORS.textSecondary, textAlign: 'center' }}>Vous n'avez publié aucune annonce pour le moment.</Text>
+           <Ionicons name="albums-outline" size={60} color={theme.textMuted} style={{ marginBottom: SPACING.md }} />
+           <Text style={{ fontSize: FONTS.md, color: theme.textSecondary, textAlign: 'center' }}>Vous n'avez publié aucune annonce pour le moment.</Text>
         </View>
       ) : (
         <FlatList
@@ -135,36 +146,36 @@ export default function MesAnnoncesScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 54,
+    paddingTop: Platform.OS === 'ios' ? 54 : 36,
     paddingHorizontal: SPACING.md,
     paddingBottom: SPACING.md,
-    backgroundColor: COLORS.surface,
+    backgroundColor: theme.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
+    borderBottomColor: theme.borderLight,
   },
   backButton: {
     width: 40, height: 40, justifyContent: 'center', alignItems: 'center'
   },
   headerTitle: {
-    fontSize: FONTS.lg, fontWeight: FONTS.bold, color: COLORS.textPrimary
+    fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.textPrimary
   },
   list: { padding: SPACING.lg },
   card: {
     flexDirection: 'row',
-    backgroundColor: COLORS.surface,
+    backgroundColor: theme.surface,
     borderRadius: RADIUS.lg,
     padding: SPACING.sm,
     marginBottom: SPACING.md,
     ...SHADOWS.sm,
   },
   image: {
-    width: 80, height: 80, borderRadius: RADIUS.md, backgroundColor: COLORS.surfaceMuted
+    width: 80, height: 80, borderRadius: RADIUS.md, backgroundColor: theme.surfaceMuted
   },
   info: {
     flex: 1, marginLeft: SPACING.md, justifyContent: 'space-between', paddingVertical: 4
@@ -173,16 +184,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' 
   },
   title: {
-    flex: 1, fontSize: FONTS.md, fontWeight: FONTS.semibold, color: COLORS.textPrimary, marginRight: 8
+    flex: 1, fontSize: FONTS.md, fontWeight: FONTS.semibold, color: theme.textPrimary, marginRight: 8
   },
   badge: {
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.sm
   },
   badgeText: { fontSize: 10, fontWeight: FONTS.bold },
   price: {
-    fontSize: FONTS.md, fontWeight: FONTS.bold, color: COLORS.primary
+    fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.primary
   },
   statsRow: { flexDirection: 'row', gap: SPACING.lg },
   stat: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  statText: { fontSize: FONTS.xs, color: COLORS.textMuted }
+  statText: { fontSize: FONTS.xs, color: theme.textMuted }
 });
