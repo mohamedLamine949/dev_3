@@ -21,6 +21,7 @@ import ChatConversationScreen from '../screens/ChatConversationScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import LoginScreen from '../screens/LoginScreen';
+import LinkEmailScreen from '../screens/LinkEmailScreen';
 import MesAnnoncesScreen from '../screens/MesAnnoncesScreen';
 import FavorisScreen from '../screens/FavorisScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
@@ -32,7 +33,7 @@ import NotificationManager from '../components/NotificationManager';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-export const navigationRef = createNavigationContainerRef();
+export const navigationRef = createNavigationContainerRef<any>();
 
 // Stack pour l'onglet Accueil
 function HomeStack() {
@@ -227,6 +228,11 @@ export default function AppNavigator() {
           name="Login"
           component={LoginScreen}
           options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="LinkEmail"
+          component={LinkEmailScreen}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="ChatConversation"

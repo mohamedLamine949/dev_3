@@ -18,33 +18,37 @@ import { useTheme } from '../contexts/ThemeContext';
 
 export default function LoginScreen({ navigation }: Props) {
   const { theme, isDark } = useTheme();
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register'>('register');
   const [authMethod, setAuthMethod] = useState<AuthMethod>('phone');
   const [prenom, setPrenom] = useState('');
   const [nom, setNom] = useState('');
-  const [identifier, setIdentifier] = useState(''); // phone or email
+  const [identifier, setIdentifier] = useState(''); // 8-digit phone or email
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // OTP State
+  // OTP State (Keep variables for compatibility, but bypass during register)
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [userOtp, setUserOtp] = useState('');
+
+  // Forgot Password State
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
   const isEmail = (val: string) => val.includes('@');
   
   const formatPhone = (phone: string) => {
-    const cleaned = phone.replace(/[^0-9+]/g, '');
-    if (cleaned.startsWith('+')) return cleaned;
-    if (cleaned.length === 8) return `+223${cleaned}`; // Mali default
+    const cleaned = phone.replace(/[^0-9]/g, '');
+    if (cleaned.length === 8) return `+223${cleaned}`;
     return cleaned;
   };
 
-  const isIdentifierValid = authMethod === 'email' 
-    ? identifier.includes('@') && identifier.includes('.')
-    : identifier.replace(/[^0-9]/g, '').length >= 8;
+  const isIdentifierValid = (mode === 'register' || authMethod === 'phone')
+    ? identifier.replace(/[^0-9]/g, '').length === 8 // Mali phone numbers have exactly 8 digits
+    : identifier.includes('@') && identifier.includes('.');
 
   const isLoginValid = isIdentifierValid && password.length >= 6;
   const isRegisterValid = isLoginValid && prenom.length >= 2 && nom.length >= 2;
@@ -54,55 +58,111 @@ export default function LoginScreen({ navigation }: Props) {
     if (!canSubmit) return;
     
     setLoading(true);
-    const formattedIdentifier = authMethod === 'phone' ? formatPhone(identifier) : identifier.toLowerCase().trim();
+    const formattedIdentifier = (mode === 'register' || authMethod === 'phone') 
+      ? "+223" + identifier.replace(/[^0-9]/g, '') 
+      : identifier.toLowerCase().trim();
 
     try {
       if (mode === 'login') {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          [authMethod]: formattedIdentifier,
+        let loginParams: any = {
           password,
-        } as any);
+        };
 
-        if (error) throw error;
+        if (authMethod === 'phone') {
+          // 1. Vérifier si un e-mail personnalisé est lié à ce téléphone dans public.users
+          const { data: dbUser, error: dbError } = await supabase
+            .from('users')
+            .select('email')
+            .eq('num_telephone', formattedIdentifier);
+
+          if (dbUser && dbUser.length > 0 && dbUser[0].email) {
+            // Un e-mail personnalisé est associé à ce téléphone, on l'utilise pour s'authentifier
+            loginParams.email = dbUser[0].email;
+          } else {
+            // Aucun email lié, on utilise le format par défaut @phone.market
+            loginParams.email = formattedIdentifier + "@phone.market";
+          }
+        } else {
+          loginParams.email = formattedIdentifier;
+        }
+
+        const { data, error } = await supabase.auth.signInWithPassword(loginParams);
+
+        if (error) {
+          // Si l'erreur provient de la méthode mail de secours et qu'on utilise le téléphone
+          if (authMethod === 'phone') {
+            const { data: phoneData, error: phoneError } = await supabase.auth.signInWithPassword({
+              phone: formattedIdentifier,
+              password,
+            } as any);
+
+            if (phoneError) throw error; // on lève l'erreur originale
+            if (phoneData.session) {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Main', params: { screen: 'Profil' } }]
+              });
+              return;
+            }
+          }
+          throw error;
+        }
         
         if (data.session) {
-          navigation.goBack();
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Main', params: { screen: 'Profil' } }]
+          });
         } else {
           Alert.alert('Vérification requise', 'Veuillez vérifier votre compte.');
         }
       } else {
-        // Inscription
-        const { data, error } = await supabase.auth.signUp({
-          [authMethod]: formattedIdentifier,
+        // Inscription (sans OTP, création directe)
+        let signUpParams: any = {
+          email: formattedIdentifier + "@phone.market",
           password,
           options: {
             data: {
               first_name: prenom.trim(),
               last_name: nom.trim(),
+              phone: formattedIdentifier,
             }
           }
-        } as any);
+        };
 
-        // Si erreur de fournisseur SMS, on simule quand même pour le dev
-        if (error) {
-          if (authMethod === 'phone' && (error.message.includes('SMS') || error.message.includes('provider'))) {
-            console.warn("SMS Provider non configuré. Mode simulation activé.");
-            setShowOtpInput(true);
-            return;
-          }
-          throw error;
-        }
+        const { data, error } = await supabase.auth.signUp(signUpParams);
 
-        if (authMethod === 'phone') {
-          // Si Supabase est configuré sans confirmation (auto-confirm), data.session existe déjà
-          // Mais on affiche l'écran OTP pour la simulation demandée
-          setShowOtpInput(true);
-          if (data.session) {
-             console.log("Compte auto-confirmé, mais on affiche l'OTP pour simulation");
+        if (error) throw error;
+
+        if (data.user) {
+          // Insérer le profil directement dans la table publique 'users'
+          const { error: upsertError } = await supabase.from('users').upsert({
+            id: data.user.id,
+            num_telephone: formattedIdentifier,
+            prenom: prenom.trim(),
+            nom: nom.trim(),
+          }, { onConflict: 'id' });
+
+          if (upsertError) {
+            console.error("Erreur lors de l'initialisation du profil public:", upsertError.message);
           }
-        } else {
-          Alert.alert('Succès', 'Veuillez vérifier votre email pour confirmer l\'inscription.');
-          setMode('login');
+
+          // Connexion automatique de l'utilisateur si aucune session n'est générée immédiatement
+          if (!data.session) {
+            const { error: signInError } = await supabase.auth.signInWithPassword({
+              email: formattedIdentifier + "@phone.market",
+              password: password,
+            });
+            if (signInError) {
+              console.error("Erreur de connexion auto:", signInError.message);
+            }
+          }
+
+          Alert.alert('Succès', 'Votre compte a été créé avec succès.');
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Main', params: { screen: 'Profil' } }]
+          });
         }
       }
     } catch (err: any) {
@@ -118,15 +178,32 @@ export default function LoginScreen({ navigation }: Props) {
 
     setLoading(true);
     try {
-      // Simulation pour le moment
       if (userOtp === '123456') {
+        const formattedPhone = formatPhone(identifier);
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: formattedPhone + "@phone.market",
+          password: password,
+        });
+        if (error) {
+          console.log("Erreur de connexion simulation:", error.message);
+        } else if (data.user) {
+          const { error: upsertError } = await supabase.from('users').upsert({
+            id: data.user.id,
+            num_telephone: formattedPhone,
+            prenom: prenom.trim(),
+            nom: nom.trim(),
+          }, { onConflict: 'id' });
+          if (upsertError) {
+            console.error("Erreur d'initialisation du profil public:", upsertError.message);
+          }
+        }
         Alert.alert('Succès (Simulation)', 'Votre numéro a été vérifié.');
-        navigation.goBack();
+        navigation.replace('LinkEmail');
         return;
       }
 
       const formattedPhone = formatPhone(identifier);
-      const { data, error } = await supabase.auth.verifyOTP({
+      const { data, error } = await supabase.auth.verifyOtp({
         phone: formattedPhone,
         token: userOtp,
         type: 'sms',
@@ -134,16 +211,72 @@ export default function LoginScreen({ navigation }: Props) {
 
       if (error) throw error;
 
-      if (data.session) {
+      if (data.user) {
+        const { error: upsertError } = await supabase.from('users').upsert({
+          id: data.user.id,
+          num_telephone: formattedPhone,
+          prenom: prenom.trim(),
+          nom: nom.trim(),
+        }, { onConflict: 'id' });
+        if (upsertError) {
+          console.error("Erreur d'initialisation du profil public:", upsertError.message);
+        }
+      }
+
+      if (data.session || data.user) {
         Alert.alert('Succès', 'Votre compte a été créé avec succès.');
-        navigation.goBack();
+        navigation.replace('LinkEmail');
       }
     } catch (err: any) {
       console.error(err);
-      // En mode simulation, on accepte n'importe quel code si l'erreur vient du manque de provider
       Alert.alert('Note', 'Mode simulation : utilisez 123456');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    if (!forgotPasswordEmail || !forgotPasswordEmail.includes('@')) {
+      Alert.alert('Erreur', 'Veuillez saisir une adresse e-mail valide.');
+      return;
+    }
+
+    setForgotPasswordLoading(true);
+    try {
+      const emailToReset = forgotPasswordEmail.toLowerCase().trim();
+
+      // 1. Vérifier si cet e-mail est bien associé à un utilisateur dans la table publique 'users'
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, num_telephone')
+        .eq('email', emailToReset);
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        Alert.alert(
+          'Compte non trouvé', 
+          'Cette adresse e-mail n\'est associée à aucun compte ou numéro de téléphone sur Flash Market. Veuillez contacter notre service client pour récupérer votre compte.'
+        );
+        return;
+      }
+
+      // 2. Si oui, envoyer l'email de réinitialisation via Supabase
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(emailToReset);
+      if (resetError) throw resetError;
+
+      Alert.alert(
+        'E-mail envoyé',
+        'Un e-mail contenant un lien de réinitialisation de mot de passe a été envoyé à ' + emailToReset + '. Veuillez vérifier votre boîte de réception.',
+        [
+          { text: 'OK', onPress: () => setShowForgotPassword(false) }
+        ]
+      );
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Erreur', err.message || 'Une erreur est survenue lors de l\'envoi.');
+    } finally {
+      setForgotPasswordLoading(false);
     }
   }
 
@@ -171,18 +304,43 @@ export default function LoginScreen({ navigation }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {!showOtpInput && (
-            <View style={styles.toggle}>
-              <TouchableOpacity style={[styles.toggleBtn, mode === 'login' && styles.toggleBtnActive]} onPress={() => setMode('login')}>
-                <Text style={[styles.toggleText, mode === 'login' && styles.toggleTextActive]}>Se connecter</Text>
+          {showForgotPassword ? (
+            <View style={styles.otpContainer}>
+              <Text style={styles.otpTitle}>Mot de passe oublié</Text>
+              <Text style={styles.otpSubtitle}>
+                Saisissez l'adresse e-mail liée à votre numéro de téléphone. Un lien vous sera envoyé pour réinitialiser votre mot de passe.
+              </Text>
+              
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Adresse e-mail</Text>
+                <View style={styles.inputWithIcon}>
+                  <Ionicons name="mail-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.inputFlex}
+                    placeholder="exemple@gmail.com"
+                    placeholderTextColor={theme.textMuted}
+                    value={forgotPasswordEmail}
+                    onChangeText={setForgotPasswordEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.ctaBtn, (!forgotPasswordEmail || !forgotPasswordEmail.includes('@')) && styles.ctaBtnDisabled]}
+                onPress={handleForgotPassword}
+                disabled={!forgotPasswordEmail || !forgotPasswordEmail.includes('@') || forgotPasswordLoading}
+              >
+                {forgotPasswordLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Envoyer le lien de réinitialisation</Text>}
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.toggleBtn, mode === 'register' && styles.toggleBtnActive]} onPress={() => setMode('register')}>
-                <Text style={[styles.toggleText, mode === 'register' && styles.toggleTextActive]}>S'inscrire</Text>
+
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowForgotPassword(false)}>
+                <Text style={styles.cancelText}>Retour à la connexion</Text>
               </TouchableOpacity>
             </View>
-          )}
-
-          {showOtpInput ? (
+          ) : showOtpInput ? (
             <View style={styles.otpContainer}>
               <Text style={styles.otpTitle}>Vérification du numéro</Text>
               <Text style={styles.otpSubtitle}>
@@ -216,21 +374,28 @@ export default function LoginScreen({ navigation }: Props) {
             </View>
           ) : (
             <>
-              {/* Auth Method Selector */}
-              <View style={styles.methodSelector}>
+              <View style={{ marginBottom: SPACING.md }}>
+                <Text style={{ fontSize: FONTS.lg + 2, fontWeight: FONTS.extrabold, color: theme.textPrimary, textAlign: 'center' }}>
+                  {mode === 'login' ? "Bon retour !" : "Créer un compte"}
+                </Text>
+                <Text style={{ fontSize: FONTS.sm, color: theme.textMuted, textAlign: 'center', marginTop: 4 }}>
+                  {mode === 'login' ? "Connectez-vous pour continuer" : "Inscrivez-vous en 1 minute par numéro de téléphone"}
+                </Text>
+              </View>
+
+              {/* Toggle S'inscrire / Se connecter */}
+              <View style={[styles.toggle, { marginBottom: SPACING.xs }]}>
                 <TouchableOpacity 
-                  style={[styles.methodBtn, authMethod === 'phone' && styles.methodBtnActive]} 
-                  onPress={() => { setAuthMethod('phone'); setIdentifier(''); }}
+                  style={[styles.toggleBtn, mode === 'register' && styles.toggleBtnActive]} 
+                  onPress={() => { setMode('register'); setIdentifier(''); setPassword(''); }}
                 >
-                  <Ionicons name="call" size={16} color={authMethod === 'phone' ? theme.primary : theme.textMuted} />
-                  <Text style={[styles.methodText, authMethod === 'phone' && styles.methodTextActive]}>Téléphone</Text>
+                  <Text style={[styles.toggleText, mode === 'register' && styles.toggleTextActive]}>S'inscrire</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={[styles.methodBtn, authMethod === 'email' && styles.methodBtnActive]} 
-                  onPress={() => { setAuthMethod('email'); setIdentifier(''); }}
+                  style={[styles.toggleBtn, mode === 'login' && styles.toggleBtnActive]} 
+                  onPress={() => { setMode('login'); setIdentifier(''); setPassword(''); }}
                 >
-                  <Ionicons name="mail" size={16} color={authMethod === 'email' ? theme.primary : theme.textMuted} />
-                  <Text style={[styles.methodText, authMethod === 'email' && styles.methodTextActive]}>Email</Text>
+                  <Text style={[styles.toggleText, mode === 'login' && styles.toggleTextActive]}>Se connecter</Text>
                 </TouchableOpacity>
               </View>
 
@@ -249,17 +414,19 @@ export default function LoginScreen({ navigation }: Props) {
               )}
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>{authMethod === 'phone' ? 'Numéro de téléphone' : 'Adresse Email'}</Text>
+                <Text style={styles.label}>Numéro de téléphone</Text>
                 <View style={styles.inputWithIcon}>
-                  <Ionicons name={authMethod === 'phone' ? "call-outline" : "mail-outline"} size={18} color={theme.textMuted} style={styles.inputIcon} />
+                  <Ionicons name="call-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
+                  <Text style={{ fontSize: FONTS.md, fontWeight: '700', color: theme.textPrimary, marginRight: 6 }}>+223</Text>
                   <TextInput
                     style={styles.inputFlex}
-                    placeholder={authMethod === 'phone' ? "Ex: 70 00 00 00" : "exemple@gmail.com"}
+                    placeholder="70 00 00 00"
                     placeholderTextColor={theme.textMuted}
                     value={identifier}
                     onChangeText={setIdentifier}
-                    keyboardType={authMethod === 'phone' ? "phone-pad" : "email-address"}
+                    keyboardType="phone-pad"
                     autoCapitalize="none"
+                    maxLength={8}
                   />
                 </View>
               </View>
@@ -283,8 +450,37 @@ export default function LoginScreen({ navigation }: Props) {
                 </View>
               </View>
 
+              {mode === 'login' && (
+                <TouchableOpacity 
+                  style={styles.forgotBtn} 
+                  onPress={() => {
+                    setShowForgotPassword(true);
+                    setForgotPasswordEmail('');
+                  }}
+                >
+                  <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity style={[styles.ctaBtn, !canSubmit && styles.ctaBtnDisabled]} onPress={handleSubmit} disabled={!canSubmit || loading} activeOpacity={0.85}>
                 {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>{mode === 'login' ? 'Se connecter' : 'Créer mon compte'}</Text>}
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.switchModeBtn} 
+                onPress={() => {
+                  setMode(mode === 'login' ? 'register' : 'login');
+                  setIdentifier('');
+                  setPassword('');
+                  setPrenom('');
+                  setNom('');
+                  setAuthMethod('phone');
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.switchModeText}>
+                  {mode === 'login' ? "Nouveau sur Flash Market ? S'inscrire" : "Déjà membre ? Se connecter"}
+                </Text>
               </TouchableOpacity>
             </>
           )}
@@ -347,6 +543,10 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   ctaBtn: { height: 54, backgroundColor: theme.primary, borderRadius: RADIUS.lg, justifyContent: 'center', alignItems: 'center', marginTop: SPACING.sm, ...SHADOWS.colored },
   ctaBtnDisabled: { backgroundColor: theme.textMuted, shadowOpacity: 0, elevation: 0 },
   ctaText: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
+  forgotBtn: { alignSelf: 'flex-end', marginTop: -4, marginBottom: 8 },
+  forgotText: { fontSize: FONTS.xs, color: theme.primary, fontWeight: FONTS.semibold },
+  switchModeBtn: { alignItems: 'center', paddingVertical: SPACING.md, marginTop: SPACING.sm },
+  switchModeText: { fontSize: FONTS.sm, color: theme.primary, fontWeight: FONTS.bold },
   footerLinks: { 
     flexDirection: 'row', 
     justifyContent: 'center', 

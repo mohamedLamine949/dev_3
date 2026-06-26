@@ -184,6 +184,39 @@ export default function ProfileScreen({ navigation }: Props) {
     }
   };
 
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+
+  const handleBannerPress = async () => {
+    if (!session) return;
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission requise', 'Autorisez l\'accès à la galerie pour changer votre bannière.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true, aspect: [16, 9], quality: 0.7, base64: true,
+    });
+    if (result.canceled || !result.assets[0].base64) return;
+    try {
+      setIsUploadingBanner(true);
+      const filePath = `${session.user.id}/banner.png`;
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, decode(result.assets[0].base64), { contentType: 'image/png', upsert: true });
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const banniereUrl = `${data.publicUrl}?t=${Date.now()}`;
+      const { error } = await supabase.from('users').update({ banniere_url: banniereUrl }).eq('id', session.user.id);
+      if (error) throw error;
+      await refreshUser();
+    } catch (err: any) {
+      Alert.alert('Erreur', err.message || 'Impossible d\'uploader la bannière.');
+    } finally {
+      setIsUploadingBanner(false);
+    }
+  };
+
   const handleSaveProfile = async () => {
     if (!session) return;
     const userId = session.user.id;
@@ -296,20 +329,34 @@ export default function ProfileScreen({ navigation }: Props) {
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* Header avec bannière et avatar */}
-        <View style={styles.header}>
+        <View style={[styles.header, user?.type_compte === 'professionnel' && styles.proHeader]}>
           {user?.type_compte === 'professionnel' && user?.banniere_url ? (
             <Image source={{ uri: user.banniere_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
           ) : null}
           {user?.type_compte === 'professionnel' && user?.banniere_url ? (
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)' }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.4)' }]} />
           ) : null}
+          {isUploadingBanner && (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }]}>
+              <ActivityIndicator size="small" color="#fff" />
+            </View>
+          )}
 
           {/* Top Bar - Titre et Paramètres */}
           <View style={styles.headerTop}>
             <Text style={styles.headerTitle}>Profil</Text>
-            <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Settings')} activeOpacity={0.8}>
-              <Ionicons name="settings-outline" size={22} color="#fff" />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              {session && user?.type_compte === 'professionnel' && (
+                <>
+                  <TouchableOpacity style={styles.headerActionBtn} onPress={() => navigation.navigate('VendeurProfile', { vendeurId: session.user.id })} activeOpacity={0.8}>
+                    <Ionicons name="eye-outline" size={20} color="#fff" />
+                  </TouchableOpacity>
+                </>
+              )}
+              <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Settings')} activeOpacity={0.8}>
+                <Ionicons name="settings-outline" size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Photo de profil */}
@@ -342,8 +389,8 @@ export default function ProfileScreen({ navigation }: Props) {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.xs }}>
             <Text style={styles.displayName}>{displayName}</Text>
             {session && (
-              <View style={{ backgroundColor: user?.type_compte === 'professionnel' ? '#fff' : 'rgba(255,255,255,0.25)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: RADIUS.xs }}>
-                <Text style={{ fontSize: 10, fontWeight: FONTS.bold, color: user?.type_compte === 'professionnel' ? theme.primary : '#fff' }}>
+              <View style={{ backgroundColor: user?.type_compte === 'professionnel' ? theme.primary : 'rgba(255,255,255,0.25)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: RADIUS.xs }}>
+                <Text style={{ fontSize: 10, fontWeight: FONTS.bold, color: '#fff' }}>
                   {user?.type_compte === 'professionnel' ? 'PRO' : 'Particulier'}
                 </Text>
               </View>
@@ -367,8 +414,10 @@ export default function ProfileScreen({ navigation }: Props) {
           {/* Boutons d'action principaux */}
           {session ? (
             <TouchableOpacity style={styles.editProfileBtn} onPress={openEditModal} activeOpacity={0.8}>
-              <Feather name="edit-3" size={15} color="#fff" />
-              <Text style={styles.editProfileBtnText}>Modifier le profil vitrine</Text>
+              <Feather name="edit-3" size={14} color="#fff" style={{ marginRight: 4 }} />
+              <Text style={styles.editProfileBtnText}>
+                {user?.type_compte === 'professionnel' ? 'Modifier le profil vitrine' : 'Modifier le profil'}
+              </Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity style={styles.loginPromptBtn} onPress={() => navigation.navigate('Login')}>
@@ -380,6 +429,29 @@ export default function ProfileScreen({ navigation }: Props) {
         {/* Body du Profil */}
         {session ? (
           <View style={styles.body}>
+
+            {session && (!user?.email || user.email.endsWith('@phone.market')) && (
+              <View style={styles.emailBanner}>
+                <View style={styles.emailBannerContent}>
+                  <View style={styles.emailBannerIcon}>
+                    <Ionicons name="shield-half-outline" size={20} color={theme.primary} />
+                  </View>
+                  <View style={styles.emailBannerTextContainer}>
+                    <Text style={styles.emailBannerTitle}>Sécurisez votre compte</Text>
+                    <Text style={styles.emailBannerDesc}>
+                      Associez une adresse e-mail pour certifier votre numéro de téléphone et récupérer votre compte en cas d'oubli de mot de passe.
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity 
+                  style={styles.emailBannerBtn}
+                  onPress={() => navigation.navigate('LinkEmail')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.emailBannerBtnText}>Lier mon adresse e-mail</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Barre d'onglets (Vitrine, Annonces, Avis) */}
             <View style={styles.tabsContainer}>
@@ -451,14 +523,14 @@ export default function ProfileScreen({ navigation }: Props) {
                     ) : (
                       <TouchableOpacity onPress={openEditModal} style={styles.addPhotosPlaceholder}>
                         <Ionicons name="images-outline" size={28} color={theme.primary} />
-                        <Text style={styles.addPhotosPlaceholderText}>+ Ajouter des photos de vos produits/plats (Max 10)</Text>
+                        <Text style={styles.addPhotosPlaceholderText}>+ Ajouter des photos de vos produits/plats</Text>
                       </TouchableOpacity>
                     )}
                   </View>
                 ) : (
                   <View style={[styles.card, styles.proOnlyCard]}>
                     <Ionicons name="lock-closed-outline" size={24} color={theme.textMuted} style={{ marginBottom: 4 }} />
-                    <Text style={styles.proOnlyText}>Passez votre compte en mode "Professionnel" pour afficher des photos de votre vitrine d'activité (limite de 10 photos).</Text>
+                    <Text style={styles.proOnlyText}>Passez votre compte en mode "Professionnel" pour afficher des photos de votre vitrine d'activité.</Text>
                     <TouchableOpacity style={styles.upgradeBtn} onPress={openEditModal}>
                       <Text style={styles.upgradeBtnText}>Devenir Professionnel</Text>
                     </TouchableOpacity>
@@ -724,32 +796,38 @@ export default function ProfileScreen({ navigation }: Props) {
                     )}
                   </TouchableOpacity>
 
-                  {/* Photos d'activité (Augmenté à 10 max) */}
-                  <Text style={styles.modalSectionLabel}>Photos de vitrine (Max 10)</Text>
+                  {/* Photos d'activité (20 max, multi-sélection) */}
+                  <Text style={styles.modalSectionLabel}>Photos de vitrine</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.md, paddingVertical: SPACING.sm, marginBottom: SPACING.lg }}>
                     <TouchableOpacity
                       style={styles.modalActivityPhotoAdd}
                       onPress={async () => {
-                        if (editImagesBusiness.length >= 10) {
-                          Alert.alert('Maximum atteint', 'Vous pouvez ajouter 10 photos maximum.');
+                        if (editImagesBusiness.length >= 20) {
+                          Alert.alert('Maximum atteint', 'Vous avez atteint la limite de photos pour votre vitrine.');
                           return;
                         }
                         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
                         if (status !== 'granted') { Alert.alert('Permission requise pour accéder aux photos.'); return; }
+                        const remaining = 20 - editImagesBusiness.length;
                         const result = await ImagePicker.launchImageLibraryAsync({
                           mediaTypes: ['images'],
-                          allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true,
+                          allowsMultipleSelection: true,
+                          selectionLimit: remaining,
+                          quality: 0.7,
+                          base64: true,
                         });
-                        if (!result.canceled && result.assets[0].base64) {
-                          setEditImagesBusiness([...editImagesBusiness, result.assets[0].uri]);
-                          setEditImagesBusinessBase64([...editImagesBusinessBase64, result.assets[0].base64]);
+                        if (!result.canceled && result.assets.length > 0) {
+                          const newUris = result.assets.map(a => a.uri);
+                          const newBase64s = result.assets.map(a => a.base64 || null);
+                          setEditImagesBusiness([...editImagesBusiness, ...newUris].slice(0, 20));
+                          setEditImagesBusinessBase64([...editImagesBusinessBase64, ...newBase64s].slice(0, 20));
                         }
                       }}
                       activeOpacity={0.7}
                     >
-                      <Ionicons name="camera" size={28} color={theme.primary} />
+                      <Ionicons name="images" size={28} color={theme.primary} />
                       <Text style={{ fontSize: FONTS.xs, fontWeight: FONTS.semibold, color: theme.primary }}>
-                        {editImagesBusiness.length}/10
+                        {editImagesBusiness.length > 0 ? `+${editImagesBusiness.length}` : '+'}
                       </Text>
                     </TouchableOpacity>
 
@@ -872,6 +950,240 @@ export default function ProfileScreen({ navigation }: Props) {
 const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
 
+  emailBanner: {
+    backgroundColor: isDark ? '#1E293B' : '#ECFDF5',
+    borderWidth: 1,
+    borderColor: isDark ? '#065F46' : '#A7F3D0',
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.lg,
+    gap: SPACING.md,
+  },
+  emailBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  emailBannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: isDark ? '#065F46' : '#D1FAE5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emailBannerTextContainer: {
+    flex: 1,
+  },
+  emailBannerTitle: {
+    fontSize: FONTS.sm,
+    fontWeight: FONTS.bold,
+    color: theme.textPrimary,
+  },
+  emailBannerDesc: {
+    fontSize: 11,
+    color: theme.textSecondary,
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  emailBannerBtn: {
+    backgroundColor: theme.primary,
+    paddingVertical: 8,
+    borderRadius: RADIUS.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emailBannerBtnText: {
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.bold,
+    color: '#fff',
+  },
+
+  // PRO Snapchat style header styles
+  proHeaderContainer: {
+    backgroundColor: theme.background,
+    width: '100%',
+  },
+  bannerContainer: {
+    width: '100%',
+    height: 160,
+    position: 'relative',
+    backgroundColor: theme.borderLight,
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  bannerPlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bannerEditBtn: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.4)',
+    zIndex: 5,
+  },
+  bannerTopBar: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 44 : 12,
+    right: 12,
+    zIndex: 5,
+  },
+  settingsBtnBanner: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  proProfileInfoContainer: {
+    alignItems: 'center',
+    paddingBottom: SPACING.lg,
+    paddingHorizontal: SPACING.xl,
+    width: '100%',
+  },
+  proAvatarWrapper: {
+    marginTop: -44,
+    marginBottom: 8,
+    position: 'relative',
+    zIndex: 10,
+  },
+  proAvatarImage: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 3,
+    borderColor: theme.background,
+  },
+  proAvatarFallback: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: theme.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: theme.background,
+  },
+  proAvatarInitial: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  proAvatarCameraBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.primaryDark,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: theme.background,
+  },
+  proNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  proDisplayName: {
+    fontSize: FONTS.lg,
+    fontWeight: FONTS.extrabold,
+    color: theme.textPrimary,
+  },
+  proBadge: {
+    backgroundColor: theme.primary,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: RADIUS.xs,
+  },
+  proBadgeText: {
+    fontSize: 9,
+    fontWeight: FONTS.bold,
+    color: '#fff',
+  },
+  proIdentifierText: {
+    fontSize: FONTS.xs,
+    color: theme.textMuted,
+    marginBottom: 6,
+  },
+  proRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  proRatingText: {
+    fontSize: FONTS.xs,
+    color: theme.textSecondary,
+    fontWeight: FONTS.semibold,
+  },
+  proBioText: {
+    fontSize: FONTS.sm,
+    color: theme.textSecondary,
+    textAlign: 'center',
+    paddingHorizontal: SPACING.lg,
+    marginBottom: 12,
+    lineHeight: 18,
+  },
+  snapActionsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+    width: '100%',
+    marginTop: 4,
+  },
+  snapBtnFilled: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: theme.primary,
+    paddingVertical: 8,
+    borderRadius: RADIUS.full,
+    maxWidth: 140,
+    ...SHADOWS.sm,
+  },
+  snapBtnTextFilled: {
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.bold,
+    color: '#fff',
+  },
+  snapBtnOutline: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: theme.primary,
+    paddingVertical: 8,
+    borderRadius: RADIUS.full,
+    maxWidth: 140,
+  },
+  snapBtnTextOutline: {
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.bold,
+    color: theme.primary,
+  },
+
   // Header vert
   header: {
     backgroundColor: theme.primary,
@@ -882,6 +1194,10 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     position: 'relative',
     ...SHADOWS.md,
   },
+  proHeader: {
+    paddingTop: Platform.OS === 'ios' ? 70 : 55,
+    paddingBottom: 40,
+  },
   headerTop: {
     width: '100%',
     flexDirection: 'row',
@@ -891,7 +1207,12 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   headerTitle: { fontSize: FONTS.xxl, fontWeight: FONTS.extrabold, color: '#fff' },
   settingsBtn: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  headerActionBtn: {
+    width: 36, height: 36, borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center', alignItems: 'center',
   },

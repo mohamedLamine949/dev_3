@@ -32,8 +32,9 @@ export function useUnreadCount(userId: string | undefined) {
     fetchCount();
     if (!userId) return;
 
+    const suffix = Math.random().toString(36).substring(7);
     const channel = supabase
-      .channel(`unread_count_${userId}`)
+      .channel(`unread_count_${userId}_${suffix}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, fetchCount)
       .subscribe();
 
@@ -103,8 +104,9 @@ export function useConversations(userId: string | undefined) {
     if (!userId) return;
 
     // S'abonner aux changements sur la table conversations
+    const suffix = Math.random().toString(36).substring(7);
     const channel = supabase
-      .channel('public:conversations')
+      .channel(`public_conversations_${suffix}`)
       .on(
         'postgres_changes',
         {
@@ -175,8 +177,9 @@ export function useChat(conversationId: string | undefined, currentUserId: strin
     if (!conversationId) return;
 
     // Abonnement temps réel aux NOUVEAUX messages
+    const suffix = Math.random().toString(36).substring(7);
     const channel = supabase
-      .channel(`public:messages:${conversationId}`)
+      .channel(`public_messages_${conversationId}_${suffix}`)
       .on(
         'postgres_changes',
         {

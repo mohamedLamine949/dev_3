@@ -164,7 +164,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
 });
 
-export default function ChatConversationScreen({ route, navigation }: Props) {
+export default function ChatConversationScreen({ route, navigation }: any) {
   const { conversationId: initialConvId, titreAnnonce, vendeurId, annonceId } = route.params || {};
   const { session } = useAuth();
   const { theme, isDark } = useTheme();
