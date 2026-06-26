@@ -31,37 +31,25 @@ function formatPrix(prix: number): string {
 
 // Couleur par catégorie
 const CAT_COLORS: Record<string, string> = {
-  telephonie:  '#2563eb',
-  electronique:'#7c3aed',
-  vehicules:   '#d97706',
-  immobilier:  '#0891b2',
-  nourriture:  '#dc2626',
-  agriculture: '#65a30d',
-  mode:        '#db2777',
-  beaute:      '#c026d3',
-  electromenager: '#0284c7',
-  materiaux:   '#78350f',
-  maison:      '#92400e',
-  services:    '#15803d',
-  loisirs:     '#ea580c',
-  autres:      '#475569',
+  telephonie_electronique: '#2563eb',
+  mode_beaute:             '#db2777',
+  maison_electromenager:   '#0284c7',
+  voitures:                '#d97706',
+  motos:                   '#ea580c',
+  immobilier:              '#0891b2',
+  nourriture:              '#dc2626',
+  services:                '#15803d',
 };
 
 const CAT_EMOJIS: Record<string, string> = {
-  telephonie:  '📱',
-  electronique:'💻',
-  vehicules:   '🚗',
-  immobilier:  '🏠',
-  nourriture:  '🍽️',
-  agriculture: '🌾',
-  mode:        '👕',
-  beaute:      '💄',
-  electromenager: '🏠',
-  materiaux:   '🧱',
-  maison:      '🛋️',
-  services:    '🔧',
-  loisirs:     '🎮',
-  autres:      '📦',
+  telephonie_electronique: '📱',
+  mode_beaute:             '👕',
+  maison_electromenager:   '🛋️',
+  voitures:                '🚗',
+  motos:                   '🏍️',
+  immobilier:              '🏠',
+  nourriture:              '🍽️',
+  services:                '🔧',
 };
 
 interface Props {

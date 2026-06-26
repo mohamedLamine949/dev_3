@@ -16,7 +16,8 @@ import {
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, ETAT_ARTICLE } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, ETAT_ARTICLE, CATEGORY_PRICES } from '../constants/theme';
+import { WebView } from 'react-native-webview';
 import { createAnnonce } from '../hooks/useAnnonces';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation } from '../hooks/useLocation';
@@ -29,7 +30,7 @@ interface Props {
 }
 
 export default function PostAnnonceScreen({ navigation }: any) {
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const { location } = useLocation();
   const { theme, isDark } = useTheme();
 
@@ -41,10 +42,25 @@ export default function PostAnnonceScreen({ navigation }: any) {
   const [selectedEtat, setSelectedEtat] = useState<string | null>(null);
   const [quartier, setQuartier] = useState('');
 
+  const price = selectedCategory ? (CATEGORY_PRICES[selectedCategory] || 250) : 250;
+
   // Payment Modal State
   const [isPaymentModalVisible, setPaymentModalVisible] = useState(false);
   const [paymentPhone, setPaymentPhone] = useState('');
-  const [paymentStep, setPaymentStep] = useState<'form' | 'processing' | 'success'>('form');
+  const [paymentUrl, setPaymentUrl] = useState('');
+  const [paymentStep, setPaymentStep] = useState<'form' | 'init_payment' | 'webview' | 'processing' | 'success' | 'error'>('form');
+  const [transactionId, setTransactionId] = useState('');
+  const [paymentError, setPaymentError] = useState('');
+  const isProcessingRef = React.useRef(false);
+
+  // Pre-fill phone from user profile
+  useEffect(() => {
+    if (user?.telephone) {
+      const cleaned = user.telephone.replace(/[^0-9]/g, '');
+      const last8 = cleaned.length >= 8 ? cleaned.substring(cleaned.length - 8) : cleaned;
+      setPaymentPhone(last8);
+    }
+  }, [user]);
 
   // Auto-fill ville/quartier from GPS when location becomes available
   useEffect(() => {
@@ -125,7 +141,8 @@ export default function PostAnnonceScreen({ navigation }: any) {
       Alert.alert('Champs manquants', 'Titre, prix, catégorie et au moins une photo sont requis.');
       return;
     }
-    // Ouvrir le modal de paiement
+    isProcessingRef.current = false;
+    setPaymentError('');
     setPaymentStep('form');
     setPaymentModalVisible(true);
   };
@@ -136,10 +153,56 @@ export default function PostAnnonceScreen({ navigation }: any) {
       return;
     }
 
-    setPaymentStep('processing');
+    setPaymentStep('init_payment');
+    setPaymentError('');
 
-    // MOCK: Simulation d'un délai réseau pour l'API Orange Money (2 secondes)
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    const refNum = `CC-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    setTransactionId(refNum);
+
+    try {
+      const response = await fetch('https://www.paiementpro.net/webservice/onlinepayment/init/curl-init.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          merchantId: 'PP-F92288',
+          amount: price,
+          description: `Chap Chap - Publication annonce: ${titre.substring(0, 50)}`,
+          referenceNumber: refNum,
+          customerEmail: session?.user?.email || 'client@chapchap.ml',
+          customerFirstName: user?.prenom || 'Client',
+          customerLastname: user?.nom || 'Chap Chap',
+          customerPhoneNumber: paymentPhone,
+          notificationURL: 'https://chapchap.ml/payment/notify',
+          returnURL: 'https://chapchap.ml/payment/success',
+        }),
+      });
+
+      const text = await response.text();
+      console.log('Paiement Pro Response Text:', text);
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error("Format de réponse invalide de la part de la passerelle de paiement.");
+      }
+
+      if (data.success && data.url) {
+        setPaymentUrl(data.url);
+        setPaymentStep('webview');
+      } else {
+        throw new Error(data.message || "Impossible d'initialiser le paiement.");
+      }
+    } catch (error: any) {
+      console.error("Erreur d'initialisation du paiement:", error);
+      setPaymentError(error.message || "Une erreur est survenue lors de l'initialisation du paiement.");
+      setPaymentStep('error');
+    }
+  };
+
+  const handlePaymentSuccess = async () => {
+    setPaymentStep('processing');
 
     const annonceData = {
       titre,
@@ -153,28 +216,47 @@ export default function PostAnnonceScreen({ navigation }: any) {
       longitude: location?.longitude || null,
       est_payee: true,
       statut: 'active',
-      id_transaction_paiement: `OM-${Math.floor(Math.random() * 1000000)}`,
-      user_id: session?.user.id,
+      id_transaction_paiement: transactionId,
+      user_id: session?.user?.id,
     };
 
     const { error } = await createAnnonce(annonceData as any, images);
 
     if (error) {
       console.error(error);
-      Alert.alert('Erreur de publication', "L'annonce n'a pas pu être publiée. " + error);
-      setPaymentModalVisible(false);
+      setPaymentError("L'annonce a été payée avec succès, mais la publication a échoué. " + error);
+      setPaymentStep('error');
       return;
     }
 
-    // Succès !
     setPaymentStep('success');
     
-    // Fermer après 3 secondes et rediriger vers Accueil
     setTimeout(() => {
       setPaymentModalVisible(false);
       resetForm();
       navigation.navigate('Accueil');
     }, 3000);
+  };
+
+  const handlePaymentFailure = (message: string) => {
+    isProcessingRef.current = false;
+    setPaymentError(message);
+    setPaymentStep('error');
+  };
+
+  const handleNavigationStateChange = (navState: any) => {
+    const { url } = navState;
+    console.log('WebView Navigation State Change:', url);
+
+    if (url.includes('responsecode=0')) {
+      if (isProcessingRef.current) return;
+      isProcessingRef.current = true;
+      handlePaymentSuccess();
+    } else if (url.includes('responsecode=-1')) {
+      if (isProcessingRef.current) return;
+      isProcessingRef.current = true;
+      handlePaymentFailure("Le paiement a été annulé ou a échoué.");
+    }
   };
 
   const isFormValid = titre && prix && selectedCategory && images.length > 0;
@@ -310,7 +392,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
           <View style={styles.costCard}>
             <View style={styles.costRow}>
               <Text style={styles.costLabel}>Frais de publication</Text>
-              <Text style={styles.costValue}>150 FCFA</Text>
+              <Text style={styles.costValue}>{price} FCFA</Text>
             </View>
             <View style={styles.costDivider} />
             <View style={styles.costInfo}>
@@ -332,29 +414,36 @@ export default function PostAnnonceScreen({ navigation }: any) {
           activeOpacity={0.8}
         >
           <Ionicons name="flash" size={20} color={theme.textInverse} />
-          <Text style={styles.ctaText}>Publier pour 150 FCFA</Text>
+          <Text style={styles.ctaText}>Publier pour {price} FCFA</Text>
         </TouchableOpacity>
       </View>
 
-      {/* MOCK PAYMENT MODAL */}
+      {/* REAL PAYMENT MODAL */}
       <Modal
         visible={isPaymentModalVisible}
         transparent
         animationType="slide"
         onRequestClose={() => {
-          if (paymentStep !== 'processing') setPaymentModalVisible(false);
+          if (paymentStep !== 'processing' && paymentStep !== 'init_payment') setPaymentModalVisible(false);
         }}
       >
         <KeyboardAvoidingView style={styles.modalContainer} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => {
-            if (paymentStep !== 'processing') setPaymentModalVisible(false);
-          }} />
+          {paymentStep !== 'webview' && (
+            <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => {
+              if (paymentStep !== 'processing' && paymentStep !== 'init_payment') setPaymentModalVisible(false);
+            }} />
+          )}
           
-          <View style={styles.modalContent}>
+          <View style={[
+            styles.modalContent,
+            paymentStep === 'webview' && { height: '90%', borderTopLeftRadius: RADIUS.xxl, borderTopRightRadius: RADIUS.xxl, paddingBottom: 20 }
+          ]}>
             {/* Header du Modal */}
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Paiement Mobile Money</Text>
-              {paymentStep !== 'processing' && paymentStep !== 'success' && (
+              <Text style={styles.modalTitle}>
+                {paymentStep === 'webview' ? 'Portail de Paiement' : 'Paiement Mobile Money'}
+              </Text>
+              {(paymentStep !== 'processing' && paymentStep !== 'init_payment') && (
                 <TouchableOpacity onPress={() => setPaymentModalVisible(false)}>
                   <Ionicons name="close-circle" size={28} color={theme.textMuted} />
                 </TouchableOpacity>
@@ -369,7 +458,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
                   <View style={styles.costDivider} />
                   <View style={styles.costRow}>
                     <Text style={styles.costLabel}>Total à payer :</Text>
-                    <Text style={styles.costValue}>150 FCFA</Text>
+                    <Text style={styles.costValue}>{price} FCFA</Text>
                   </View>
                 </View>
 
@@ -395,11 +484,37 @@ export default function PostAnnonceScreen({ navigation }: any) {
               </View>
             )}
 
+            {paymentStep === 'init_payment' && (
+              <View style={styles.processingContainer}>
+                <ActivityIndicator size="large" color={theme.primary} />
+                <Text style={styles.processingTitle}>Initialisation du paiement...</Text>
+                <Text style={styles.processingText}>Connexion sécurisée avec la passerelle de paiement en cours. Veuillez patienter.</Text>
+              </View>
+            )}
+
+            {paymentStep === 'webview' && paymentUrl ? (
+              <View style={{ flex: 1, overflow: 'hidden', borderRadius: RADIUS.md }}>
+                <WebView
+                  source={{ uri: paymentUrl }}
+                  onNavigationStateChange={handleNavigationStateChange}
+                  style={{ flex: 1 }}
+                  javaScriptEnabled={true}
+                  domStorageEnabled={true}
+                  startInLoadingState={true}
+                  renderLoading={() => (
+                    <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', backgroundColor: theme.background }]}>
+                      <ActivityIndicator size="large" color={theme.primary} />
+                    </View>
+                  )}
+                />
+              </View>
+            ) : null}
+
             {paymentStep === 'processing' && (
               <View style={styles.processingContainer}>
                 <ActivityIndicator size="large" color={theme.primary} />
-                <Text style={styles.processingTitle}>Traitement en cours...</Text>
-                <Text style={styles.processingText}>Communication avec Orange Money et upload de vos photos. Ne quittez pas cette page.</Text>
+                <Text style={styles.processingTitle}>Publication en cours...</Text>
+                <Text style={styles.processingText}>Validation de votre paiement et mise en ligne de votre annonce. Ne quittez pas l'application.</Text>
               </View>
             )}
 
@@ -407,7 +522,24 @@ export default function PostAnnonceScreen({ navigation }: any) {
               <View style={styles.processingContainer}>
                 <Ionicons name="checkmark-circle" size={80} color={theme.success} />
                 <Text style={[styles.processingTitle, { color: theme.success }]}>Paiement Réussi !</Text>
-                <Text style={styles.processingText}>Votre paiement de 150 FCFA a été validé. Votre annonce est maintenant en ligne.</Text>
+                <Text style={styles.processingText}>Votre paiement de {price} FCFA a été validé. Votre annonce est maintenant en ligne.</Text>
+              </View>
+            )}
+
+            {paymentStep === 'error' && (
+              <View style={styles.processingContainer}>
+                <Ionicons name="alert-circle" size={80} color={theme.error} />
+                <Text style={[styles.processingTitle, { color: theme.error }]}>Échec du paiement</Text>
+                <Text style={styles.processingText}>
+                  {paymentError || "Le paiement n'a pas pu être validé. Veuillez réessayer."}
+                </Text>
+                <TouchableOpacity
+                  style={[styles.ctaButton, { marginTop: SPACING.xl, width: '100%' }]}
+                  onPress={() => setPaymentStep('form')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.ctaText}>Réessayer</Text>
+                </TouchableOpacity>
               </View>
             )}
 

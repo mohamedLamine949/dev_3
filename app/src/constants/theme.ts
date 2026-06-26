@@ -149,21 +149,26 @@ export const SHADOWS = {
 };
 
 export const CATEGORIES = [
-  { id: 'telephonie', label: 'Téléphones', icon: 'smartphone' },
-  { id: 'electronique', label: 'Électronique', icon: 'monitor' },
-  { id: 'vehicules', label: 'Véhicules', icon: 'truck' },
+  { id: 'telephonie_electronique', label: 'Téléphonie & Électronique', icon: 'smartphone' },
+  { id: 'mode_beaute', label: 'Mode & Beauté', icon: 'shopping-bag' },
+  { id: 'maison_electromenager', label: 'Maison & Électroménager', icon: 'box' },
+  { id: 'voitures', label: 'Voitures', icon: 'car' },
+  { id: 'motos', label: 'Motos', icon: 'bicycle' },
   { id: 'immobilier', label: 'Immobilier', icon: 'home' },
   { id: 'nourriture', label: 'Nourriture', icon: 'coffee' },
-  { id: 'agriculture', label: 'Agriculture & Élevage', icon: 'sun' },
-  { id: 'mode', label: 'Mode', icon: 'shopping-bag' },
-  { id: 'beaute', label: 'Beauté & Cosmétiques', icon: 'feather' },
-  { id: 'electromenager', label: 'Électroménager', icon: 'zap' },
-  { id: 'materiaux', label: 'Matériaux & Construction', icon: 'layers' },
-  { id: 'maison', label: 'Maison', icon: 'box' },
   { id: 'services', label: 'Services', icon: 'tool' },
-  { id: 'loisirs', label: 'Loisirs', icon: 'play-circle' },
-  { id: 'autres', label: 'Autres', icon: 'grid' },
 ];
+
+export const CATEGORY_PRICES: Record<string, number> = {
+  telephonie_electronique: 250,
+  mode_beaute:             250,
+  maison_electromenager:   250,
+  voitures:                5000,
+  motos:                   1000,
+  immobilier:              2500,
+  nourriture:              500,
+  services:                500,
+};
 
 export const ETAT_ARTICLE = [
   { id: 'neuf', label: 'Neuf' },

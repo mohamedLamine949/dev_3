@@ -82,7 +82,7 @@ export default function VendeurProfileScreen({ route, navigation }: any) {
   useEffect(() => {
     supabase
       .from('users')
-      .select('id, prenom, nom, bio, avatar_url, telephone, whatsapp')
+      .select('id, prenom, nom, bio, avatar_url, telephone, whatsapp, type_compte, banniere_url, images_business')
       .eq('id', vendeurId)
       .single()
       .then(({ data }) => {
@@ -123,7 +123,13 @@ export default function VendeurProfileScreen({ route, navigation }: any) {
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* Header vert */}
-        <View style={styles.header}>
+        <View style={[styles.header, { overflow: 'hidden' }]}>
+          {seller?.type_compte === 'professionnel' && seller?.banniere_url ? (
+            <Image source={{ uri: seller.banniere_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          ) : null}
+          {seller?.type_compte === 'professionnel' && seller?.banniere_url ? (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)' }]} />
+          ) : null}
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
@@ -136,7 +142,14 @@ export default function VendeurProfileScreen({ route, navigation }: any) {
             </View>
           )}
 
-          <Text style={styles.sellerName}>{sellerName}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: SPACING.sm }}>
+            <Text style={[styles.sellerName, { marginTop: 0 }]}>{sellerName}</Text>
+            {seller?.type_compte === 'professionnel' && (
+              <View style={{ backgroundColor: '#fff', paddingHorizontal: 8, paddingVertical: 2, borderRadius: RADIUS.xs }}>
+                <Text style={{ fontSize: 10, fontWeight: FONTS.bold, color: theme.primary }}>PRO</Text>
+              </View>
+            )}
+          </View>
           {seller?.bio ? <Text style={styles.sellerBio}>{seller.bio}</Text> : null}
 
           {/* Stats */}
@@ -187,6 +200,18 @@ export default function VendeurProfileScreen({ route, navigation }: any) {
         </View>
 
         <View style={styles.body}>
+          {/* Vitrine d'activité */}
+          {seller?.type_compte === 'professionnel' && seller?.images_business && seller.images_business.length > 0 && (
+            <View style={{ marginBottom: SPACING.xxl }}>
+              <Text style={styles.sectionTitle}>Photos d'activité (Vitrine)</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.md, paddingVertical: SPACING.sm }}>
+                {seller.images_business.map((imgUrl: string, idx: number) => (
+                  <Image key={idx} source={{ uri: imgUrl }} style={{ width: 140, height: 140, borderRadius: RADIUS.lg }} />
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           {/* Annonces */}
           <Text style={styles.sectionTitle}>
             Annonces ({loadingAnnonces ? '…' : annonces.length})

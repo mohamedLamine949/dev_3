@@ -56,7 +56,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
     if (!seller && annonce.user_id) {
       supabase
         .from('users')
-        .select('id, prenom, nom, bio, avatar_url, telephone, whatsapp, instagram, tiktok, facebook')
+        .select('id, prenom, nom, bio, avatar_url, telephone, whatsapp, instagram, tiktok, facebook, type_compte')
         .eq('id', annonce.user_id)
         .single()
         .then(({ data }) => { if (data) setSeller(data); });
@@ -287,7 +287,14 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
                     </View>
                   )}
                   <View style={styles.sellerInfo}>
-                    <Text style={styles.sellerName}>{sellerName}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={styles.sellerName}>{sellerName}</Text>
+                      {seller?.type_compte === 'professionnel' && (
+                        <View style={{ backgroundColor: theme.primaryFaded, paddingHorizontal: 6, paddingVertical: 2, borderRadius: RADIUS.xs }}>
+                          <Text style={{ fontSize: 9, fontWeight: FONTS.bold, color: theme.primary }}>PRO</Text>
+                        </View>
+                      )}
+                    </View>
                     {seller?.bio ? (
                       <Text style={styles.sellerBio} numberOfLines={2}>{seller.bio}</Text>
                     ) : (

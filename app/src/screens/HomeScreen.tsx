@@ -17,6 +17,7 @@ import {
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES } from '../constants/theme';
 import { useAnnonces } from '../hooks/useAnnonces';
+import { Annonce } from '../lib/supabase';
 import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';

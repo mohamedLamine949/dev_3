@@ -80,6 +80,11 @@ export default function ProfileScreen({ navigation }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [stats, setStats] = useState({ annonces: 0, avis: 0, avgNote: null as number | null });
+  const [editTypeCompte, setEditTypeCompte] = useState<'particulier' | 'professionnel'>('particulier');
+  const [editBanniereUri, setEditBanniereUri] = useState<string | null>(null);
+  const [editBanniereBase64, setEditBanniereBase64] = useState<string | null>(null);
+  const [editImagesBusiness, setEditImagesBusiness] = useState<string[]>([]);
+  const [editImagesBusinessBase64, setEditImagesBusinessBase64] = useState<(string | null)[]>([]);
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
@@ -111,6 +116,11 @@ export default function ProfileScreen({ navigation }: Props) {
     setEditFacebook(user?.facebook || '');
     setEditAvatarUri(user?.avatar_url || null);
     setEditAvatarBase64(null);
+    setEditTypeCompte(user?.type_compte || 'particulier');
+    setEditBanniereUri(user?.banniere_url || null);
+    setEditBanniereBase64(null);
+    setEditImagesBusiness(user?.images_business || []);
+    setEditImagesBusinessBase64((user?.images_business || []).map(() => null));
     setIsEditing(true);
   };
 
@@ -163,13 +173,10 @@ export default function ProfileScreen({ navigation }: Props) {
     const userId = session.user.id;
     try {
       setIsSaving(true);
+      
       let avatarUrlToSave = user?.avatar_url || null;
       if (editAvatarBase64) {
-        // On utilise un nom de fichier fixe pour éviter de multiplier les fichiers inutiles
         const filePath = `${userId}/avatar.png`;
-        
-        console.log("📤 [Upload] Tentative d'upload vers :", filePath);
-        
         const { error: uploadError } = await supabase.storage
           .from('avatars')
           .upload(filePath, decode(editAvatarBase64), { 
@@ -178,14 +185,57 @@ export default function ProfileScreen({ navigation }: Props) {
           });
 
         if (uploadError) {
-          console.error("❌ [Upload Error] :", uploadError);
-          throw new Error(`Erreur lors de l'upload de l'image: ${uploadError.message}`);
+          throw new Error(`Erreur lors de l'upload de l'avatar: ${uploadError.message}`);
         }
 
         const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-        avatarUrlToSave = `${data.publicUrl}?t=${Date.now()}`; // Ajout d'un cache-buster
-        console.log("✅ [Upload Success] URL publique :", avatarUrlToSave);
+        avatarUrlToSave = `${data.publicUrl}?t=${Date.now()}`;
       }
+
+      let banniereUrlToSave = user?.banniere_url || null;
+      if (editBanniereBase64) {
+        const filePath = `${userId}/banner.png`;
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, decode(editBanniereBase64), { 
+            contentType: 'image/png', 
+            upsert: true 
+          });
+
+        if (uploadError) {
+          throw new Error(`Erreur lors de l'upload de la bannière: ${uploadError.message}`);
+        }
+
+        const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+        banniereUrlToSave = `${data.publicUrl}?t=${Date.now()}`;
+      } else if (editTypeCompte === 'particulier') {
+        banniereUrlToSave = null;
+      }
+
+      let businessUrlsToSave: string[] = [];
+      if (editTypeCompte === 'professionnel') {
+        for (let i = 0; i < editImagesBusiness.length; i++) {
+          const uri = editImagesBusiness[i];
+          const base64 = editImagesBusinessBase64[i];
+          if (base64) {
+            const filePath = `${userId}/business_${i}.png`;
+            const { error: uploadError } = await supabase.storage
+              .from('avatars')
+              .upload(filePath, decode(base64), { 
+                contentType: 'image/png', 
+                upsert: true 
+              });
+            if (uploadError) {
+              throw new Error(`Erreur lors de l'upload de la photo business ${i+1}: ${uploadError.message}`);
+            }
+            const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+            businessUrlsToSave.push(`${data.publicUrl}?t=${Date.now()}`);
+          } else if (uri.startsWith('http')) {
+            businessUrlsToSave.push(uri);
+          }
+        }
+      }
+
       const { error } = await supabase.from('users').upsert({
         id: userId,
         prenom: editPrenom.trim(),
@@ -197,7 +247,11 @@ export default function ProfileScreen({ navigation }: Props) {
         tiktok: editTiktok.trim(),
         facebook: editFacebook.trim(),
         avatar_url: avatarUrlToSave,
+        type_compte: editTypeCompte,
+        banniere_url: banniereUrlToSave,
+        images_business: businessUrlsToSave,
       }, { onConflict: 'id' });
+
       if (error) throw error;
       await refreshUser();
       setIsEditing(false);
@@ -236,6 +290,12 @@ export default function ProfileScreen({ navigation }: Props) {
 
         {/* Header vert avec avatar */}
         <View style={styles.header}>
+          {user?.type_compte === 'professionnel' && user?.banniere_url ? (
+            <Image source={{ uri: user.banniere_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          ) : null}
+          {user?.type_compte === 'professionnel' && user?.banniere_url ? (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)' }]} />
+          ) : null}
           <View style={styles.headerTop}>
             <Text style={styles.headerTitle}>Profil</Text>
             {session && (
@@ -271,7 +331,16 @@ export default function ProfileScreen({ navigation }: Props) {
             ) : null}
           </TouchableOpacity>
 
-          <Text style={styles.displayName}>{displayName}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: SPACING.sm }}>
+            <Text style={styles.displayName}>{displayName}</Text>
+            {session && (
+              <View style={{ backgroundColor: user?.type_compte === 'professionnel' ? '#fff' : 'rgba(255,255,255,0.25)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: RADIUS.xs }}>
+                <Text style={{ fontSize: 10, fontWeight: FONTS.bold, color: user?.type_compte === 'professionnel' ? theme.primary : '#fff' }}>
+                  {user?.type_compte === 'professionnel' ? 'PRO' : 'Particulier'}
+                </Text>
+              </View>
+            )}
+          </View>
           {user?.bio ? (
             <Text style={styles.bioText}>{user.bio}</Text>
           ) : session ? (
@@ -304,6 +373,18 @@ export default function ProfileScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.body}>
+          {/* Photos d'activité (Vitrine) */}
+          {user?.type_compte === 'professionnel' && user?.images_business && user.images_business.length > 0 && (
+            <View style={[styles.contactCard, { marginBottom: SPACING.lg }]}>
+              <Text style={styles.sectionLabel}>Photos d'activité (Vitrine)</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.md, paddingVertical: SPACING.sm }}>
+                {user.images_business.map((imgUrl, idx) => (
+                  <Image key={idx} source={{ uri: imgUrl }} style={{ width: 120, height: 120, borderRadius: RADIUS.md }} />
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           {/* Stats */}
           {session && (
             <View style={styles.statsCard}>
@@ -492,6 +573,149 @@ export default function ProfileScreen({ navigation }: Props) {
                 <Ionicons name="pencil" size={14} color="#fff" />
               </View>
             </TouchableOpacity>
+
+            {/* Type de compte */}
+            <Text style={styles.modalSectionLabel}>Type de compte</Text>
+            <View style={{ flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.lg }}>
+              <TouchableOpacity
+                style={[
+                  { flex: 1, height: 46, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: theme.border },
+                  editTypeCompte === 'particulier' ? { backgroundColor: theme.primary, borderColor: theme.primary } : { backgroundColor: theme.surfaceMuted }
+                ]}
+                onPress={() => setEditTypeCompte('particulier')}
+                activeOpacity={0.8}
+              >
+                <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: editTypeCompte === 'particulier' ? '#fff' : theme.textSecondary }}>
+                  Particulier
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  { flex: 1, height: 46, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: theme.border },
+                  editTypeCompte === 'professionnel' ? { backgroundColor: theme.primary, borderColor: theme.primary } : { backgroundColor: theme.surfaceMuted }
+                ]}
+                onPress={() => setEditTypeCompte('professionnel')}
+                activeOpacity={0.8}
+              >
+                <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: editTypeCompte === 'professionnel' ? '#fff' : theme.textSecondary }}>
+                  Professionnel (Vitrine)
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {editTypeCompte === 'professionnel' && (
+              <View>
+                {/* Couverture/Bannière */}
+                <Text style={styles.modalSectionLabel}>Bannière de couverture (Vitrine)</Text>
+                <TouchableOpacity
+                  style={{
+                    width: '100%',
+                    height: 120,
+                    borderRadius: RADIUS.lg,
+                    borderWidth: 2,
+                    borderStyle: 'dashed',
+                    borderColor: theme.primary,
+                    backgroundColor: theme.primaryFaded,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    overflow: 'hidden',
+                    marginBottom: SPACING.lg
+                  }}
+                  onPress={async () => {
+                    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                    if (status !== 'granted') { Alert.alert('Permission requise pour accéder aux photos.'); return; }
+                    const result = await ImagePicker.launchImageLibraryAsync({
+                      mediaTypes: ['images'],
+                      allowsEditing: true, aspect: [16, 9], quality: 0.7, base64: true,
+                    });
+                    if (!result.canceled && result.assets[0].base64) {
+                      setEditBanniereUri(result.assets[0].uri);
+                      setEditBanniereBase64(result.assets[0].base64);
+                    }
+                  }}
+                  activeOpacity={0.8}
+                >
+                  {editBanniereUri ? (
+                    <Image source={{ uri: editBanniereUri }} style={{ width: '100%', height: '100%' }} />
+                  ) : (
+                    <View style={{ alignItems: 'center', gap: 4 }}>
+                      <Ionicons name="image-outline" size={24} color={theme.primary} />
+                      <Text style={{ fontSize: FONTS.xs, color: theme.primary, fontWeight: FONTS.semibold }}>
+                        Choisir une bannière
+                      </Text>
+                    </View>
+                  )}
+                  {editBanniereUri && (
+                    <TouchableOpacity
+                      style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12, padding: 2 }}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setEditBanniereUri(null);
+                        setEditBanniereBase64(null);
+                      }}
+                    >
+                      <Ionicons name="close" size={16} color="#fff" />
+                    </TouchableOpacity>
+                  )}
+                </TouchableOpacity>
+
+                {/* Photos d'activité */}
+                <Text style={styles.modalSectionLabel}>Photos d'activité (Max 5)</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.md, paddingVertical: SPACING.sm, marginBottom: SPACING.lg }}>
+                  <TouchableOpacity
+                    style={{
+                      width: 100,
+                      height: 100,
+                      borderRadius: RADIUS.lg,
+                      borderWidth: 2,
+                      borderStyle: 'dashed',
+                      borderColor: theme.primary,
+                      backgroundColor: theme.primaryFaded,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                    onPress={async () => {
+                      if (editImagesBusiness.length >= 5) {
+                        Alert.alert('Maximum atteint', 'Vous pouvez ajouter 5 photos maximum.');
+                        return;
+                      }
+                      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                      if (status !== 'granted') { Alert.alert('Permission requise pour accéder aux photos.'); return; }
+                      const result = await ImagePicker.launchImageLibraryAsync({
+                        mediaTypes: ['images'],
+                        allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true,
+                      });
+                      if (!result.canceled && result.assets[0].base64) {
+                        setEditImagesBusiness([...editImagesBusiness, result.assets[0].uri]);
+                        setEditImagesBusinessBase64([...editImagesBusinessBase64, result.assets[0].base64]);
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="camera" size={28} color={theme.primary} />
+                    <Text style={{ fontSize: FONTS.xs, fontWeight: FONTS.semibold, color: theme.primary }}>
+                      {editImagesBusiness.length}/5
+                    </Text>
+                  </TouchableOpacity>
+
+                  {editImagesBusiness.map((uri, idx) => (
+                    <View key={idx} style={{ position: 'relative' }}>
+                      <Image source={{ uri }} style={{ width: 100, height: 100, borderRadius: RADIUS.lg }} />
+                      <TouchableOpacity
+                        style={{ position: 'absolute', top: -6, right: -6, backgroundColor: theme.surface, borderRadius: 12 }}
+                        onPress={() => {
+                          setEditImagesBusiness(editImagesBusiness.filter((_, i) => i !== idx));
+                          setEditImagesBusinessBase64(editImagesBusinessBase64.filter((_, i) => i !== idx));
+                        }}
+                      >
+                        <Ionicons name="close-circle" size={22} color={COLORS.error} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
 
             {/* Identité */}
             <Text style={styles.modalSectionLabel}>Identité</Text>
