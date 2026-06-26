@@ -88,6 +88,19 @@ export default function ProfileScreen({ navigation }: Props) {
   const [annonces, setAnnonces] = useState<Annonce[]>([]);
   const [loadingAnnonces, setLoadingAnnonces] = useState(false);
 
+  // Full-screen image viewer states
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const viewerScrollViewRef = React.useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (viewerVisible) {
+      setTimeout(() => {
+        viewerScrollViewRef.current?.scrollTo({ x: viewerIndex * W, animated: false });
+      }, 100);
+    }
+  }, [viewerVisible]);
+
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
   // Fetch own listings
@@ -423,7 +436,16 @@ export default function ProfileScreen({ navigation }: Props) {
                     {user.images_business && user.images_business.length > 0 ? (
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.md, paddingHorizontal: SPACING.lg }}>
                         {user.images_business.map((imgUrl, idx) => (
-                          <Image key={idx} source={{ uri: imgUrl }} style={styles.vitrineImage} />
+                          <TouchableOpacity
+                            key={idx}
+                            activeOpacity={0.9}
+                            onPress={() => {
+                              setViewerIndex(idx);
+                              setViewerVisible(true);
+                            }}
+                          >
+                            <Image source={{ uri: imgUrl }} style={styles.vitrineImage} />
+                          </TouchableOpacity>
                         ))}
                       </ScrollView>
                     ) : (
@@ -806,6 +828,42 @@ export default function ProfileScreen({ navigation }: Props) {
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Full-screen Image Swiper Modal (Album Photo) */}
+      <Modal visible={viewerVisible} transparent={true} animationType="fade" onRequestClose={() => setViewerVisible(false)}>
+        <View style={styles.viewerContainer}>
+          <StatusBar barStyle="light-content" backgroundColor="#000" />
+          
+          {/* Header */}
+          <View style={styles.viewerHeader}>
+            <Text style={styles.viewerIndexText}>
+              {viewerIndex + 1} / {user?.images_business?.length || 0}
+            </Text>
+            <TouchableOpacity style={styles.viewerCloseBtn} onPress={() => setViewerVisible(false)}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Swiper ScrollView */}
+          <ScrollView
+            ref={viewerScrollViewRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) => {
+              const idx = Math.round(e.nativeEvent.contentOffset.x / W);
+              setViewerIndex(idx);
+            }}
+            style={styles.viewerScrollView}
+          >
+            {user?.images_business?.map((imgUrl, idx) => (
+              <View key={idx} style={styles.viewerImageWrapper}>
+                <Image source={{ uri: imgUrl }} style={styles.viewerImage} resizeMode="contain" />
+              </View>
+            ))}
+          </ScrollView>
+        </View>
       </Modal>
     </View>
   );
@@ -1218,5 +1276,51 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: theme.surface, borderWidth: 1,
     borderColor: theme.borderLight, borderRadius: RADIUS.md,
     padding: SPACING.md, fontSize: FONTS.md, color: theme.textPrimary,
+  },
+
+  // Fullscreen Viewer Styles
+  viewerContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  viewerHeader: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 60 : 30,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
+    zIndex: 10,
+  },
+  viewerIndexText: {
+    color: '#fff',
+    fontSize: FONTS.md,
+    fontWeight: FONTS.bold,
+  },
+  viewerCloseBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  viewerScrollView: {
+    width: W,
+    flex: 1,
+  },
+  viewerImageWrapper: {
+    width: W,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  viewerImage: {
+    width: W,
+    height: '100%',
   },
 });

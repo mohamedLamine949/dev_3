@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
-  StatusBar, ActivityIndicator, Dimensions, Linking,
+  StatusBar, ActivityIndicator, Dimensions, Linking, Modal, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
@@ -33,6 +33,19 @@ export default function VendeurProfileScreen({ route, navigation }: any) {
   const [loadingSeller, setLoadingSeller] = useState(true);
   const [loadingAnnonces, setLoadingAnnonces] = useState(true);
   const { avis, avgNote, loading: loadingAvis } = useSellerAvis(vendeurId);
+
+  // Full-screen image viewer states
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const viewerScrollViewRef = React.useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (viewerVisible) {
+      setTimeout(() => {
+        viewerScrollViewRef.current?.scrollTo({ x: viewerIndex * W, animated: false });
+      }, 100);
+    }
+  }, [viewerVisible]);
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
@@ -206,7 +219,16 @@ export default function VendeurProfileScreen({ route, navigation }: any) {
               <Text style={styles.sectionTitle}>Photos d'activité (Vitrine)</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: SPACING.md, paddingVertical: SPACING.sm }}>
                 {seller.images_business.map((imgUrl: string, idx: number) => (
-                  <Image key={idx} source={{ uri: imgUrl }} style={{ width: 140, height: 140, borderRadius: RADIUS.lg }} />
+                  <TouchableOpacity
+                    key={idx}
+                    activeOpacity={0.9}
+                    onPress={() => {
+                      setViewerIndex(idx);
+                      setViewerVisible(true);
+                    }}
+                  >
+                    <Image source={{ uri: imgUrl }} style={{ width: 140, height: 140, borderRadius: RADIUS.lg }} />
+                  </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
@@ -268,6 +290,42 @@ export default function VendeurProfileScreen({ route, navigation }: any) {
           <View style={{ height: 100 }} />
         </View>
       </ScrollView>
+
+      {/* Full-screen Image Swiper Modal (Album Photo) */}
+      <Modal visible={viewerVisible} transparent={true} animationType="fade" onRequestClose={() => setViewerVisible(false)}>
+        <View style={styles.viewerContainer}>
+          <StatusBar barStyle="light-content" backgroundColor="#000" />
+          
+          {/* Header */}
+          <View style={styles.viewerHeader}>
+            <Text style={styles.viewerIndexText}>
+              {viewerIndex + 1} / {seller?.images_business?.length || 0}
+            </Text>
+            <TouchableOpacity style={styles.viewerCloseBtn} onPress={() => setViewerVisible(false)}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Swiper ScrollView */}
+          <ScrollView
+            ref={viewerScrollViewRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) => {
+              const idx = Math.round(e.nativeEvent.contentOffset.x / W);
+              setViewerIndex(idx);
+            }}
+            style={styles.viewerScrollView}
+          >
+            {seller?.images_business?.map((imgUrl: string, idx: number) => (
+              <View key={idx} style={styles.viewerImageWrapper}>
+                <Image source={{ uri: imgUrl }} style={styles.viewerImage} resizeMode="contain" />
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -371,4 +429,50 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   avisHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, marginBottom: SPACING.sm },
   avisAvatar: { width: 40, height: 40, borderRadius: 20 },
+
+  // Fullscreen Viewer Styles
+  viewerContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  viewerHeader: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 60 : 30,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xl,
+    zIndex: 10,
+  },
+  viewerIndexText: {
+    color: '#fff',
+    fontSize: FONTS.md,
+    fontWeight: FONTS.bold,
+  },
+  viewerCloseBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  viewerScrollView: {
+    width: W,
+    flex: 1,
+  },
+  viewerImageWrapper: {
+    width: W,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  viewerImage: {
+    width: W,
+    height: '100%',
+  },
 });
