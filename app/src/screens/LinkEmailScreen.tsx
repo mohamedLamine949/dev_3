@@ -10,7 +10,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../lib/supabase';
 
 export default function LinkEmailScreen({ navigation }: any) {
-  const { session, refreshUser } = useAuth();
+  const { session, user, refreshUser } = useAuth();
   const { theme, isDark } = useTheme();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,7 +20,14 @@ export default function LinkEmailScreen({ navigation }: any) {
   const [generatedCode, setGeneratedCode] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
 
-  const isEmailValid = email.includes('@') && email.includes('.');
+  React.useEffect(() => {
+    if (user?.email) {
+      setEmail(user.email);
+    }
+  }, [user]);
+
+  const hasEmailChanged = email.toLowerCase().trim() !== (user?.email || '').toLowerCase().trim();
+  const isEmailValid = email.includes('@') && email.includes('.') && hasEmailChanged;
 
   const handleLinkEmail = async () => {
     if (!isEmailValid || !session) return;
@@ -34,7 +41,7 @@ export default function LinkEmailScreen({ navigation }: any) {
       setGeneratedCode(code);
       
       Alert.alert(
-        'Code de validation (Simulation)',
+        user?.email ? 'Code de validation - Modification' : 'Code de validation (Simulation)',
         `Un e-mail automatique contenant votre code de vérification a été envoyé à ${trimmedEmail}.\n\nCode de validation : ${code}`,
         [
           { text: 'OK', onPress: () => setShowVerification(true) }
@@ -78,7 +85,9 @@ export default function LinkEmailScreen({ navigation }: any) {
 
       Alert.alert(
         'Succès',
-        'Votre adresse e-mail a été liée et votre numéro de téléphone a été authentifié avec succès !',
+        user?.email 
+          ? 'Votre adresse e-mail de secours a été modifiée avec succès !'
+          : 'Votre adresse e-mail a été liée et votre numéro de téléphone a été authentifié avec succès !',
         [
           { 
             text: 'Super', 
@@ -172,10 +181,14 @@ export default function LinkEmailScreen({ navigation }: any) {
               <Ionicons name="mail-unread" size={48} color={theme.primary} />
             </View>
 
-            <Text style={[styles.title, { color: theme.textPrimary }]}>Sécurisez votre compte</Text>
+            <Text style={[styles.title, { color: theme.textPrimary }]}>
+              {user?.email ? "E-mail de secours" : "Sécurisez votre compte"}
+            </Text>
             
             <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-              Associer une adresse e-mail est le seul moyen de certifier et authentifier votre numéro de téléphone. C'est également indispensable pour pouvoir récupérer votre compte en cas d'oubli de mot de passe.
+              {user?.email 
+                ? `Votre adresse e-mail actuelle est : ${user.email}. Saisissez une nouvelle adresse ci-dessous pour la modifier.`
+                : "Associer une adresse e-mail est le seul moyen de certifier et authentifier votre numéro de téléphone. C'est également indispensable pour pouvoir récupérer votre compte en cas d'oubli de mot de passe."}
             </Text>
 
             <View style={styles.inputGroup}>
@@ -204,7 +217,9 @@ export default function LinkEmailScreen({ navigation }: any) {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.ctaText}>Associer mon adresse e-mail</Text>
+                <Text style={styles.ctaText}>
+                  {user?.email ? "Modifier mon adresse e-mail" : "Associer mon adresse e-mail"}
+                </Text>
               )}
             </TouchableOpacity>
 
@@ -214,7 +229,9 @@ export default function LinkEmailScreen({ navigation }: any) {
               disabled={loading}
               activeOpacity={0.8}
             >
-              <Text style={[styles.skipTextOutline, { color: theme.textSecondary }]}>Plus tard (ignorer)</Text>
+              <Text style={[styles.skipTextOutline, { color: theme.textSecondary }]}>
+                {user?.email ? "Annuler" : "Plus tard (ignorer)"}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
