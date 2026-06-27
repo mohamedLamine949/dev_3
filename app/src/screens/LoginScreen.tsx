@@ -5,8 +5,12 @@ import {
   Alert, ActivityIndicator, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { supabase } from '../lib/supabase';
+
+// Validation stricte du format e-mail (rejette les saisies fantaisistes)
+export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 interface Props {
   navigation: any;
@@ -50,7 +54,7 @@ export default function LoginScreen({ navigation }: Props) {
 
   const isIdentifierValid = (mode === 'register' || authMethod === 'phone')
     ? identifier.replace(/[^0-9]/g, '').length === 8 // Mali phone numbers have exactly 8 digits
-    : identifier.includes('@') && identifier.includes('.');
+    : EMAIL_REGEX.test(identifier.trim());
 
   const isLoginValid = isIdentifierValid && password.length >= 6;
   const isRegisterValid = isLoginValid && prenom.length >= 2 && nom.length >= 2 && acceptCgv;
@@ -272,7 +276,10 @@ export default function LoginScreen({ navigation }: Props) {
 
       // 2. Envoyer l'email de réinitialisation via Supabase
       const emailToReset = data.email.toLowerCase().trim();
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(emailToReset);
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(emailToReset, {
+        // Renvoie vers l'app via le deep link -> flashmarket://reset-password
+        redirectTo: Linking.createURL('reset-password'),
+      });
       if (resetError) throw resetError;
 
       // Masquer une partie de l'e-mail pour la confidentialité (ex: d***@domain.com)

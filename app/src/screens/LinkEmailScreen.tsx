@@ -4,13 +4,17 @@ import {
   ActivityIndicator, Alert, StatusBar, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../lib/supabase';
 
+// Validation stricte du format e-mail (rejette les saisies fantaisistes)
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
 export default function LinkEmailScreen({ navigation }: any) {
-  const { session, user, refreshUser } = useAuth();
+  const { session, user } = useAuth();
   const { theme, isDark } = useTheme();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,8 +25,11 @@ export default function LinkEmailScreen({ navigation }: any) {
     }
   }, [user]);
 
-  const hasEmailChanged = email.toLowerCase().trim() !== (user?.email || '').toLowerCase().trim();
-  const isEmailValid = email.includes('@') && email.includes('.') && hasEmailChanged;
+  const trimmedInput = email.trim();
+  const hasEmailChanged = trimmedInput.toLowerCase() !== (user?.email || '').toLowerCase().trim();
+  const isFormatValid = EMAIL_REGEX.test(trimmedInput);
+  const isEmailValid = isFormatValid && hasEmailChanged;
+  const showFormatError = trimmedInput.length > 0 && !isFormatValid;
 
   const handleLinkEmail = async () => {
     if (!isEmailValid || !session) return;
@@ -30,34 +37,40 @@ export default function LinkEmailScreen({ navigation }: any) {
     setLoading(true);
     try {
       const trimmedEmail = email.toLowerCase().trim();
-      
-      // Mise à jour directe via la fonction SQL sécurisée (SECURITY DEFINER)
-      // Met à jour public.users.email ET auth.users.email en une seule opération
-      const { error } = await supabase.rpc('set_recovery_email', { p_email: trimmedEmail });
-      
+
+      // Envoi d'un lien de confirmation au nouvel e-mail : preuve de propriété.
+      // L'adresse ne devient l'e-mail de récupération qu'APRÈS le clic sur le
+      // lien (capté par le DeepLinkHandler via flashmarket://auth-callback).
+      const { error } = await supabase.auth.updateUser(
+        { email: trimmedEmail },
+        { emailRedirectTo: Linking.createURL('auth-callback') }
+      );
+
       if (error) throw error;
-      
-      await refreshUser();
-      
+
       Alert.alert(
-        'E-mail enregistré ✅',
-        `Votre adresse e-mail de secours (${trimmedEmail}) a été liée à votre compte avec succès.\n\nVous pourrez l'utiliser pour récupérer votre mot de passe en cas d'oubli.`,
+        'Vérifiez votre boîte mail 📩',
+        `Un lien de confirmation a été envoyé à ${trimmedEmail}.\n\nOuvrez-le pour activer la récupération de votre mot de passe. Tant que vous n'avez pas cliqué sur ce lien, l'adresse n'est pas active.`,
         [
-          { 
-            text: 'Super', 
+          {
+            text: 'Compris',
             onPress: () => {
               if (navigation.canGoBack()) {
                 navigation.goBack();
               } else {
                 navigation.replace('Main', { screen: 'Profil' });
               }
-            } 
+            }
           }
         ]
       );
     } catch (err: any) {
       console.error(err);
-      Alert.alert('Erreur', err.message || 'Impossible d\'enregistrer l\'e-mail.');
+      const raw = (err?.message || '').toLowerCase();
+      const msg = raw.includes('already') || err?.code === '23505'
+        ? 'Cette adresse e-mail est déjà utilisée par un autre compte. Veuillez en choisir une autre.'
+        : err.message || "Impossible d'envoyer le lien de confirmation.";
+      Alert.alert('Erreur', msg);
     } finally {
       setLoading(false);
     }
@@ -109,6 +122,9 @@ export default function LinkEmailScreen({ navigation }: any) {
                 autoCorrect={false}
               />
             </View>
+            {showFormatError && (
+              <Text style={styles.errorHint}>Format d'e-mail invalide (ex : nom@domaine.com).</Text>
+            )}
           </View>
 
           <TouchableOpacity
@@ -186,6 +202,11 @@ const styles = StyleSheet.create({
     fontSize: FONTS.xs,
     fontWeight: FONTS.semibold,
     marginBottom: 6,
+  },
+  errorHint: {
+    fontSize: FONTS.xs,
+    color: COLORS.error,
+    marginTop: 6,
   },
   inputWithIcon: {
     flexDirection: 'row',
