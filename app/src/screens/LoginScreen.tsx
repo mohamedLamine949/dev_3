@@ -36,6 +36,8 @@ export default function LoginScreen({ navigation }: Props) {
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
 
+  const [acceptCgv, setAcceptCgv] = useState(false);
+
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
   const isEmail = (val: string) => val.includes('@');
@@ -51,7 +53,7 @@ export default function LoginScreen({ navigation }: Props) {
     : identifier.includes('@') && identifier.includes('.');
 
   const isLoginValid = isIdentifierValid && password.length >= 6;
-  const isRegisterValid = isLoginValid && prenom.length >= 2 && nom.length >= 2;
+  const isRegisterValid = isLoginValid && prenom.length >= 2 && nom.length >= 2 && acceptCgv;
   const canSubmit = mode === 'login' ? isLoginValid : isRegisterValid;
 
   async function handleSubmit() {
@@ -161,7 +163,7 @@ export default function LoginScreen({ navigation }: Props) {
           Alert.alert('Succès', 'Votre compte a été créé avec succès.');
           navigation.reset({
             index: 0,
-            routes: [{ name: 'Main', params: { screen: 'Profil' } }]
+            routes: [{ name: 'LinkEmail' }]
           });
         }
       }
@@ -462,6 +464,31 @@ export default function LoginScreen({ navigation }: Props) {
                 </TouchableOpacity>
               )}
 
+              {mode === 'register' && (
+                <View style={styles.cgvContainer}>
+                  <TouchableOpacity 
+                    style={styles.cgvCheckbox} 
+                    onPress={() => setAcceptCgv(!acceptCgv)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons 
+                      name={acceptCgv ? "checkbox" : "square-outline"} 
+                      size={20} 
+                      color={acceptCgv ? theme.primary : theme.textMuted} 
+                    />
+                  </TouchableOpacity>
+                  <Text style={styles.cgvText}>
+                    J'accepte les{' '}
+                    <Text 
+                      style={styles.cgvLink} 
+                      onPress={() => navigation.navigate('Legal', { type: 'cgv' })}
+                    >
+                      Conditions Générales de Vente (CGV)
+                    </Text>
+                  </Text>
+                </View>
+              )}
+
               <TouchableOpacity style={[styles.ctaBtn, !canSubmit && styles.ctaBtnDisabled]} onPress={handleSubmit} disabled={!canSubmit || loading} activeOpacity={0.85}>
                 {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>{mode === 'login' ? 'Se connecter' : 'Créer mon compte'}</Text>}
               </TouchableOpacity>
@@ -577,4 +604,26 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   otpSubtitle: { fontSize: FONTS.sm, color: theme.textSecondary, textAlign: 'center', paddingHorizontal: SPACING.md },
   cancelBtn: { alignItems: 'center', padding: SPACING.sm },
   cancelText: { color: theme.textMuted, fontSize: FONTS.sm, fontWeight: FONTS.medium },
+  cgvContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.sm,
+    paddingHorizontal: 4,
+  },
+  cgvCheckbox: {
+    marginRight: SPACING.sm,
+    padding: 2,
+  },
+  cgvText: {
+    flex: 1,
+    fontSize: FONTS.sm,
+    color: theme.textSecondary,
+    lineHeight: 18,
+  },
+  cgvLink: {
+    color: theme.primary,
+    fontWeight: FONTS.semibold,
+    textDecorationLine: 'underline',
+  },
 });

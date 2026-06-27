@@ -27,6 +27,8 @@ import { submitAvis } from '../hooks/useAvis';
 import { toggleFavori } from '../hooks/useFavoris';
 
 import { useTheme } from '../contexts/ThemeContext';
+import { addToRecent } from '../lib/recentStorage';
+
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -73,6 +75,12 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
       .maybeSingle()
       .then(({ data }) => setIsFavorite(!!data));
   }, [session?.user?.id, annonce.id]);
+
+  useEffect(() => {
+    if (annonce) {
+      addToRecent(annonce);
+    }
+  }, [annonce?.id]);
 
   const handleToggleFavori = async () => {
     if (!session) { navigation.navigate('Login'); return; }
