@@ -33,7 +33,7 @@ export default function LoginScreen({ navigation }: Props) {
 
   // Forgot Password State
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordPhone, setForgotPasswordPhone] = useState('');
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
 
   const [acceptCgv, setAcceptCgv] = useState(false);
@@ -238,45 +238,60 @@ export default function LoginScreen({ navigation }: Props) {
   }
 
   async function handleForgotPassword() {
-    if (!forgotPasswordEmail || !forgotPasswordEmail.includes('@')) {
-      Alert.alert('Erreur', 'Veuillez saisir une adresse e-mail valide.');
+    const cleanPhone = forgotPasswordPhone.replace(/[^0-9]/g, '');
+    if (cleanPhone.length !== 8) {
+      Alert.alert('Erreur', 'Veuillez saisir un numéro de téléphone valide à 8 chiffres.');
       return;
     }
 
     setForgotPasswordLoading(true);
     try {
-      const emailToReset = forgotPasswordEmail.toLowerCase().trim();
+      const formattedPhone = '+223' + cleanPhone;
 
-      // 1. Vérifier si cet e-mail est bien associé à un utilisateur dans la table publique 'users'
+      // 1. Rechercher l'email associé à ce numéro de téléphone dans la table publique 'users'
       const { data, error } = await supabase
         .from('users')
-        .select('id, num_telephone')
-        .eq('email', emailToReset);
+        .select('email')
+        .eq('num_telephone', formattedPhone)
+        .maybeSingle();
 
       if (error) throw error;
 
-      if (!data || data.length === 0) {
+      // Si l'e-mail n'existe pas ou s'il s'agit de l'e-mail technique de type @phone.market ou @phone.chapchap.app
+      const hasNoValidEmail = !data || !data.email || 
+                              data.email.endsWith('@phone.market') || 
+                              data.email.endsWith('@phone.chapchap.app');
+
+      if (hasNoValidEmail) {
         Alert.alert(
-          'Compte non trouvé', 
-          'Cette adresse e-mail n\'est associée à aucun compte ou numéro de téléphone sur Flash Market. Veuillez contacter notre service client pour récupérer votre compte.'
+          'Compte non récupérable',
+          "Vous n'avez aucun e-mail associé à ce numéro de téléphone. Nous vous invitons à créer un nouveau compte."
         );
         return;
       }
 
-      // 2. Si oui, envoyer l'email de réinitialisation via Supabase
+      // 2. Envoyer l'email de réinitialisation via Supabase
+      const emailToReset = data.email.toLowerCase().trim();
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(emailToReset);
       if (resetError) throw resetError;
 
+      // Masquer une partie de l'e-mail pour la confidentialité (ex: d***@domain.com)
+      const parts = emailToReset.split('@');
+      const hiddenLocal = parts[0].length > 2 
+        ? parts[0][0] + '*'.repeat(parts[0].length - 2) + parts[0][parts[0].length - 1]
+        : parts[0][0] + '*';
+      const maskedEmail = hiddenLocal + '@' + parts[1];
+
       Alert.alert(
         'E-mail envoyé',
-        'Un e-mail contenant un lien de réinitialisation de mot de passe a été envoyé à ' + emailToReset + '. Veuillez vérifier votre boîte de réception.',
+        `Un e-mail contenant un lien de réinitialisation de mot de passe a été envoyé à l'adresse associée : ${maskedEmail}.\n\nVeuillez vérifier votre boîte de réception.`,
         [
           { text: 'OK', onPress: () => setShowForgotPassword(false) }
         ]
       );
     } catch (err: any) {
       console.error(err);
-      Alert.alert('Erreur', err.message || 'Une erreur est survenue lors de l\'envoi.');
+      Alert.alert('Erreur', err.message || "Une erreur est survenue lors de l'envoi.");
     } finally {
       setForgotPasswordLoading(false);
     }
@@ -310,30 +325,30 @@ export default function LoginScreen({ navigation }: Props) {
             <View style={styles.otpContainer}>
               <Text style={styles.otpTitle}>Mot de passe oublié</Text>
               <Text style={styles.otpSubtitle}>
-                Saisissez l'adresse e-mail liée à votre numéro de téléphone. Un lien vous sera envoyé pour réinitialiser votre mot de passe.
+                Saisissez le numéro de téléphone lié à votre compte. Si un e-mail de récupération y est associé, vous recevrez un lien pour réinitialiser votre mot de passe.
               </Text>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Adresse e-mail</Text>
+                <Text style={styles.label}>Numéro de téléphone</Text>
                 <View style={styles.inputWithIcon}>
-                  <Ionicons name="mail-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
+                  <Ionicons name="call-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
+                  <Text style={{ fontSize: FONTS.md, fontWeight: '700', color: theme.textPrimary, marginRight: 6 }}>+223</Text>
                   <TextInput
                     style={styles.inputFlex}
-                    placeholder="exemple@gmail.com"
+                    placeholder="70 00 00 00"
                     placeholderTextColor={theme.textMuted}
-                    value={forgotPasswordEmail}
-                    onChangeText={setForgotPasswordEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
+                    value={forgotPasswordPhone}
+                    onChangeText={(t) => setForgotPasswordPhone(t.replace(/[^0-9]/g, '').slice(0, 8))}
+                    keyboardType="phone-pad"
+                    maxLength={8}
                   />
                 </View>
               </View>
 
               <TouchableOpacity
-                style={[styles.ctaBtn, (!forgotPasswordEmail || !forgotPasswordEmail.includes('@')) && styles.ctaBtnDisabled]}
+                style={[styles.ctaBtn, forgotPasswordPhone.length !== 8 && styles.ctaBtnDisabled]}
                 onPress={handleForgotPassword}
-                disabled={!forgotPasswordEmail || !forgotPasswordEmail.includes('@') || forgotPasswordLoading}
+                disabled={forgotPasswordPhone.length !== 8 || forgotPasswordLoading}
               >
                 {forgotPasswordLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Envoyer le lien de réinitialisation</Text>}
               </TouchableOpacity>
@@ -488,7 +503,7 @@ export default function LoginScreen({ navigation }: Props) {
                   style={styles.forgotBtn} 
                   onPress={() => {
                     setShowForgotPassword(true);
-                    setForgotPasswordEmail('');
+                    setForgotPasswordPhone('');
                   }}
                 >
                   <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
