@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS annonces (
   titre TEXT NOT NULL,
   description TEXT,
   prix INTEGER NOT NULL,
-  categorie TEXT NOT NULL, -- telephonie_electronique, mode_beaute, maison_electromenager, voitures, motos, immobilier, nourriture, services
+  categorie TEXT NOT NULL, -- telephonie_electronique, mode_beaute, maison_electromenager, voitures, motos, immobilier, alimentation, services
   etat_article TEXT NOT NULL,
   statut TEXT DEFAULT 'en_attente', -- en_attente, active, vendu, expire
   est_payee BOOLEAN DEFAULT FALSE,
@@ -245,12 +245,16 @@ RETURNS trigger AS $$
 BEGIN
   INSERT INTO public.users (id, num_telephone, email, prenom, nom)
   VALUES (
-    new.id, 
-    new.phone,
-    new.email,
+    new.id,
+    COALESCE(new.phone, new.raw_user_meta_data->>'phone'),
+    CASE
+      WHEN new.email LIKE '%@phone.chapchap.app' OR new.email LIKE '%@phone.market' THEN NULL
+      ELSE new.email
+    END,
     COALESCE(new.raw_user_meta_data->>'first_name', ''),
     COALESCE(new.raw_user_meta_data->>'last_name', '')
-  );
+  )
+  ON CONFLICT (id) DO NOTHING;
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

@@ -33,10 +33,10 @@ UPDATE public.annonces
 SET categorie = 'immobilier' 
 WHERE categorie = 'immobilier';
 
--- 6. Nourriture (Reste inchangé)
-UPDATE public.annonces 
-SET categorie = 'nourriture' 
-WHERE categorie = 'nourriture';
+-- 6. Alimentation (Reste inchangé)
+UPDATE public.annonces
+SET categorie = 'alimentation'
+WHERE categorie = 'alimentation';
 
 -- 7. Services (Les anciennes catégories obsolètes sans correspondance directe comme 'agriculture', 'loisirs', 'autres' sont fusionnées dans 'services')
 UPDATE public.annonces 

@@ -37,7 +37,7 @@ const CAT_COLORS: Record<string, string> = {
   voitures:                '#d97706',
   motos:                   '#ea580c',
   immobilier:              '#0891b2',
-  nourriture:              '#dc2626',
+  alimentation:            '#dc2626',
   services:                '#15803d',
 };
 
@@ -48,7 +48,7 @@ const CAT_EMOJIS: Record<string, string> = {
   voitures:                '🚗',
   motos:                   '🏍️',
   immobilier:              '🏠',
-  nourriture:              '🍽️',
+  alimentation:            '🍽️',
   services:                '🔧',
 };
 

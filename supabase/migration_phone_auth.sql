@@ -37,7 +37,7 @@ BEGIN
     new.id,
     COALESCE(new.phone, new.raw_user_meta_data->>'phone'),
     CASE
-      WHEN new.email LIKE '%@phone.chapchap.app' THEN NULL
+      WHEN new.email LIKE '%@phone.chapchap.app' OR new.email LIKE '%@phone.market' THEN NULL
       ELSE new.email
     END,
     COALESCE(new.raw_user_meta_data->>'first_name', ''),

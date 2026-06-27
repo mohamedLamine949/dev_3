@@ -196,7 +196,7 @@ function renderCharts(users, annonces) {
     'voitures': 0,
     'motos': 0,
     'immobilier': 0,
-    'nourriture': 0,
+    'alimentation': 0,
     'services': 0
   };
   
@@ -213,7 +213,7 @@ function renderCharts(users, annonces) {
     'voitures': 'Voitures',
     'motos': 'Motos',
     'immobilier': 'Immobilier',
-    'nourriture': 'Nourriture',
+    'alimentation': 'Alimentation',
     'services': 'Services'
   };
 
@@ -360,7 +360,7 @@ function populateTables(users, annonces) {
     'voitures': 'Voitures',
     'motos': 'Motos',
     'immobilier': 'Immobilier',
-    'nourriture': 'Nourriture',
+    'alimentation': 'Alimentation',
     'services': 'Services'
   };
 

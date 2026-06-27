@@ -155,7 +155,7 @@ export const CATEGORIES = [
   { id: 'voitures', label: 'Voitures', icon: 'car-outline' },
   { id: 'motos', label: 'Motos', icon: 'bicycle-outline' },
   { id: 'immobilier', label: 'Immobilier', icon: 'business-outline' },
-  { id: 'nourriture', label: 'Nourriture', icon: 'cafe-outline' },
+  { id: 'alimentation', label: 'Alimentation', icon: 'cafe-outline' },
   { id: 'services', label: 'Services', icon: 'build-outline' },
 ];
 
@@ -166,7 +166,7 @@ export const CATEGORY_PRICES: Record<string, number> = {
   voitures:                5000,
   motos:                   1000,
   immobilier:              2500,
-  nourriture:              500,
+  alimentation:            500,
   services:                500,
 };
 
