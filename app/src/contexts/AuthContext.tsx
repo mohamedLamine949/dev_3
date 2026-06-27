@@ -52,11 +52,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (data) {
         setUser(data as User);
-      } else if (error) {
-        console.error("[Auth] Error fetching profile:", error.message);
+      } else {
+        if (error && error.code === 'PGRST116') {
+          // Le profil n'existe pas encore, on l'initialise à la volée avec les métadonnées de la session active
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          if (currentSession?.user) {
+            const userMetadata = currentSession.user.user_metadata || {};
+            const numPhone = currentSession.user.email?.endsWith('@phone.market')
+              ? currentSession.user.email.split('@')[0]
+              : userMetadata.phone || null;
+
+            const newProfile = {
+              id: userId,
+              prenom: userMetadata.first_name || 'Utilisateur',
+              nom: userMetadata.last_name || 'Market',
+              num_telephone: numPhone,
+              email: currentSession.user.email?.endsWith('@phone.market') ? null : currentSession.user.email,
+            };
+
+            const { data: upsertData, error: upsertError } = await supabase
+              .from('users')
+              .upsert(newProfile)
+              .select()
+              .single();
+
+            if (upsertData) {
+              setUser(upsertData as User);
+              return;
+            } else if (upsertError) {
+              console.log("[Auth] Profil auto-creation error:", upsertError.message);
+            }
+          }
+        }
+        console.log("[Auth] Profile not found or query error:", error?.message);
       }
     } catch (e) {
-      console.error("[Auth] Exception fetching profile:", e);
+      console.log("[Auth] Exception fetching profile:", e);
     } finally {
       setIsLoading(false);
     }

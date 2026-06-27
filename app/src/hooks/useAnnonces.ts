@@ -3,6 +3,68 @@ import { supabase, Annonce, ImageAnnonce } from '../lib/supabase';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 
+function calculatePostRelevance(query: string, item: any): number {
+  if (!query) return 0;
+  const cleanQuery = query.toLowerCase().trim();
+  const queryWords = cleanQuery.split(/[\s,.-]+/).filter(w => w.length > 0);
+  if (queryWords.length === 0) return 0;
+  
+  let score = 0;
+  const title = (item.titre || '').toLowerCase();
+  const desc = (item.description || '').toLowerCase();
+  const category = (item.categorie || '').toLowerCase();
+  const location = `${item.ville || ''} ${item.quartier || ''}`.toLowerCase();
+  
+  if (title.includes(cleanQuery)) {
+    score += 20;
+  } else if (desc.includes(cleanQuery)) {
+    score += 10;
+  }
+  
+  let matchingWordsCount = 0;
+  queryWords.forEach(word => {
+    let wordMatched = false;
+    if (title.includes(word)) {
+      score += 8;
+      wordMatched = true;
+      if (title.split(/[\s,.-]+/).includes(word)) {
+        score += 4;
+      }
+    }
+    if (desc.includes(word)) {
+      score += 3;
+      wordMatched = true;
+      if (desc.split(/[\s,.-]+/).includes(word)) {
+        score += 1.5;
+      }
+    }
+    if (category.includes(word)) {
+      score += 4;
+      wordMatched = true;
+    }
+    if (location.includes(word)) {
+      score += 2;
+      wordMatched = true;
+    }
+    if (!wordMatched && word.length > 2) {
+      const titleWords = title.split(/[\s,.-]+/);
+      const partialMatch = titleWords.some((tw: string) => tw.includes(word) || word.includes(tw));
+      if (partialMatch) {
+        score += 2.5;
+      }
+    }
+    if (wordMatched) {
+      matchingWordsCount++;
+    }
+  });
+  
+  if (queryWords.length > 1 && matchingWordsCount > 0) {
+    score += (matchingWordsCount / queryWords.length) * 10;
+  }
+  
+  return score;
+}
+
 /**
  * Hook pour récupérer les annonces actives avec filtrage
  */
@@ -52,9 +114,7 @@ export function useAnnonces(options?: {
         query = query.eq('categorie', options.categorie);
       }
 
-      if (options?.search) {
-        query = query.ilike('titre', `%${options.search}%`);
-      }
+      // La recherche textuelle est effectuée côté client pour être plus flexible (pertinence fuzzy)
 
       if (options?.minPrice !== undefined && options?.minPrice !== null) {
         query = query.gte('prix', options.minPrice);
@@ -86,7 +146,16 @@ export function useAnnonces(options?: {
       if (data && data.length > 0) {
         console.log('📸 [DEBUG] Première annonce - images:', JSON.stringify(data[0].images));
       }
-      setAnnonces((data as Annonce[]) || []);
+
+      let finalData = (data as Annonce[]) || [];
+      if (options?.search) {
+        finalData = finalData
+          .map(a => ({ ...a, searchScore: calculatePostRelevance(options.search!, a) }))
+          .filter(a => (a as any).searchScore > 0)
+          .sort((a, b) => (b as any).searchScore - (a as any).searchScore);
+      }
+
+      setAnnonces(finalData);
     } catch (err: any) {
       if (timedOut) return;
       clearTimeout(timeoutId);

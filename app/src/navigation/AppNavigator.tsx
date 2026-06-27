@@ -21,9 +21,7 @@ import ChatConversationScreen from '../screens/ChatConversationScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import LoginScreen from '../screens/LoginScreen';
-import EmailRecoveryScreen from '../screens/EmailRecoveryScreen';
-import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
-import ResetPasswordScreen from '../screens/ResetPasswordScreen';
+import LinkEmailScreen from '../screens/LinkEmailScreen';
 import MesAnnoncesScreen from '../screens/MesAnnoncesScreen';
 import FavorisScreen from '../screens/FavorisScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
@@ -31,13 +29,11 @@ import VendeurProfileScreen from '../screens/VendeurProfileScreen';
 import LegalScreen from '../screens/LegalScreen';
 import TermsModal from '../components/TermsModal';
 import NotificationManager from '../components/NotificationManager';
-import DeepLinkHandler from '../components/DeepLinkHandler';
-import NotificationsScreen from '../screens/NotificationsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-export const navigationRef = createNavigationContainerRef();
+export const navigationRef = createNavigationContainerRef<any>();
 
 // Stack pour l'onglet Accueil
 function HomeStack() {
@@ -224,7 +220,6 @@ export default function AppNavigator() {
   return (
     <NavigationContainer ref={navigationRef} theme={isDark ? MyDarkTheme : MyDefaultTheme}>
       <NotificationManager />
-      <DeepLinkHandler />
       <TermsModal />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {/* Pour l'instant, on affiche directement les tabs (démo) */}
@@ -235,19 +230,9 @@ export default function AppNavigator() {
           options={{ animation: 'slide_from_bottom' }}
         />
         <Stack.Screen
-          name="EmailRecovery"
-          component={EmailRecoveryScreen}
-          options={{ animation: 'slide_from_right', gestureEnabled: false }}
-        />
-        <Stack.Screen
-          name="ForgotPassword"
-          component={ForgotPasswordScreen}
+          name="LinkEmail"
+          component={LinkEmailScreen}
           options={{ animation: 'slide_from_right' }}
-        />
-        <Stack.Screen
-          name="ResetPassword"
-          component={ResetPasswordScreen}
-          options={{ animation: 'slide_from_right', gestureEnabled: false }}
         />
         <Stack.Screen
           name="ChatConversation"
@@ -257,11 +242,6 @@ export default function AppNavigator() {
         <Stack.Screen
           name="VendeurProfile"
           component={VendeurProfileScreen}
-          options={{ animation: 'slide_from_right' }}
-        />
-        <Stack.Screen
-          name="Notifications"
-          component={NotificationsScreen}
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen

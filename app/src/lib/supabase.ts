@@ -23,6 +23,8 @@ export interface User {
   bio?: string;
   avatar_url?: string;
   telephone?: string;
+  num_telephone?: string;
+  email?: string;
   whatsapp?: string;
   instagram?: string;
   tiktok?: string;

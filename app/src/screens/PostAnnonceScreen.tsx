@@ -23,7 +23,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLocation } from '../hooks/useLocation';
 import { useTheme } from '../contexts/ThemeContext';
 
-const MAX_IMAGES = 5;
+const MAX_IMAGES = 10;
 
 interface Props {
   navigation: any;

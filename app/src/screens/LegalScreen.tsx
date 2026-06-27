@@ -22,8 +22,8 @@ interface Props {
 
 import { useTheme } from '../contexts/ThemeContext';
 
-export default function LegalScreen({ navigation, route }: Props) {
-  const { type } = route.params;
+export default function LegalScreen({ navigation, route }: any) {
+  const { type } = route.params || { type: 'cgu' };
   const { theme, isDark } = useTheme();
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);

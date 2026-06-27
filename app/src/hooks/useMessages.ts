@@ -40,8 +40,9 @@ export function useConversations(userId: string | undefined) {
 
     fetchConversations();
 
+    const suffix = Math.random().toString(36).substring(7);
     const channel = supabase
-      .channel('conversations-changes')
+      .channel(`conversations_changes_${suffix}`)
       .on(
         'postgres_changes',
         {
@@ -105,8 +106,9 @@ export function useMessages(conversationId: string | undefined) {
 
     fetchMessages();
 
+    const suffix = Math.random().toString(36).substring(7);
     const channel = supabase
-      .channel(`messages-${conversationId}`)
+      .channel(`messages_${conversationId}_${suffix}`)
       .on(
         'postgres_changes',
         {
