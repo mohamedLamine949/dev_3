@@ -30,6 +30,8 @@ import VendeurProfileScreen from '../screens/VendeurProfileScreen';
 import LegalScreen from '../screens/LegalScreen';
 import TermsModal from '../components/TermsModal';
 import NotificationManager from '../components/NotificationManager';
+import DeepLinkHandler from '../components/DeepLinkHandler';
+import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -220,6 +222,7 @@ export default function AppNavigator() {
   return (
     <NavigationContainer ref={navigationRef} theme={isDark ? MyDarkTheme : MyDefaultTheme}>
       <NotificationManager />
+      <DeepLinkHandler />
       <TermsModal />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {/* Pour l'instant, on affiche directement les tabs (démo) */}
@@ -248,6 +251,11 @@ export default function AppNavigator() {
           name="Legal"
           component={LegalScreen}
           options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="ResetPassword"
+          component={ResetPasswordScreen}
+          options={{ animation: 'slide_from_right', gestureEnabled: false }}
         />
       </Stack.Navigator>
     </NavigationContainer>
