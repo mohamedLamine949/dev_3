@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Alert, StatusBar, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -14,11 +15,6 @@ export default function LinkEmailScreen({ navigation }: any) {
   const { theme, isDark } = useTheme();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
-  
-  // Verification states
-  const [showVerification, setShowVerification] = useState(false);
-  const [generatedCode, setGeneratedCode] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
 
   React.useEffect(() => {
     if (user?.email) {
@@ -36,61 +32,21 @@ export default function LinkEmailScreen({ navigation }: any) {
     try {
       const trimmedEmail = email.toLowerCase().trim();
       
-      // Simuler l'envoi d'un e-mail avec un code à 4 chiffres
-      const code = Math.floor(1000 + Math.random() * 9000).toString();
-      setGeneratedCode(code);
+      // Envoi du lien de confirmation réel avec Supabase
+      const redirectTo = Linking.createURL('auth-callback');
+      const { error } = await supabase.auth.updateUser(
+        { email: trimmedEmail },
+        { emailRedirectTo: redirectTo }
+      );
+      
+      if (error) throw error;
       
       Alert.alert(
-        user?.email ? 'Code de validation - Modification' : 'Code de validation (Simulation)',
-        `Un e-mail automatique contenant votre code de vérification a été envoyé à ${trimmedEmail}.\n\nCode de validation : ${code}`,
-        [
-          { text: 'OK', onPress: () => setShowVerification(true) }
-        ]
-      );
-    } catch (err: any) {
-      console.error(err);
-      Alert.alert('Erreur', err.message || 'Impossible d\'envoyer le code de validation.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyCode = async () => {
-    if (!session) return;
-    if (verificationCode !== generatedCode) {
-      Alert.alert('Code invalide', 'Le code saisi ne correspond pas à celui envoyé par e-mail. Veuillez réessayer.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const trimmedEmail = email.toLowerCase().trim();
-
-      // 1. Mettre à jour l'email dans l'authentification Supabase (auth.users)
-      const { error: authError } = await supabase.auth.updateUser({
-        email: trimmedEmail,
-      });
-
-      if (authError) throw authError;
-
-      // 2. Mettre à jour la table publique 'users'
-      const { error: dbError } = await supabase
-        .from('users')
-        .update({ email: trimmedEmail })
-        .eq('id', session.user.id);
-
-      if (dbError) throw dbError;
-
-      await refreshUser();
-
-      Alert.alert(
-        'Succès',
-        user?.email 
-          ? 'Votre adresse e-mail de secours a été modifiée avec succès !'
-          : 'Votre adresse e-mail a été liée et votre numéro de téléphone a été authentifié avec succès !',
+        'Validation requise 📧',
+        `Un e-mail de validation a été envoyé à l'adresse ${trimmedEmail}.\n\nVeuillez ouvrir cet e-mail et cliquer sur le lien de confirmation pour lier votre compte.`,
         [
           { 
-            text: 'Super', 
+            text: 'Compris', 
             onPress: () => {
               if (navigation.canGoBack()) {
                 navigation.goBack();
@@ -103,7 +59,7 @@ export default function LinkEmailScreen({ navigation }: any) {
       );
     } catch (err: any) {
       console.error(err);
-      Alert.alert('Erreur', err.message || 'Impossible d\'associer l\'adresse e-mail.');
+      Alert.alert('Erreur', err.message || 'Impossible d\'envoyer l\'e-mail de validation.');
     } finally {
       setLoading(false);
     }
@@ -125,116 +81,64 @@ export default function LinkEmailScreen({ navigation }: any) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}
       >
-        {showVerification ? (
-          <View style={styles.card}>
-            <View style={styles.iconContainer}>
-              <Ionicons name="shield-checkmark" size={48} color={theme.primary} />
-            </View>
-
-            <Text style={[styles.title, { color: theme.textPrimary }]}>Vérifier l'e-mail</Text>
-            
-            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-              Entrez le code à 4 chiffres envoyé à {email.toLowerCase().trim()} pour lier votre compte et authentifier votre numéro de téléphone.
-            </Text>
-
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: theme.textSecondary }]}>Code de validation</Text>
-              <View style={[styles.inputWithIcon, { borderColor: theme.borderLight, backgroundColor: theme.surface, justifyContent: 'center' }]}>
-                <TextInput
-                  style={[styles.inputFlex, { color: theme.textPrimary, textAlign: 'center', fontSize: FONTS.lg, letterSpacing: 8 }]}
-                  placeholder="0000"
-                  placeholderTextColor={theme.textMuted}
-                  value={verificationCode}
-                  onChangeText={setVerificationCode}
-                  keyboardType="number-pad"
-                  maxLength={4}
-                  autoFocus={true}
-                />
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.ctaBtn, { backgroundColor: theme.primary }, verificationCode.length < 4 && styles.ctaBtnDisabled]}
-              onPress={handleVerifyCode}
-              disabled={verificationCode.length < 4 || loading}
-              activeOpacity={0.85}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.ctaText}>Valider et lier mon compte</Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.skipBtnOutline, { borderColor: theme.borderLight }]} 
-              onPress={() => { setShowVerification(false); setVerificationCode(''); }}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.skipTextOutline, { color: theme.textSecondary }]}>Modifier l'adresse e-mail</Text>
-            </TouchableOpacity>
+        <View style={styles.card}>
+          <View style={styles.iconContainer}>
+            <Ionicons name="mail-unread" size={48} color={theme.primary} />
           </View>
-        ) : (
-          <View style={styles.card}>
-            <View style={styles.iconContainer}>
-              <Ionicons name="mail-unread" size={48} color={theme.primary} />
+
+          <Text style={[styles.title, { color: theme.textPrimary }]}>
+            {user?.email ? "E-mail de secours" : "Sécurisez votre compte"}
+          </Text>
+          
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+            {user?.email 
+              ? `Votre adresse e-mail actuelle est : ${user.email}. Saisissez une nouvelle adresse ci-dessous pour la modifier.`
+              : "Associer une adresse e-mail est le seul moyen de certifier et authentifier votre numéro de téléphone. C'est également indispensable pour pouvoir récupérer votre compte en cas d'oubli de mot de passe."}
+          </Text>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: theme.textSecondary }]}>Adresse Email</Text>
+            <View style={[styles.inputWithIcon, { borderColor: theme.borderLight, backgroundColor: theme.surface }]}>
+              <Ionicons name="mail-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.inputFlex, { color: theme.textPrimary }]}
+                placeholder="exemple@gmail.com"
+                placeholderTextColor={theme.textMuted}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
             </View>
+          </View>
 
-            <Text style={[styles.title, { color: theme.textPrimary }]}>
-              {user?.email ? "E-mail de secours" : "Sécurisez votre compte"}
-            </Text>
-            
-            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-              {user?.email 
-                ? `Votre adresse e-mail actuelle est : ${user.email}. Saisissez une nouvelle adresse ci-dessous pour la modifier.`
-                : "Associer une adresse e-mail est le seul moyen de certifier et authentifier votre numéro de téléphone. C'est également indispensable pour pouvoir récupérer votre compte en cas d'oubli de mot de passe."}
-            </Text>
-
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: theme.textSecondary }]}>Adresse Email</Text>
-              <View style={[styles.inputWithIcon, { borderColor: theme.borderLight, backgroundColor: theme.surface }]}>
-                <Ionicons name="mail-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
-                <TextInput
-                  style={[styles.inputFlex, { color: theme.textPrimary }]}
-                  placeholder="exemple@gmail.com"
-                  placeholderTextColor={theme.textMuted}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.ctaBtn, { backgroundColor: theme.primary }, !isEmailValid && styles.ctaBtnDisabled]}
-              onPress={handleLinkEmail}
-              disabled={!isEmailValid || loading}
-              activeOpacity={0.85}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.ctaText}>
-                  {user?.email ? "Modifier mon adresse e-mail" : "Associer mon adresse e-mail"}
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.skipBtnOutline, { borderColor: theme.borderLight }]} 
-              onPress={handleSkip}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.skipTextOutline, { color: theme.textSecondary }]}>
-                {user?.email ? "Annuler" : "Plus tard (ignorer)"}
+          <TouchableOpacity
+            style={[styles.ctaBtn, { backgroundColor: theme.primary }, !isEmailValid && styles.ctaBtnDisabled]}
+            onPress={handleLinkEmail}
+            disabled={!isEmailValid || loading}
+            activeOpacity={0.85}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.ctaText}>
+                {user?.email ? "Modifier mon adresse e-mail" : "Associer mon adresse e-mail"}
               </Text>
-            </TouchableOpacity>
-          </View>
-        )}
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.skipBtnOutline, { borderColor: theme.borderLight }]} 
+            onPress={handleSkip}
+            disabled={loading}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.skipTextOutline, { color: theme.textSecondary }]}>
+              {user?.email ? "Annuler" : "Plus tard (ignorer)"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );

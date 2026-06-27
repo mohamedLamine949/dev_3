@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Alert } from 'react-native';
 import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
 import { navigationRef } from '../navigation/navigationRef';
@@ -48,8 +49,19 @@ async function handleUrl(url: string | null) {
       return;
     }
 
+    // Synchroniser l'e-mail dans la table public.users une fois validé
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && user.email && !user.email.endsWith('@phone.market') && !user.email.endsWith('@phone.chapchap.app')) {
+      await supabase.rpc('set_recovery_email', { p_email: user.email.toLowerCase().trim() });
+    }
+
     if (isRecovery && navigationRef.isReady()) {
       navigationRef.navigate('ResetPassword' as never);
+    } else if (!isRecovery) {
+      Alert.alert(
+        'E-mail de secours validé',
+        'Votre adresse e-mail de secours a été liée et validée avec succès !'
+      );
     }
   } catch (e: any) {
     console.warn('[DeepLink] auth link error:', e?.message || e);
