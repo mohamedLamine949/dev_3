@@ -5,7 +5,6 @@ import {
   Alert, ActivityIndicator, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Linking from 'expo-linking';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 
@@ -35,12 +34,27 @@ export default function LoginScreen({ navigation }: Props) {
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [userOtp, setUserOtp] = useState('');
 
-  // Forgot Password State
+  // Forgot Password State (par code OTP envoyé par e-mail)
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotPasswordPhone, setForgotPasswordPhone] = useState('');
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [forgotStep, setForgotStep] = useState<'phone' | 'code'>('phone');
+  const [forgotEmail, setForgotEmail] = useState('');           // e-mail résolu (réel)
+  const [forgotMaskedEmail, setForgotMaskedEmail] = useState(''); // pour l'affichage
+  const [forgotCode, setForgotCode] = useState('');
+  const [forgotNewPassword, setForgotNewPassword] = useState('');
 
   const [acceptCgv, setAcceptCgv] = useState(false);
+
+  function resetForgotState() {
+    setShowForgotPassword(false);
+    setForgotStep('phone');
+    setForgotPasswordPhone('');
+    setForgotEmail('');
+    setForgotMaskedEmail('');
+    setForgotCode('');
+    setForgotNewPassword('');
+  }
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
@@ -274,31 +288,63 @@ export default function LoginScreen({ navigation }: Props) {
         return;
       }
 
-      // 2. Envoyer l'email de réinitialisation via Supabase
+      // 2. Envoyer un CODE de réinitialisation par e-mail (OTP)
       const emailToReset = data.email.toLowerCase().trim();
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(emailToReset, {
-        // Renvoie vers l'app via le deep link -> flashmarket://reset-password
-        redirectTo: Linking.createURL('reset-password'),
-      });
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(emailToReset);
       if (resetError) throw resetError;
 
       // Masquer une partie de l'e-mail pour la confidentialité (ex: d***@domain.com)
       const parts = emailToReset.split('@');
-      const hiddenLocal = parts[0].length > 2 
+      const hiddenLocal = parts[0].length > 2
         ? parts[0][0] + '*'.repeat(parts[0].length - 2) + parts[0][parts[0].length - 1]
         : parts[0][0] + '*';
-      const maskedEmail = hiddenLocal + '@' + parts[1];
+
+      setForgotEmail(emailToReset);
+      setForgotMaskedEmail(hiddenLocal + '@' + parts[1]);
+      setForgotCode('');
+      setForgotNewPassword('');
+      setForgotStep('code');
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert('Erreur', err.message || "Une erreur est survenue lors de l'envoi.");
+    } finally {
+      setForgotPasswordLoading(false);
+    }
+  }
+
+  async function handleVerifyForgotPassword() {
+    if (forgotCode.length !== 6 || forgotNewPassword.length < 6) return;
+
+    setForgotPasswordLoading(true);
+    try {
+      // 1. Vérifier le code reçu par e-mail -> ouvre une session de récupération
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email: forgotEmail,
+        token: forgotCode,
+        type: 'recovery',
+      });
+      if (verifyError) throw new Error('Code incorrect ou expiré. Veuillez réessayer.');
+
+      // 2. Définir le nouveau mot de passe
+      const { error: updateError } = await supabase.auth.updateUser({ password: forgotNewPassword });
+      if (updateError) throw updateError;
 
       Alert.alert(
-        'E-mail envoyé',
-        `Un e-mail contenant un lien de réinitialisation de mot de passe a été envoyé à l'adresse associée : ${maskedEmail}.\n\nVeuillez vérifier votre boîte de réception.`,
+        'Mot de passe modifié ✅',
+        'Votre mot de passe a été réinitialisé. Vous êtes maintenant connecté.',
         [
-          { text: 'OK', onPress: () => setShowForgotPassword(false) }
+          {
+            text: 'Continuer',
+            onPress: () => {
+              resetForgotState();
+              navigation.reset({ index: 0, routes: [{ name: 'Main', params: { screen: 'Profil' } }] });
+            },
+          },
         ]
       );
     } catch (err: any) {
       console.error(err);
-      Alert.alert('Erreur', err.message || "Une erreur est survenue lors de l'envoi.");
+      Alert.alert('Erreur', err.message || 'Impossible de réinitialiser le mot de passe.');
     } finally {
       setForgotPasswordLoading(false);
     }
@@ -331,36 +377,94 @@ export default function LoginScreen({ navigation }: Props) {
           {showForgotPassword ? (
             <View style={styles.otpContainer}>
               <Text style={styles.otpTitle}>Mot de passe oublié</Text>
-              <Text style={styles.otpSubtitle}>
-                Saisissez le numéro de téléphone lié à votre compte. Si un e-mail de récupération y est associé, vous recevrez un lien pour réinitialiser votre mot de passe.
-              </Text>
-              
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Numéro de téléphone</Text>
-                <View style={styles.inputWithIcon}>
-                  <Ionicons name="call-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
-                  <Text style={{ fontSize: FONTS.md, fontWeight: '700', color: theme.textPrimary, marginRight: 6 }}>+223</Text>
-                  <TextInput
-                    style={styles.inputFlex}
-                    placeholder="70 00 00 00"
-                    placeholderTextColor={theme.textMuted}
-                    value={forgotPasswordPhone}
-                    onChangeText={(t) => setForgotPasswordPhone(t.replace(/[^0-9]/g, '').slice(0, 8))}
-                    keyboardType="phone-pad"
-                    maxLength={8}
-                  />
-                </View>
-              </View>
 
-              <TouchableOpacity
-                style={[styles.ctaBtn, forgotPasswordPhone.length !== 8 && styles.ctaBtnDisabled]}
-                onPress={handleForgotPassword}
-                disabled={forgotPasswordPhone.length !== 8 || forgotPasswordLoading}
-              >
-                {forgotPasswordLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Envoyer le lien de réinitialisation</Text>}
-              </TouchableOpacity>
+              {forgotStep === 'phone' ? (
+                <>
+                  <Text style={styles.otpSubtitle}>
+                    Saisissez le numéro de téléphone lié à votre compte. Si un e-mail de récupération y est associé, un code de vérification y sera envoyé.
+                  </Text>
 
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowForgotPassword(false)}>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Numéro de téléphone</Text>
+                    <View style={styles.inputWithIcon}>
+                      <Ionicons name="call-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
+                      <Text style={{ fontSize: FONTS.md, fontWeight: '700', color: theme.textPrimary, marginRight: 6 }}>+223</Text>
+                      <TextInput
+                        style={styles.inputFlex}
+                        placeholder="70 00 00 00"
+                        placeholderTextColor={theme.textMuted}
+                        value={forgotPasswordPhone}
+                        onChangeText={(t) => setForgotPasswordPhone(t.replace(/[^0-9]/g, '').slice(0, 8))}
+                        keyboardType="phone-pad"
+                        maxLength={8}
+                      />
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.ctaBtn, forgotPasswordPhone.length !== 8 && styles.ctaBtnDisabled]}
+                    onPress={handleForgotPassword}
+                    disabled={forgotPasswordPhone.length !== 8 || forgotPasswordLoading}
+                  >
+                    {forgotPasswordLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Envoyer le code</Text>}
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.otpSubtitle}>
+                    Un code à 6 chiffres a été envoyé à {forgotMaskedEmail}. Saisissez-le puis choisissez un nouveau mot de passe.
+                  </Text>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Code de vérification</Text>
+                    <View style={styles.inputWithIcon}>
+                      <Ionicons name="key-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.inputFlex}
+                        placeholder="123456"
+                        placeholderTextColor={theme.textMuted}
+                        value={forgotCode}
+                        onChangeText={(t) => setForgotCode(t.replace(/[^0-9]/g, '').slice(0, 6))}
+                        keyboardType="number-pad"
+                        maxLength={6}
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Nouveau mot de passe</Text>
+                    <View style={styles.inputWithIcon}>
+                      <Ionicons name="lock-closed-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
+                      <TextInput
+                        style={styles.inputFlex}
+                        placeholder="6 caractères minimum"
+                        placeholderTextColor={theme.textMuted}
+                        value={forgotNewPassword}
+                        onChangeText={setForgotNewPassword}
+                        secureTextEntry={!showPassword}
+                        autoCapitalize="none"
+                      />
+                      <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                        <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={theme.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.ctaBtn, (forgotCode.length !== 6 || forgotNewPassword.length < 6) && styles.ctaBtnDisabled]}
+                    onPress={handleVerifyForgotPassword}
+                    disabled={forgotCode.length !== 6 || forgotNewPassword.length < 6 || forgotPasswordLoading}
+                  >
+                    {forgotPasswordLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Réinitialiser le mot de passe</Text>}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.cancelBtn} onPress={handleForgotPassword} disabled={forgotPasswordLoading}>
+                    <Text style={styles.cancelText}>Renvoyer le code</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
+              <TouchableOpacity style={styles.cancelBtn} onPress={resetForgotState}>
                 <Text style={styles.cancelText}>Retour à la connexion</Text>
               </TouchableOpacity>
             </View>
