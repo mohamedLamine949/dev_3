@@ -163,7 +163,17 @@ export default function SettingsScreen({ navigation }: Props) {
             }
             Alert.alert('Déconnexion', 'Êtes-vous sûr ?', [
               { text: 'Annuler', style: 'cancel' },
-              { text: 'Déconnexion', style: 'destructive', onPress: signOut },
+              { 
+                text: 'Déconnexion', 
+                style: 'destructive', 
+                onPress: async () => {
+                  await signOut();
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'Main', params: { screen: 'Accueil' } }]
+                  });
+                }
+              },
             ]);
           }}
           activeOpacity={0.7}

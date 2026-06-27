@@ -415,20 +415,51 @@ export default function LoginScreen({ navigation }: Props) {
                 </View>
               )}
 
+              {mode === 'login' && (
+                <View style={styles.methodSelector}>
+                  <TouchableOpacity 
+                    style={[styles.methodBtn, authMethod === 'phone' && styles.methodBtnActive]} 
+                    onPress={() => { setAuthMethod('phone'); setIdentifier(''); }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="call-outline" size={16} color={authMethod === 'phone' ? theme.primary : theme.textMuted} />
+                    <Text style={[styles.methodText, authMethod === 'phone' && styles.methodTextActive]}>Téléphone</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.methodBtn, authMethod === 'email' && styles.methodBtnActive]} 
+                    onPress={() => { setAuthMethod('email'); setIdentifier(''); }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="mail-outline" size={16} color={authMethod === 'email' ? theme.primary : theme.textMuted} />
+                    <Text style={[styles.methodText, authMethod === 'email' && styles.methodTextActive]}>E-mail</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Numéro de téléphone</Text>
+                <Text style={styles.label}>
+                  {mode === 'register' || authMethod === 'phone' ? 'Numéro de téléphone' : 'Adresse e-mail'}
+                </Text>
                 <View style={styles.inputWithIcon}>
-                  <Ionicons name="call-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
-                  <Text style={{ fontSize: FONTS.md, fontWeight: '700', color: theme.textPrimary, marginRight: 6 }}>+223</Text>
+                  <Ionicons 
+                    name={mode === 'register' || authMethod === 'phone' ? 'call-outline' : 'mail-outline'} 
+                    size={18} 
+                    color={theme.textMuted} 
+                    style={styles.inputIcon} 
+                  />
+                  {(mode === 'register' || authMethod === 'phone') && (
+                    <Text style={{ fontSize: FONTS.md, fontWeight: '700', color: theme.textPrimary, marginRight: 6 }}>+223</Text>
+                  )}
                   <TextInput
                     style={styles.inputFlex}
-                    placeholder="70 00 00 00"
+                    placeholder={mode === 'register' || authMethod === 'phone' ? '70 00 00 00' : 'exemple@gmail.com'}
                     placeholderTextColor={theme.textMuted}
                     value={identifier}
                     onChangeText={setIdentifier}
-                    keyboardType="phone-pad"
+                    keyboardType={mode === 'register' || authMethod === 'phone' ? 'number-pad' : 'email-address'}
                     autoCapitalize="none"
-                    maxLength={8}
+                    maxLength={mode === 'register' || authMethod === 'phone' ? 8 : undefined}
+                    autoCorrect={false}
                   />
                 </View>
               </View>
