@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
 import { useNotifications } from '../hooks/useNotifications';
-import { navigationRef } from '../navigation/AppNavigator';
+import { navigationRef } from '../navigation/navigationRef';
 
 export default function NotificationManager() {
   const { notification } = useNotifications();

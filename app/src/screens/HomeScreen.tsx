@@ -104,7 +104,7 @@ export default function HomeScreen({ navigation }: Props) {
         ]}
         onPress={() => setSelectedCategory(isSelected ? null : item.id)}
       >
-        <Feather
+        <Ionicons
           name={item.icon as any}
           size={16}
           color={isSelected ? theme.textInverse : theme.textSecondary}

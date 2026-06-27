@@ -58,9 +58,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { data: { session: currentSession } } = await supabase.auth.getSession();
           if (currentSession?.user) {
             const userMetadata = currentSession.user.user_metadata || {};
-            const numPhone = currentSession.user.email?.endsWith('@phone.market')
+            let numPhone = currentSession.user.email?.endsWith('@phone.market')
               ? currentSession.user.email.split('@')[0]
               : userMetadata.phone || null;
+            
+            if (numPhone && !numPhone.startsWith('+')) {
+              numPhone = '+' + numPhone;
+            }
 
             const newProfile = {
               id: userId,

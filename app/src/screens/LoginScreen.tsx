@@ -81,8 +81,8 @@ export default function LoginScreen({ navigation }: Props) {
             // Un e-mail personnalisé est associé à ce téléphone, on l'utilise pour s'authentifier
             loginParams.email = dbUser[0].email;
           } else {
-            // Aucun email lié, on utilise le format par défaut @phone.market
-            loginParams.email = formattedIdentifier + "@phone.market";
+            // Aucun email lié, on utilise le format par défaut @phone.market (sans le '+' au début)
+            loginParams.email = formattedIdentifier.replace('+', '') + "@phone.market";
           }
         } else {
           loginParams.email = formattedIdentifier;
@@ -121,7 +121,7 @@ export default function LoginScreen({ navigation }: Props) {
       } else {
         // Inscription (sans OTP, création directe)
         let signUpParams: any = {
-          email: formattedIdentifier + "@phone.market",
+          email: formattedIdentifier.replace('+', '') + "@phone.market",
           password,
           options: {
             data: {
@@ -152,7 +152,7 @@ export default function LoginScreen({ navigation }: Props) {
           // Connexion automatique de l'utilisateur si aucune session n'est générée immédiatement
           if (!data.session) {
             const { error: signInError } = await supabase.auth.signInWithPassword({
-              email: formattedIdentifier + "@phone.market",
+              email: formattedIdentifier.replace('+', '') + "@phone.market",
               password: password,
             });
             if (signInError) {
@@ -183,7 +183,7 @@ export default function LoginScreen({ navigation }: Props) {
       if (userOtp === '123456') {
         const formattedPhone = formatPhone(identifier);
         const { data, error } = await supabase.auth.signInWithPassword({
-          email: formattedPhone + "@phone.market",
+          email: formattedPhone.replace('+', '') + "@phone.market",
           password: password,
         });
         if (error) {

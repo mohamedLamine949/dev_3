@@ -1,5 +1,6 @@
 import React from 'react';
-import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
+import { navigationRef } from './navigationRef';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,7 +34,6 @@ import NotificationManager from '../components/NotificationManager';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-export const navigationRef = createNavigationContainerRef<any>();
 
 // Stack pour l'onglet Accueil
 function HomeStack() {

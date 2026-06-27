@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
-import { navigationRef } from '../navigation/AppNavigator';
+import { navigationRef } from '../navigation/navigationRef';
 
 /**
  * Intercepte les liens profonds (deep links) ouverts par les e-mails Supabase :

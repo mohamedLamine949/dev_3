@@ -149,14 +149,14 @@ export const SHADOWS = {
 };
 
 export const CATEGORIES = [
-  { id: 'telephonie_electronique', label: 'Téléphonie & Électronique', icon: 'smartphone' },
-  { id: 'mode_beaute', label: 'Mode & Beauté', icon: 'shopping-bag' },
-  { id: 'maison_electromenager', label: 'Maison & Électroménager', icon: 'box' },
-  { id: 'voitures', label: 'Voitures', icon: 'car' },
-  { id: 'motos', label: 'Motos', icon: 'bicycle' },
-  { id: 'immobilier', label: 'Immobilier', icon: 'home' },
-  { id: 'nourriture', label: 'Nourriture', icon: 'coffee' },
-  { id: 'services', label: 'Services', icon: 'tool' },
+  { id: 'telephonie_electronique', label: 'Téléphonie & Électronique', icon: 'phone-portrait-outline' },
+  { id: 'mode_beaute', label: 'Mode & Beauté', icon: 'shirt-outline' },
+  { id: 'maison_electromenager', label: 'Maison & Électroménager', icon: 'cube-outline' },
+  { id: 'voitures', label: 'Voitures', icon: 'car-outline' },
+  { id: 'motos', label: 'Motos', icon: 'bicycle-outline' },
+  { id: 'immobilier', label: 'Immobilier', icon: 'business-outline' },
+  { id: 'nourriture', label: 'Nourriture', icon: 'cafe-outline' },
+  { id: 'services', label: 'Services', icon: 'build-outline' },
 ];
 
 export const CATEGORY_PRICES: Record<string, number> = {
