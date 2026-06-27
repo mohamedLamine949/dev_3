@@ -4,7 +4,6 @@ import {
   ActivityIndicator, Alert, StatusBar, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Linking from 'expo-linking';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -32,21 +31,20 @@ export default function LinkEmailScreen({ navigation }: any) {
     try {
       const trimmedEmail = email.toLowerCase().trim();
       
-      // Envoi du lien de confirmation réel avec Supabase
-      const redirectTo = Linking.createURL('auth-callback');
-      const { error } = await supabase.auth.updateUser(
-        { email: trimmedEmail },
-        { emailRedirectTo: redirectTo }
-      );
+      // Mise à jour directe via la fonction SQL sécurisée (SECURITY DEFINER)
+      // Met à jour public.users.email ET auth.users.email en une seule opération
+      const { error } = await supabase.rpc('set_recovery_email', { p_email: trimmedEmail });
       
       if (error) throw error;
       
+      await refreshUser();
+      
       Alert.alert(
-        'Validation requise 📧',
-        `Un e-mail de validation a été envoyé à l'adresse ${trimmedEmail}.\n\nVeuillez ouvrir cet e-mail et cliquer sur le lien de confirmation pour lier votre compte.`,
+        'E-mail enregistré ✅',
+        `Votre adresse e-mail de secours (${trimmedEmail}) a été liée à votre compte avec succès.\n\nVous pourrez l'utiliser pour récupérer votre mot de passe en cas d'oubli.`,
         [
           { 
-            text: 'Compris', 
+            text: 'Super', 
             onPress: () => {
               if (navigation.canGoBack()) {
                 navigation.goBack();
@@ -59,7 +57,7 @@ export default function LinkEmailScreen({ navigation }: any) {
       );
     } catch (err: any) {
       console.error(err);
-      Alert.alert('Erreur', err.message || 'Impossible d\'envoyer l\'e-mail de validation.');
+      Alert.alert('Erreur', err.message || 'Impossible d\'enregistrer l\'e-mail.');
     } finally {
       setLoading(false);
     }

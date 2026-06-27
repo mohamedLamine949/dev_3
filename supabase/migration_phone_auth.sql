@@ -72,8 +72,10 @@ $$;
 GRANT EXECUTE ON FUNCTION public.get_login_email(text) TO anon, authenticated;
 
 -- 4. RPC : synchronise l'e-mail réel dans public.users ---------------
--- Appelée après updateUser({email}) pour refléter l'e-mail de secours
--- dans le profil public (affichage). Mise à jour limitée à soi-même.
+-- Appelée pour enregistrer/modifier l'e-mail de secours.
+-- Met à jour public.users ET auth.users en une seule opération sécurisée.
+-- SECURITY DEFINER permet d'accéder à auth.users (schéma auth) tout en
+-- garantissant que seul l'utilisateur connecté peut modifier son propre email.
 CREATE OR REPLACE FUNCTION public.set_recovery_email(p_email text)
 RETURNS void
 LANGUAGE plpgsql
@@ -81,8 +83,15 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
+  -- 1. Mettre à jour le profil public
   UPDATE public.users
   SET email = p_email
+  WHERE id = auth.uid();
+
+  -- 2. Mettre à jour l'email dans auth.users (bypass confirmation SMTP)
+  UPDATE auth.users
+  SET email = p_email,
+      email_confirmed_at = NOW()
   WHERE id = auth.uid();
 END;
 $$;
