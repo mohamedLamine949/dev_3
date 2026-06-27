@@ -22,7 +22,8 @@ import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useFavoris, toggleFavori } from '../hooks/useFavoris';
-import { useNotificationsList } from '../hooks/useNotifications';
+import { getRecentAnnonces } from '../lib/recentStorage';
+
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - SPACING.lg * 2 - SPACING.md) / 2;
@@ -69,9 +70,22 @@ export default function HomeScreen({ navigation }: Props) {
     search: debouncedSearch,
   });
   const { location } = useLocation();
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const { favorisIds, refetch: refetchFavoris } = useFavoris(session?.user?.id);
-  const { unreadCount: unreadNotificationsCount } = useNotificationsList(session?.user?.id);
+  const [recentAnnonces, setRecentAnnonces] = useState<Annonce[]>([]);
+
+  const loadRecent = useCallback(async () => {
+    const list = await getRecentAnnonces();
+    setRecentAnnonces(list);
+  }, []);
+
+  useEffect(() => {
+    loadRecent();
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadRecent();
+    });
+    return unsubscribe;
+  }, [navigation, loadRecent]);
 
   const handleToggleFavori = async (annonceId: string) => {
     if (!session) { navigation.navigate('Login'); return; }
@@ -173,73 +187,138 @@ export default function HomeScreen({ navigation }: Props) {
     );
   };
 
-  const ListHeader = () => (
-    <View>
-      {/* Hero Section */}
-      <View style={styles.heroSection}>
-        <View style={styles.heroContent}>
-          <View style={[styles.heroLogoRow, { justifyContent: 'space-between', width: '100%' }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
-              <Image source={require('../../assets/icon.png')} style={styles.heroLogo} />
-              <Text style={styles.heroTitle}>Flash Market</Text>
+  const renderRecentCard = ({ item }: { item: Annonce }) => {
+    const imageUrl = item.images?.[0]?.image_url || null;
+    return (
+      <TouchableOpacity
+        activeOpacity={0.8}
+        style={styles.recentCard}
+        onPress={() => navigation.navigate('AnnonceDetail', { annonce: item })}
+      >
+        <View style={styles.recentImageContainer}>
+          {imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.recentImage} />
+          ) : (
+            <View style={styles.recentImagePlaceholder}>
+              <Ionicons name="image-outline" size={24} color={theme.border} />
             </View>
-            {session && (
-              <TouchableOpacity
-                style={styles.notificationBellBtn}
-                onPress={() => navigation.navigate('Notifications')}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="notifications-outline" size={20} color={theme.textPrimary} />
-                {unreadNotificationsCount > 0 && (
-                  <View style={[styles.notificationBadge, { backgroundColor: theme.primary }]}>
-                    <Text style={styles.notificationBadgeText}>{unreadNotificationsCount}</Text>
-                  </View>
-                )}
+          )}
+        </View>
+        <Text style={styles.recentCardTitle} numberOfLines={1}>
+          {item.titre}
+        </Text>
+        <Text style={styles.recentCardPrice} numberOfLines={1}>
+          {formatPrix(item.prix)}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const ListHeader = () => {
+    const welcomeText = user?.prenom ? `Salut, ${user.prenom} ! 👋` : "Bienvenue ! 👋";
+    return (
+      <View>
+        {/* Hero Section */}
+        <View style={styles.heroSection}>
+          <View style={styles.heroHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.heroWelcome}>{welcomeText}</Text>
+              <Text style={styles.heroSubtitle}>Que cherchez-vous aujourd'hui ?</Text>
+            </View>
+            <TouchableOpacity 
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('Profile')}
+              style={styles.profileIndicator}
+            >
+              {user?.avatar_url ? (
+                <Image source={{ uri: user.avatar_url }} style={styles.profileAvatar} />
+              ) : (
+                <View style={styles.profileAvatarPlaceholder}>
+                  <Ionicons name="person" size={20} color={theme.primary} />
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Barre de recherche */}
+        <View style={styles.searchContainer}>
+          <View style={styles.searchBar}>
+            <Feather name="search" size={20} color={theme.textMuted} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Que cherchez-vous ?"
+              placeholderTextColor={theme.textMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={20} color={theme.textMuted} />
               </TouchableOpacity>
             )}
           </View>
-          <Text style={styles.heroSubtitle}>Trouvez ce qu'il vous faut, près de chez vous</Text>
+        </View>
+
+        {/* Catégories */}
+        <FlatList
+          data={CATEGORIES}
+          renderItem={renderCategoryItem}
+          keyExtractor={(item) => item.id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoriesContainer}
+        />
+
+        {/* Bannière astuce sécurité / info */}
+        <View style={styles.bannerContainer}>
+          <View style={styles.bannerCard}>
+            <View style={styles.bannerIconContainer}>
+              <Ionicons name="shield-checkmark" size={24} color="#fff" />
+            </View>
+            <View style={styles.bannerTextContainer}>
+              <Text style={styles.bannerTitle}>Achetez en toute sécurité 🛡️</Text>
+              <Text style={styles.bannerSubtitle}>
+                Rencontrez toujours le vendeur dans un lieu public et vérifiez l'article avant d'acheter.
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Récemment consultés */}
+        {recentAnnonces.length > 0 && (
+          <View style={styles.recentSection}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Récemment consultés</Text>
+              <TouchableOpacity onPress={async () => {
+                const { clearRecentAnnonces } = await import('../lib/recentStorage');
+                await clearRecentAnnonces();
+                loadRecent();
+              }}>
+                <Text style={styles.clearRecentLink}>Effacer</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={recentAnnonces}
+              renderItem={renderRecentCard}
+              keyExtractor={(item) => `recent-${item.id}`}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.recentListContainer}
+            />
+          </View>
+        )}
+
+        {/* Section titre */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Annonces récentes</Text>
+          <TouchableOpacity>
+            <Text style={styles.sectionLink}>Voir tout</Text>
+          </TouchableOpacity>
         </View>
       </View>
-
-      {/* Barre de recherche */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Feather name="search" size={20} color={theme.textMuted} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Que cherchez-vous ?"
-            placeholderTextColor={theme.textMuted}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color={theme.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {/* Catégories */}
-      <FlatList
-        data={CATEGORIES}
-        renderItem={renderCategoryItem}
-        keyExtractor={(item) => item.id}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoriesContainer}
-      />
-
-      {/* Section titre */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Annonces récentes</Text>
-        <TouchableOpacity>
-          <Text style={styles.sectionLink}>Voir tout</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  };
 
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
@@ -310,57 +389,42 @@ const createStyles = (theme: any) => StyleSheet.create({
   // Hero
   heroSection: {
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: SPACING.xl,
+    paddingBottom: SPACING.lg,
   },
-  heroContent: {},
-  heroLogoRow: {
+  heroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
-    marginBottom: SPACING.xs,
+    justifyContent: 'space-between',
   },
-  notificationBellBtn: {
-    position: 'relative',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.surfaceMuted,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.borderLight,
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: -1,
-    right: -1,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 3,
-  },
-  notificationBadgeText: {
-    color: '#fff',
-    fontSize: 8,
-    fontWeight: 'bold',
-  },
-  heroLogo: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-  },
-  heroTitle: {
-    fontSize: FONTS.xxxl,
+  heroWelcome: {
+    fontSize: FONTS.xxl,
     fontWeight: FONTS.extrabold,
     color: theme.textPrimary,
     letterSpacing: -0.5,
   },
   heroSubtitle: {
-    fontSize: FONTS.md,
+    fontSize: FONTS.sm,
     color: theme.textSecondary,
-    marginTop: SPACING.xs,
+    marginTop: 2,
+  },
+  profileIndicator: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: theme.primary,
+    ...SHADOWS.sm,
+  },
+  profileAvatar: {
+    width: '100%',
+    height: '100%',
+  },
+  profileAvatarPlaceholder: {
+    flex: 1,
+    backgroundColor: theme.surfaceMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   // Recherche
@@ -521,5 +585,95 @@ const createStyles = (theme: any) => StyleSheet.create({
   emptyText: {
     fontSize: FONTS.md,
     color: theme.textMuted,
+  },
+
+  // Bannière
+  bannerContainer: {
+    marginBottom: SPACING.lg,
+  },
+  bannerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.primary,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    gap: SPACING.md,
+    ...SHADOWS.md,
+  },
+  bannerIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bannerTextContainer: {
+    flex: 1,
+  },
+  bannerTitle: {
+    fontSize: FONTS.sm + 1,
+    fontWeight: FONTS.bold,
+    color: '#fff',
+    marginBottom: 2,
+  },
+  bannerSubtitle: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.9)',
+    lineHeight: 15,
+  },
+
+  // Récemment vus
+  recentSection: {
+    marginBottom: SPACING.lg,
+  },
+  clearRecentLink: {
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.semibold,
+    color: theme.textMuted,
+  },
+  recentListContainer: {
+    gap: SPACING.md,
+    paddingRight: SPACING.lg,
+  },
+  recentCard: {
+    width: 130,
+    backgroundColor: theme.surface,
+    borderRadius: RADIUS.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.borderLight,
+    paddingBottom: SPACING.sm,
+    ...SHADOWS.sm,
+  },
+  recentImageContainer: {
+    width: '100%',
+    height: 90,
+  },
+  recentImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: theme.surfaceMuted,
+  },
+  recentImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: theme.surfaceMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recentCardTitle: {
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.semibold,
+    color: theme.textPrimary,
+    marginTop: SPACING.sm,
+    marginHorizontal: SPACING.sm,
+  },
+  recentCardPrice: {
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.bold,
+    color: theme.primary,
+    marginTop: 2,
+    marginHorizontal: SPACING.sm,
   },
 });
