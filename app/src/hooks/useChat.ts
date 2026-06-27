@@ -225,57 +225,7 @@ export function useChat(conversationId: string | undefined, currentUserId: strin
       date_dernier_message: new Date().toISOString()
     }).eq('id', conversationId);
 
-    // 3. Envoyer la notification push au destinataire
-    try {
-      const { data: conv } = await supabase
-        .from('conversations')
-        .select('acheteur_id, vendeur_id, annonce:annonces(titre)')
-        .eq('id', conversationId)
-        .single();
-
-      if (conv) {
-        const recipientId = conv.acheteur_id === currentUserId ? conv.vendeur_id : conv.acheteur_id;
-        const { data: profiles } = await supabase
-          .from('users')
-          .select('id, prenom, nom, push_token')
-          .in('id', [currentUserId, recipientId]);
-
-        if (profiles) {
-          const sender = profiles.find(p => p.id === currentUserId);
-          const recipient = profiles.find(p => p.id === recipientId);
-
-          if (recipient?.push_token) {
-            const senderName = sender 
-              ? `${sender.prenom || ''} ${sender.nom || ''}`.trim() || 'Quelqu\'un' 
-              : 'Nouveau message';
-            
-            const titreAnnonce = (conv.annonce as any)?.titre || 'Message';
-
-            fetch('https://exp.host/--/api/v2/push/send', {
-              method: 'POST',
-              headers: {
-                'Accept': 'application/json',
-                'Accept-encoding': 'gzip, deflate',
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                to: recipient.push_token,
-                sound: 'default',
-                title: senderName,
-                body: contenu.trim(),
-                data: { 
-                  conversationId, 
-                  titreAnnonce, 
-                  type: 'chat' 
-                },
-              }),
-            }).catch(err => console.error('Erreur d\'envoi HTTP de push:', err));
-          }
-        }
-      }
-    } catch (pushError) {
-      console.error('Erreur lors du processus de notification push:', pushError);
-    }
+    // 3. (Géré côté serveur par trigger SQL) : L'insertion du message déclenche automatiquement la notification in-app et push via Expo.
 
     return newMessage;
   };

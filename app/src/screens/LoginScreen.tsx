@@ -7,141 +7,99 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { supabase } from '../lib/supabase';
+import {
+  isValidMaliPhone, formatPhoneE164, phoneToSyntheticEmail,
+  getLoginEmailForPhone, sanitizePhoneDigits,
+} from '../lib/phoneAuth';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface Props {
   navigation: any;
 }
 
-type AuthMethod = 'phone' | 'email';
-
-import { useTheme } from '../contexts/ThemeContext';
-
 export default function LoginScreen({ navigation }: Props) {
   const { theme, isDark } = useTheme();
   const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [authMethod, setAuthMethod] = useState<AuthMethod>('phone');
   const [prenom, setPrenom] = useState('');
   const [nom, setNom] = useState('');
-  const [identifier, setIdentifier] = useState(''); // phone or email
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // OTP State
-  const [showOtpInput, setShowOtpInput] = useState(false);
-  const [userOtp, setUserOtp] = useState('');
-
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
-  const isEmail = (val: string) => val.includes('@');
-  
-  const formatPhone = (phone: string) => {
-    const cleaned = phone.replace(/[^0-9+]/g, '');
-    if (cleaned.startsWith('+')) return cleaned;
-    if (cleaned.length === 8) return `+223${cleaned}`; // Mali default
-    return cleaned;
-  };
-
-  const isIdentifierValid = authMethod === 'email' 
-    ? identifier.includes('@') && identifier.includes('.')
-    : identifier.replace(/[^0-9]/g, '').length >= 8;
-
-  const isLoginValid = isIdentifierValid && password.length >= 6;
-  const isRegisterValid = isLoginValid && prenom.length >= 2 && nom.length >= 2;
+  const phoneOk = isValidMaliPhone(phone);
+  const isLoginValid = phoneOk && password.length >= 6;
+  const isRegisterValid = isLoginValid && prenom.trim().length >= 2 && nom.trim().length >= 2;
   const canSubmit = mode === 'login' ? isLoginValid : isRegisterValid;
+
+  async function handleLogin() {
+    const email = await getLoginEmailForPhone(phone);
+    if (!email) {
+      throw new Error("Aucun compte n'est associé à ce numéro. Vérifiez le numéro ou inscrivez-vous.");
+    }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      // Message générique pour ne pas révéler si c'est le numéro ou le mot de passe
+      throw new Error('Numéro ou mot de passe incorrect.');
+    }
+    navigation.goBack();
+  }
+
+  async function handleRegister() {
+    const formattedPhone = formatPhoneE164(phone);
+
+    // 1. Vérifier que le numéro n'est pas déjà utilisé
+    const { data: existing, error: checkError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('num_telephone', formattedPhone)
+      .maybeSingle();
+    if (checkError) throw checkError;
+    if (existing) throw new Error('Ce numéro de téléphone est déjà enregistré.');
+
+    // 2. Créer le compte avec un e-mail technique dérivé du numéro
+    const { data, error } = await supabase.auth.signUp({
+      email: phoneToSyntheticEmail(phone),
+      password,
+      options: {
+        data: {
+          phone: formattedPhone,
+          first_name: prenom.trim(),
+          last_name: nom.trim(),
+        },
+      },
+    });
+    if (error) throw error;
+
+    if (!data.session) {
+      // Devrait être immédiat si "Confirm email" est désactivé côté Supabase
+      Alert.alert(
+        'Compte créé',
+        "Votre compte a été créé. Vous pouvez maintenant vous connecter."
+      );
+      setMode('login');
+      setPassword('');
+      return;
+    }
+
+    // 3. Inviter à renseigner un e-mail de secours (récupération de mot de passe)
+    navigation.replace('EmailRecovery', { firstTime: true });
+  }
 
   async function handleSubmit() {
     if (!canSubmit) return;
-    
     setLoading(true);
-    const formattedIdentifier = authMethod === 'phone' ? formatPhone(identifier) : identifier.toLowerCase().trim();
-
     try {
       if (mode === 'login') {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          [authMethod]: formattedIdentifier,
-          password,
-        } as any);
-
-        if (error) throw error;
-        
-        if (data.session) {
-          navigation.goBack();
-        } else {
-          Alert.alert('Vérification requise', 'Veuillez vérifier votre compte.');
-        }
+        await handleLogin();
       } else {
-        // Inscription
-        const { data, error } = await supabase.auth.signUp({
-          [authMethod]: formattedIdentifier,
-          password,
-          options: {
-            data: {
-              first_name: prenom.trim(),
-              last_name: nom.trim(),
-            }
-          }
-        } as any);
-
-        // Si erreur de fournisseur SMS, on simule quand même pour le dev
-        if (error) {
-          if (authMethod === 'phone' && (error.message.includes('SMS') || error.message.includes('provider'))) {
-            console.warn("SMS Provider non configuré. Mode simulation activé.");
-            setShowOtpInput(true);
-            return;
-          }
-          throw error;
-        }
-
-        if (authMethod === 'phone') {
-          // Si Supabase est configuré sans confirmation (auto-confirm), data.session existe déjà
-          // Mais on affiche l'écran OTP pour la simulation demandée
-          setShowOtpInput(true);
-          if (data.session) {
-             console.log("Compte auto-confirmé, mais on affiche l'OTP pour simulation");
-          }
-        } else {
-          Alert.alert('Succès', 'Veuillez vérifier votre email pour confirmer l\'inscription.');
-          setMode('login');
-        }
+        await handleRegister();
       }
     } catch (err: any) {
       console.error(err);
       Alert.alert('Erreur', err.message || 'Une erreur est survenue.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleVerifyOtp() {
-    if (!userOtp || userOtp.length < 6) return;
-
-    setLoading(true);
-    try {
-      // Simulation pour le moment
-      if (userOtp === '123456') {
-        Alert.alert('Succès (Simulation)', 'Votre numéro a été vérifié.');
-        navigation.goBack();
-        return;
-      }
-
-      const formattedPhone = formatPhone(identifier);
-      const { data, error } = await supabase.auth.verifyOTP({
-        phone: formattedPhone,
-        token: userOtp,
-        type: 'sms',
-      });
-
-      if (error) throw error;
-
-      if (data.session) {
-        Alert.alert('Succès', 'Votre compte a été créé avec succès.');
-        navigation.goBack();
-      }
-    } catch (err: any) {
-      console.error(err);
-      // En mode simulation, on accepte n'importe quel code si l'erreur vient du manque de provider
-      Alert.alert('Note', 'Mode simulation : utilisez 123456');
     } finally {
       setLoading(false);
     }
@@ -171,123 +129,81 @@ export default function LoginScreen({ navigation }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {!showOtpInput && (
-            <View style={styles.toggle}>
-              <TouchableOpacity style={[styles.toggleBtn, mode === 'login' && styles.toggleBtnActive]} onPress={() => setMode('login')}>
-                <Text style={[styles.toggleText, mode === 'login' && styles.toggleTextActive]}>Se connecter</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.toggleBtn, mode === 'register' && styles.toggleBtnActive]} onPress={() => setMode('register')}>
-                <Text style={[styles.toggleText, mode === 'register' && styles.toggleTextActive]}>S'inscrire</Text>
-              </TouchableOpacity>
+          <View style={styles.toggle}>
+            <TouchableOpacity style={[styles.toggleBtn, mode === 'login' && styles.toggleBtnActive]} onPress={() => setMode('login')}>
+              <Text style={[styles.toggleText, mode === 'login' && styles.toggleTextActive]}>Se connecter</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.toggleBtn, mode === 'register' && styles.toggleBtnActive]} onPress={() => setMode('register')}>
+              <Text style={[styles.toggleText, mode === 'register' && styles.toggleTextActive]}>S'inscrire</Text>
+            </TouchableOpacity>
+          </View>
+
+          {mode === 'register' && (
+            <View style={styles.row}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Prénom</Text>
+                <TextInput style={styles.input} placeholder="Amadou" placeholderTextColor={theme.textMuted} value={prenom} onChangeText={setPrenom} autoCapitalize="words" />
+              </View>
+              <View style={styles.rowSpacer} />
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Nom</Text>
+                <TextInput style={styles.input} placeholder="Coulibaly" placeholderTextColor={theme.textMuted} value={nom} onChangeText={setNom} autoCapitalize="words" />
+              </View>
             </View>
           )}
 
-          {showOtpInput ? (
-            <View style={styles.otpContainer}>
-              <Text style={styles.otpTitle}>Vérification du numéro</Text>
-              <Text style={styles.otpSubtitle}>
-                Un code à 6 chiffres a été envoyé par SMS au {formatPhone(identifier)}.
-              </Text>
-              
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Code de validation</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="123456"
-                  placeholderTextColor={theme.textMuted}
-                  value={userOtp}
-                  onChangeText={setUserOtp}
-                  keyboardType="number-pad"
-                  maxLength={6}
-                />
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Numéro de téléphone</Text>
+            <View style={styles.inputWithIcon}>
+              <View style={styles.dialCode}>
+                <Text style={styles.dialCodeText}>+223</Text>
               </View>
+              <TextInput
+                style={styles.inputFlex}
+                placeholder="70 00 00 00"
+                placeholderTextColor={theme.textMuted}
+                value={phone}
+                onChangeText={(t) => setPhone(sanitizePhoneDigits(t).slice(0, 8))}
+                keyboardType="number-pad"
+                maxLength={8}
+              />
+            </View>
+            {phone.length > 0 && !phoneOk && (
+              <Text style={styles.hint}>Le numéro doit contenir exactement 8 chiffres.</Text>
+            )}
+          </View>
 
-              <TouchableOpacity
-                style={[styles.ctaBtn, userOtp.length < 6 && styles.ctaBtnDisabled]}
-                onPress={handleVerifyOtp}
-                disabled={userOtp.length < 6 || loading}
-              >
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Valider et s'inscrire</Text>}
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowOtpInput(false)}>
-                <Text style={styles.cancelText}>Annuler</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Mot de passe</Text>
+            <View style={styles.inputWithIcon}>
+              <Ionicons name="lock-closed-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
+              <TextInput
+                style={styles.inputFlex}
+                placeholder="6 caractères minimum"
+                placeholderTextColor={theme.textMuted}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={theme.textMuted} />
               </TouchableOpacity>
             </View>
-          ) : (
-            <>
-              {/* Auth Method Selector */}
-              <View style={styles.methodSelector}>
-                <TouchableOpacity 
-                  style={[styles.methodBtn, authMethod === 'phone' && styles.methodBtnActive]} 
-                  onPress={() => { setAuthMethod('phone'); setIdentifier(''); }}
-                >
-                  <Ionicons name="call" size={16} color={authMethod === 'phone' ? theme.primary : theme.textMuted} />
-                  <Text style={[styles.methodText, authMethod === 'phone' && styles.methodTextActive]}>Téléphone</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.methodBtn, authMethod === 'email' && styles.methodBtnActive]} 
-                  onPress={() => { setAuthMethod('email'); setIdentifier(''); }}
-                >
-                  <Ionicons name="mail" size={16} color={authMethod === 'email' ? theme.primary : theme.textMuted} />
-                  <Text style={[styles.methodText, authMethod === 'email' && styles.methodTextActive]}>Email</Text>
-                </TouchableOpacity>
-              </View>
+          </View>
 
-              {mode === 'register' && (
-                <View style={styles.row}>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.label}>Prénom</Text>
-                    <TextInput style={styles.input} placeholder="Amadou" placeholderTextColor={theme.textMuted} value={prenom} onChangeText={setPrenom} autoCapitalize="words" />
-                  </View>
-                  <View style={styles.rowSpacer} />
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.label}>Nom</Text>
-                    <TextInput style={styles.input} placeholder="Coulibaly" placeholderTextColor={theme.textMuted} value={nom} onChangeText={setNom} autoCapitalize="words" />
-                  </View>
-                </View>
-              )}
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>{authMethod === 'phone' ? 'Numéro de téléphone' : 'Adresse Email'}</Text>
-                <View style={styles.inputWithIcon}>
-                  <Ionicons name={authMethod === 'phone' ? "call-outline" : "mail-outline"} size={18} color={theme.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.inputFlex}
-                    placeholder={authMethod === 'phone' ? "Ex: 70 00 00 00" : "exemple@gmail.com"}
-                    placeholderTextColor={theme.textMuted}
-                    value={identifier}
-                    onChangeText={setIdentifier}
-                    keyboardType={authMethod === 'phone' ? "phone-pad" : "email-address"}
-                    autoCapitalize="none"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Mot de passe</Text>
-                <View style={styles.inputWithIcon}>
-                  <Ionicons name="lock-closed-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.inputFlex}
-                    placeholder="6 caractères minimum"
-                    placeholderTextColor={theme.textMuted}
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPassword}
-                    autoCapitalize="none"
-                  />
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
-                    <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={theme.textMuted} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <TouchableOpacity style={[styles.ctaBtn, !canSubmit && styles.ctaBtnDisabled]} onPress={handleSubmit} disabled={!canSubmit || loading} activeOpacity={0.85}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>{mode === 'login' ? 'Se connecter' : 'Créer mon compte'}</Text>}
-              </TouchableOpacity>
-            </>
+          {mode === 'login' && (
+            <TouchableOpacity
+              style={styles.forgotBtn}
+              onPress={() => navigation.navigate('ForgotPassword', { phone })}
+            >
+              <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
+            </TouchableOpacity>
           )}
+
+          <TouchableOpacity style={[styles.ctaBtn, !canSubmit && styles.ctaBtnDisabled]} onPress={handleSubmit} disabled={!canSubmit || loading} activeOpacity={0.85}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>{mode === 'login' ? 'Se connecter' : 'Créer mon compte'}</Text>}
+          </TouchableOpacity>
 
           <View style={styles.footerLinks}>
             <TouchableOpacity onPress={() => navigation.navigate('Legal', { type: 'cgu' })}>
@@ -330,11 +246,6 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   toggleBtnActive: { backgroundColor: theme.surface, ...SHADOWS.sm },
   toggleText: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textMuted },
   toggleTextActive: { color: theme.primary },
-  methodSelector: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.xs },
-  methodBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: RADIUS.md, borderWidth: 1, borderColor: theme.borderLight, backgroundColor: theme.surface },
-  methodBtnActive: { borderColor: theme.primary, backgroundColor: theme.surface },
-  methodText: { fontSize: FONTS.sm, fontWeight: FONTS.medium, color: theme.textMuted },
-  methodTextActive: { color: theme.primary },
   row: { flexDirection: 'row' },
   rowSpacer: { width: SPACING.md },
   inputGroup: { gap: 6 },
@@ -342,39 +253,31 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   input: { backgroundColor: theme.surfaceMuted, borderRadius: RADIUS.md, paddingHorizontal: SPACING.lg, paddingVertical: 13, fontSize: FONTS.md, color: theme.textPrimary, borderWidth: 1, borderColor: theme.borderLight },
   inputWithIcon: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surfaceMuted, borderRadius: RADIUS.md, borderWidth: 1, borderColor: theme.borderLight, paddingHorizontal: SPACING.lg },
   inputIcon: { marginRight: SPACING.sm },
+  dialCode: { paddingRight: SPACING.sm, marginRight: SPACING.sm, borderRightWidth: 1, borderRightColor: theme.borderLight, paddingVertical: 13 },
+  dialCodeText: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: theme.textSecondary },
   inputFlex: { flex: 1, paddingVertical: 13, fontSize: FONTS.md, color: theme.textPrimary },
   eyeBtn: { padding: 4 },
+  hint: { fontSize: FONTS.xs, color: COLORS.error },
+  forgotBtn: { alignSelf: 'flex-end', marginTop: -SPACING.sm },
+  forgotText: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.primary },
   ctaBtn: { height: 54, backgroundColor: theme.primary, borderRadius: RADIUS.lg, justifyContent: 'center', alignItems: 'center', marginTop: SPACING.sm, ...SHADOWS.colored },
   ctaBtnDisabled: { backgroundColor: theme.textMuted, shadowOpacity: 0, elevation: 0 },
   ctaText: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
-  footerLinks: { 
-    flexDirection: 'row', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
+  footerLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginTop: SPACING.md,
     flexWrap: 'wrap',
     paddingHorizontal: SPACING.lg,
   },
-  footerLink: { 
-    color: theme.primary, 
-    fontSize: FONTS.xs, 
-    fontWeight: FONTS.semibold 
-  },
-  footerDot: { 
-    color: theme.textMuted, 
-    marginHorizontal: 4,
-    fontSize: FONTS.xs,
-  },
-  footerCopyright: { 
-    fontSize: 10, 
-    color: theme.textMuted, 
-    textAlign: 'center', 
+  footerLink: { color: theme.primary, fontSize: FONTS.xs, fontWeight: FONTS.semibold },
+  footerDot: { color: theme.textMuted, marginHorizontal: 4, fontSize: FONTS.xs },
+  footerCopyright: {
+    fontSize: 10,
+    color: theme.textMuted,
+    textAlign: 'center',
     marginTop: SPACING.sm,
     marginBottom: SPACING.md,
   },
-  otpContainer: { gap: SPACING.lg, paddingVertical: SPACING.md },
-  otpTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.textPrimary, textAlign: 'center' },
-  otpSubtitle: { fontSize: FONTS.sm, color: theme.textSecondary, textAlign: 'center', paddingHorizontal: SPACING.md },
-  cancelBtn: { alignItems: 'center', padding: SPACING.sm },
-  cancelText: { color: theme.textMuted, fontSize: FONTS.sm, fontWeight: FONTS.medium },
 });

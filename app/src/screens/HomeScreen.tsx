@@ -22,6 +22,7 @@ import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useFavoris, toggleFavori } from '../hooks/useFavoris';
+import { useNotificationsList } from '../hooks/useNotifications';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - SPACING.lg * 2 - SPACING.md) / 2;
@@ -70,6 +71,7 @@ export default function HomeScreen({ navigation }: Props) {
   const { location } = useLocation();
   const { session } = useAuth();
   const { favorisIds, refetch: refetchFavoris } = useFavoris(session?.user?.id);
+  const { unreadCount: unreadNotificationsCount } = useNotificationsList(session?.user?.id);
 
   const handleToggleFavori = async (annonceId: string) => {
     if (!session) { navigation.navigate('Login'); return; }
@@ -176,9 +178,25 @@ export default function HomeScreen({ navigation }: Props) {
       {/* Hero Section */}
       <View style={styles.heroSection}>
         <View style={styles.heroContent}>
-          <View style={styles.heroLogoRow}>
-            <Image source={require('../../assets/icon.png')} style={styles.heroLogo} />
-            <Text style={styles.heroTitle}>Flash Market</Text>
+          <View style={[styles.heroLogoRow, { justifyContent: 'space-between', width: '100%' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm }}>
+              <Image source={require('../../assets/icon.png')} style={styles.heroLogo} />
+              <Text style={styles.heroTitle}>Flash Market</Text>
+            </View>
+            {session && (
+              <TouchableOpacity
+                style={styles.notificationBellBtn}
+                onPress={() => navigation.navigate('Notifications')}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="notifications-outline" size={20} color={theme.textPrimary} />
+                {unreadNotificationsCount > 0 && (
+                  <View style={[styles.notificationBadge, { backgroundColor: theme.primary }]}>
+                    <Text style={styles.notificationBadgeText}>{unreadNotificationsCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
           <Text style={styles.heroSubtitle}>Trouvez ce qu'il vous faut, près de chez vous</Text>
         </View>
@@ -300,6 +318,33 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm,
     marginBottom: SPACING.xs,
+  },
+  notificationBellBtn: {
+    position: 'relative',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.surfaceMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.borderLight,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -1,
+    right: -1,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 8,
+    fontWeight: 'bold',
   },
   heroLogo: {
     width: 36,

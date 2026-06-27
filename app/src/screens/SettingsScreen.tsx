@@ -23,6 +23,7 @@ export default function SettingsScreen({ navigation }: Props) {
       items: [
         { icon: 'list', label: 'Mes annonces', screen: 'MesAnnonces', private: true },
         { icon: 'heart', label: 'Mes favoris', screen: 'Favoris', private: true },
+        { icon: 'mail', label: 'E-mail de secours', screen: 'EmailRecovery', private: true },
       ],
     },
     {

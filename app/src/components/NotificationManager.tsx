@@ -12,7 +12,7 @@ export default function NotificationManager() {
       const data = response.notification.request.content.data;
       
       if (data?.conversationId && navigationRef.isReady()) {
-        navigationRef.navigate('Messages', {
+        (navigationRef as any).navigate('Messages', {
           screen: 'ChatConversation',
           params: { 
             conversationId: data.conversationId,
