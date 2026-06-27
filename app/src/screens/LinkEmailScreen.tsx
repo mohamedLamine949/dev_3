@@ -62,7 +62,7 @@ export default function LinkEmailScreen({ navigation }: any) {
 
   // Étape 2 : vérifier le code -> l'e-mail devient l'identité de récupération
   const handleVerifyCode = async () => {
-    if (code.length !== 6) return;
+    if (code.length < 6) return;
 
     setLoading(true);
     try {
@@ -195,17 +195,17 @@ export default function LinkEmailScreen({ navigation }: any) {
                     placeholder="123456"
                     placeholderTextColor={theme.textMuted}
                     value={code}
-                    onChangeText={(t) => setCode(t.replace(/[^0-9]/g, '').slice(0, 6))}
+                    onChangeText={(t) => setCode(t.replace(/[^0-9]/g, '').slice(0, 10))}
                     keyboardType="number-pad"
-                    maxLength={6}
+                    maxLength={10}
                   />
                 </View>
               </View>
 
               <TouchableOpacity
-                style={[styles.ctaBtn, { backgroundColor: theme.primary }, code.length !== 6 && styles.ctaBtnDisabled]}
+                style={[styles.ctaBtn, { backgroundColor: theme.primary }, code.length < 6 && styles.ctaBtnDisabled]}
                 onPress={handleVerifyCode}
-                disabled={code.length !== 6 || loading}
+                disabled={code.length < 6 || loading}
                 activeOpacity={0.85}
               >
                 {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Confirmer</Text>}

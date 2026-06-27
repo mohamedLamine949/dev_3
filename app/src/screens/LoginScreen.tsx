@@ -313,7 +313,7 @@ export default function LoginScreen({ navigation }: Props) {
   }
 
   async function handleVerifyForgotPassword() {
-    if (forgotCode.length !== 6 || forgotNewPassword.length < 6) return;
+    if (forgotCode.length < 6 || forgotNewPassword.length < 6) return;
 
     setForgotPasswordLoading(true);
     try {
@@ -424,9 +424,9 @@ export default function LoginScreen({ navigation }: Props) {
                         placeholder="123456"
                         placeholderTextColor={theme.textMuted}
                         value={forgotCode}
-                        onChangeText={(t) => setForgotCode(t.replace(/[^0-9]/g, '').slice(0, 6))}
+                        onChangeText={(t) => setForgotCode(t.replace(/[^0-9]/g, '').slice(0, 10))}
                         keyboardType="number-pad"
-                        maxLength={6}
+                        maxLength={10}
                       />
                     </View>
                   </View>
@@ -451,9 +451,9 @@ export default function LoginScreen({ navigation }: Props) {
                   </View>
 
                   <TouchableOpacity
-                    style={[styles.ctaBtn, (forgotCode.length !== 6 || forgotNewPassword.length < 6) && styles.ctaBtnDisabled]}
+                    style={[styles.ctaBtn, (forgotCode.length < 6 || forgotNewPassword.length < 6) && styles.ctaBtnDisabled]}
                     onPress={handleVerifyForgotPassword}
-                    disabled={forgotCode.length !== 6 || forgotNewPassword.length < 6 || forgotPasswordLoading}
+                    disabled={forgotCode.length < 6 || forgotNewPassword.length < 6 || forgotPasswordLoading}
                   >
                     {forgotPasswordLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Réinitialiser le mot de passe</Text>}
                   </TouchableOpacity>
