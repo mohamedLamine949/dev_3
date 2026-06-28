@@ -7,7 +7,6 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import * as Notifications from 'expo-notifications';
 
 interface Props {
   navigation: any;
@@ -52,37 +51,6 @@ export default function SettingsScreen({ navigation }: Props) {
     } else {
       navigation.navigate('Placeholder', { title: item.label });
     }
-  };
-
-  const handleTestNotifications = async () => {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    
-    if (finalStatus !== 'granted') {
-      Alert.alert(
-        "Permission refusée",
-        "Vous devez autoriser les notifications dans les réglages de votre appareil pour tester cette fonctionnalité."
-      );
-      return;
-    }
-
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "Test de notification 🔔",
-        body: "Ceci est un test local. Cliquez pour simuler l'ouverture d'un message.",
-        data: { conversationId: 'test-id', titreAnnonce: 'Annonce Test' },
-      },
-      trigger: { seconds: 3 } as any,
-    });
-    
-    Alert.alert(
-      "Test lancé", 
-      "La notification arrivera dans 3 secondes.\n\nCONSEIL : Verrouillez votre téléphone ou quittez l'application pour la voir apparaître comme une vraie notification."
-    );
   };
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
@@ -138,20 +106,6 @@ export default function SettingsScreen({ navigation }: Props) {
             </View>
           </View>
         ))}
-
-        {/* Tester les notifications */}
-        <TouchableOpacity
-          style={styles.notificationTestBtn}
-          onPress={handleTestNotifications}
-        >
-          <View style={styles.menuItemLeft}>
-            <View style={styles.menuIconBox}>
-              <Ionicons name="notifications-outline" size={17} color={theme.primary} />
-            </View>
-            <Text style={styles.menuItemLabel}>Tester les notifications</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
-        </TouchableOpacity>
 
         {/* Bouton de Déconnexion / Connexion */}
         <TouchableOpacity
@@ -290,17 +244,6 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     height: 20,
     borderRadius: 10,
     backgroundColor: '#fff',
-  },
-  notificationTestBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    backgroundColor: theme.surface,
-    borderRadius: RADIUS.xl,
-    marginBottom: SPACING.lg,
-    ...SHADOWS.sm,
   },
   logoutBtn: {
     flexDirection: 'row',
