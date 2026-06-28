@@ -15,7 +15,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.chapchap.flashmarket"
+      "bundleIdentifier": "com.chapchap.flashmarket",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,14 +27,28 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.chapchap.flashmarket"
+      "package": "com.chapchap.flashmarket",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-web-browser",
-      "expo-secure-store"
-    ]
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#16a34a",
+          "defaultChannel": "default"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "388e45d1-3af0-4012-b1c8-68ecd8748b7a"
+      }
+    },
+    "owner": "mohamedlamine_404"
   }
 }

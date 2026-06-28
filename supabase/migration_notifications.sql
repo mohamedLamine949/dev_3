@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   titre TEXT NOT NULL,
   contenu TEXT NOT NULL,
-  type TEXT NOT NULL, -- 'chat', 'annonce_validee', 'paiement_requis', 'annonce_vendue', 'favori', 'compte_pro_active'
+  type TEXT NOT NULL, -- 'chat', 'annonce_validee', 'paiement_requis', 'annonce_vendue', 'favori', 'compte_pro_active', 'bienvenue'
   donnees JSONB DEFAULT '{}'::jsonb,
   lu BOOLEAN DEFAULT FALSE,
   date_creation TIMESTAMPTZ DEFAULT NOW()

@@ -119,6 +119,12 @@ export default function NotificationsScreen({ navigation }: any) {
           color: '#7c3aed',
           bg: isDark ? 'rgba(124, 58, 237, 0.15)' : 'rgba(124, 58, 237, 0.08)'
         };
+      case 'bienvenue':
+        return {
+          name: 'hand-left',
+          color: theme.primary,
+          bg: isDark ? 'rgba(22, 163, 74, 0.15)' : 'rgba(22, 163, 74, 0.08)'
+        };
       default:
         return {
           name: 'notifications',

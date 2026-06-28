@@ -68,10 +68,13 @@ export default function LinkEmailScreen({ navigation }: any) {
     try {
       const { error: verifyError } = await supabase.auth.verifyOtp({
         email: pendingEmail,
-        token: code,
+        token: code.trim(),
         type: 'email_change',
       });
-      if (verifyError) throw new Error('Code incorrect ou expiré. Veuillez réessayer.');
+      if (verifyError) {
+        console.error('[LinkEmail] verifyOtp error:', verifyError);
+        throw new Error(`Code refusé : ${verifyError.message}`);
+      }
 
       // Synchroniser l'e-mail confirmé dans le profil public
       await supabase.rpc('set_recovery_email', { p_email: pendingEmail });

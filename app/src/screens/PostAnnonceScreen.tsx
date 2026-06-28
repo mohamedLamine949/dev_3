@@ -174,6 +174,9 @@ export default function PostAnnonceScreen({ navigation }: any) {
           customerFirstName: user?.prenom || 'Client',
           customerLastname: user?.nom || 'Chap Chap',
           customerPhoneNumber: paymentPhone,
+          // Force directement Orange Money Mali (code provider PaiementPro = OMML),
+          // au lieu d'afficher la page de sélection des opérateurs.
+          channel: 'OMML',
           notificationURL: 'https://chapchap.ml/payment/notify',
           returnURL: 'https://chapchap.ml/payment/success',
         }),
