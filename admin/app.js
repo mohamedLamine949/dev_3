@@ -3,14 +3,6 @@ const supabaseUrl = 'https://kmydbkaytrxtcequngnn.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtteWRia2F5dHJ4dGNlcXVuZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTg3MzAsImV4cCI6MjA5MjI5NDczMH0.r2-XqflO75NbxVvqMfU7c-A367R9oKZ841To4uznhOA';
 const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-// Liste des adresses e-mail d'administrateurs autorisées
-const ADMIN_EMAILS = [
-  'admin@flashmarket.ml',
-  'sidig@dev.com',
-  'admin@gmail.com',
-  'admin@phone.market'
-];
-
 // Variables pour stocker les graphiques Chart.js
 let categoryChartInstance = null;
 let userRatioChartInstance = null;
@@ -45,11 +37,18 @@ _supabase.auth.onAuthStateChange((_event, session) => {
 async function handleAuthStateChange(session) {
   if (session && session.user) {
     const user = session.user;
-    
-    // Vérifier si l'adresse email est autorisée en tant qu'administrateur
-    const email = user.email ? user.email.toLowerCase().trim() : '';
-    const isAuthorized = ADMIN_EMAILS.includes(email) || email.startsWith('admin') || email.includes('admin');
-    
+
+    // Vérifier le statut admin EN BASE (RLS + fonction is_admin), pas via l'e-mail.
+    let isAuthorized = false;
+    try {
+      const { data, error } = await _supabase.rpc('is_admin');
+      if (error) throw error;
+      isAuthorized = data === true;
+    } catch (err) {
+      console.error('Vérification admin échouée:', err);
+      isAuthorized = false;
+    }
+
     if (isAuthorized) {
       adminEmailDisplay.textContent = user.email;
       authContainer.classList.add('opacity-0');
