@@ -469,7 +469,10 @@ export default function LoginScreen({ navigation }: Props) {
                         onChangeText={setForgotNewPassword}
                         secureTextEntry={!showPassword}
                         autoCapitalize="none"
-                        autoFocus
+                        autoComplete="off"
+                        autoCorrect={false}
+                        importantForAutofill="no"
+                        textContentType="none"
                       />
                       <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
                         <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={theme.textMuted} />
