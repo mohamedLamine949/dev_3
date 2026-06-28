@@ -1,6 +1,6 @@
 // Configuration Supabase
-const supabaseUrl = 'https://jmoudxygkbmxnsquevps.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imptb3VkeHlna2JteG5zcXVldnBzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NzE4NjUsImV4cCI6MjA5MjM0Nzg2NX0.5FzzePiknM9GGH6KxtcCUHM1kD99FNcKM0BcD7NL5N4';
+const supabaseUrl = 'https://kmydbkaytrxtcequngnn.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtteWRia2F5dHJ4dGNlcXVuZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTg3MzAsImV4cCI6MjA5MjI5NDczMH0.r2-XqflO75NbxVvqMfU7c-A367R9oKZ841To4uznhOA';
 const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
 // Liste des adresses e-mail d'administrateurs autorisées
