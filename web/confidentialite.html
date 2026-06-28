@@ -5,97 +5,176 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Politique de confidentialité — Flash Market</title>
   <meta name="description" content="Politique de confidentialité et protection des données de Flash Market.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <nav class="nav">
+  <!-- ===== NAVIGATION ===== -->
+  <nav class="nav" id="nav">
     <div class="container">
       <a href="index.html" class="brand">
-        <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M13 2 4.5 13.5H11l-1 8.5L20 10.5h-6.6L13 2Z"/></svg></span>
+        <span class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M13 2 4.5 13.5H11l-1 8.5L20 10.5h-6.6L13 2Z"/></svg>
+        </span>
         Flash Market
       </a>
-      <div class="nav-links">
-        <a href="cgu.html">CGU</a>
-        <a href="cgv.html">CGV</a>
+      <div class="nav-links" id="navLinks">
+        <a href="index.html#features">Fonctionnalités</a>
+        <a href="index.html#how">Comment ça marche</a>
+        <a href="index.html#categories">Catégories</a>
         <a href="support.html">Support</a>
+        <a href="index.html#cta" class="nav-cta">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Télécharger
+        </a>
       </div>
+      <button class="nav-toggle" id="navToggle" aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
     </div>
   </nav>
 
-  <main class="container legal">
-    <a href="index.html" class="back">← Retour à l'accueil</a>
-    <h1>Politique de confidentialité</h1>
-    <p class="updated">Dernière mise à jour : 28 juin 2026</p>
+  <main style="padding-top: 100px;">
+    <div class="container legal">
+      <a href="index.html" class="back">← Retour à l'accueil</a>
+      <h1>Politique de confidentialité</h1>
+      <p class="updated">Dernière mise à jour : 28 juin 2026</p>
 
-    <p>La présente politique décrit comment Flash Market (« nous ») collecte, utilise et protège vos données personnelles lorsque vous utilisez notre application mobile et nos services.</p>
+      <p>La présente politique décrit comment Flash Market (« nous ») collecte, utilise et protège vos données personnelles lorsque vous utilisez notre application mobile et nos services.</p>
 
-    <h2>1. Responsable du traitement</h2>
-    <p>Flash Market est responsable du traitement des données collectées via l'application. Pour toute question relative à vos données, contactez-nous à <a href="mailto:contact@app-flashmarket.com">contact@app-flashmarket.com</a>.</p>
+      <h2>1. Responsable du traitement</h2>
+      <p>Flash Market est responsable du traitement des données collectées via l'application. Pour toute question relative à vos données, contactez-nous à <a href="mailto:contact@app-flashmarket.com">contact@app-flashmarket.com</a>.</p>
 
-    <h2>2. Données que nous collectons</h2>
-    <ul>
-      <li><strong>Données de compte :</strong> prénom, nom et numéro de téléphone, fournis lors de la création de votre compte.</li>
-      <li><strong>Adresse e-mail (facultative) :</strong> uniquement si vous l'ajoutez pour la récupération de votre mot de passe.</li>
-      <li><strong>Contenu que vous publiez :</strong> annonces, photos, descriptions, prix et messages échangés.</li>
-      <li><strong>Localisation :</strong> ville et position approximative de vos annonces, lorsque vous l'autorisez.</li>
-      <li><strong>Données techniques :</strong> jeton de notification push et informations d'appareil nécessaires à l'envoi des notifications.</li>
-    </ul>
+      <h2>2. Données que nous collectons</h2>
+      <ul>
+        <li><strong>Données de compte :</strong> prénom, nom et numéro de téléphone, fournis lors de la création de votre compte.</li>
+        <li><strong>Adresse e-mail (facultative) :</strong> uniquement si vous l'ajoutez pour la récupération de votre mot de passe.</li>
+        <li><strong>Contenu que vous publiez :</strong> annonces, photos, descriptions, prix et messages échangés.</li>
+        <li><strong>Localisation :</strong> ville et position approximative de vos annonces, lorsque vous l'autorisez.</li>
+        <li><strong>Données techniques :</strong> jeton de notification push et informations d'appareil nécessaires à l'envoi des notifications.</li>
+      </ul>
 
-    <h2>3. Comment nous utilisons vos données</h2>
-    <ul>
-      <li>Assurer le fonctionnement de la plateforme (publication d'annonces, messagerie, favoris).</li>
-      <li>Mettre en relation acheteurs et vendeurs.</li>
-      <li>Vous envoyer des notifications pertinentes (messages, statut de vos annonces).</li>
-      <li>Traiter les paiements des frais de publication.</li>
-      <li>Assurer la sécurité des utilisateurs et prévenir les abus.</li>
-    </ul>
+      <h2>3. Comment nous utilisons vos données</h2>
+      <ul>
+        <li>Assurer le fonctionnement de la plateforme (publication d'annonces, messagerie, favoris).</li>
+        <li>Mettre en relation acheteurs et vendeurs.</li>
+        <li>Vous envoyer des notifications pertinentes (messages, statut de vos annonces).</li>
+        <li>Traiter les paiements des frais de publication.</li>
+        <li>Assurer la sécurité des utilisateurs et prévenir les abus.</li>
+      </ul>
 
-    <h2>4. Partage des données</h2>
-    <p>Nous ne vendons pas vos données personnelles. Vos coordonnées ne sont partagées avec d'autres utilisateurs que dans le cadre des transactions que vous initiez. Nous faisons appel à des prestataires techniques qui traitent certaines données pour notre compte :</p>
-    <ul>
-      <li><strong>Supabase</strong> — hébergement de la base de données et authentification.</li>
-      <li><strong>PaiementPro / Orange Money Mali</strong> — traitement des paiements.</li>
-      <li><strong>Expo & Google Firebase Cloud Messaging (FCM) / Apple Push Notification service (APNs)</strong> — acheminement des notifications push.</li>
-    </ul>
+      <h2>4. Partage des données</h2>
+      <p>Nous ne vendons pas vos données personnelles. Vos coordonnées ne sont partagées avec d'autres utilisateurs que dans le cadre des transactions que vous initiez. Nous faisons appel à des prestataires techniques qui traitent certaines données pour notre compte :</p>
+      <ul>
+        <li><strong>Supabase</strong> — hébergement de la base de données et authentification.</li>
+        <li><strong>PaiementPro / Orange Money Mali</strong> — traitement des paiements.</li>
+        <li><strong>Expo & Google Firebase Cloud Messaging (FCM) / Apple Push Notification service (APNs)</strong> — acheminement des notifications push.</li>
+      </ul>
 
-    <h2>5. Conservation des données</h2>
-    <p>Vos données sont conservées tant que votre compte est actif. Lorsque vous supprimez votre compte, vos données personnelles et vos annonces sont supprimées, sous réserve des obligations légales de conservation éventuelles.</p>
+      <h2>5. Conservation des données</h2>
+      <p>Vos données sont conservées tant que votre compte est actif. Lorsque vous supprimez votre compte, vos données personnelles et vos annonces sont supprimées, sous réserve des obligations légales de conservation éventuelles.</p>
 
-    <h2>6. Vos droits</h2>
-    <p>Vous disposez d'un droit d'accès, de rectification et de suppression de vos données. Vous pouvez modifier vos informations directement depuis les paramètres de votre compte, ou nous écrire à <a href="mailto:contact@app-flashmarket.com">contact@app-flashmarket.com</a>.</p>
+      <h2>6. Vos droits</h2>
+      <p>Vous disposez d'un droit d'accès, de rectification et de suppression de vos données. Vous pouvez modifier vos informations directement depuis les paramètres de votre compte, ou nous écrire à <a href="mailto:contact@app-flashmarket.com">contact@app-flashmarket.com</a>.</p>
 
-    <h2>7. Suppression de votre compte</h2>
-    <p>Vous pouvez demander la suppression de votre compte et de toutes les données associées à tout moment, depuis les paramètres de l'application ou en envoyant une demande à <a href="mailto:contact@app-flashmarket.com">contact@app-flashmarket.com</a>. La demande est traitée dans un délai raisonnable.</p>
+      <h2>7. Suppression de votre compte</h2>
+      <p>Vous pouvez demander la suppression de votre compte et de toutes les données associées à tout moment, depuis les paramètres de l'application ou en envoyant une demande à <a href="mailto:contact@app-flashmarket.com">contact@app-flashmarket.com</a>. La demande est traitée dans un délai raisonnable.</p>
 
-    <h2>8. Cookies (site web)</h2>
-    <p>Le présent site peut utiliser des cookies ou technologies similaires à des fins de mesure d'audience et d'amélioration de l'expérience. L'application mobile n'utilise pas de cookies publicitaires.</p>
+      <h2>8. Cookies (site web)</h2>
+      <p>Le présent site peut utiliser des cookies ou technologies similaires à des fins de mesure d'audience et d'amélioration de l'expérience. L'application mobile n'utilise pas de cookies publicitaires.</p>
 
-    <h2>9. Sécurité</h2>
-    <p>Nous mettons en œuvre des mesures techniques et organisationnelles raisonnables pour protéger vos données contre tout accès, modification ou divulgation non autorisés.</p>
+      <h2>9. Sécurité</h2>
+      <p>Nous mettons en œuvre des mesures techniques et organisationnelles raisonnables pour protéger vos données contre tout accès, modification ou divulgation non autorisés.</p>
 
-    <h2>10. Mineurs</h2>
-    <p>L'application n'est pas destinée aux personnes de moins de 18 ans. Nous ne collectons pas sciemment de données concernant des mineurs.</p>
+      <h2>10. Mineurs</h2>
+      <p>L'application n'est pas destinée aux personnes de moins de 18 ans. Nous ne collectons pas sciemment de données concernant des mineurs.</p>
 
-    <h2>11. Modifications</h2>
-    <p>Nous pouvons mettre à jour cette politique. Toute modification sera publiée sur cette page avec une date de mise à jour actualisée.</p>
+      <h2>11. Modifications</h2>
+      <p>Nous pouvons mettre à jour cette politique. Toute modification sera publiée sur cette page avec une date de mise à jour actualisée.</p>
 
-    <h2>12. Contact</h2>
-    <p>Pour toute question : <a href="mailto:contact@app-flashmarket.com">contact@app-flashmarket.com</a>.</p>
+      <h2>12. Contact</h2>
+      <p>Pour toute question : <a href="mailto:contact@app-flashmarket.com">contact@app-flashmarket.com</a>.</p>
+    </div>
   </main>
 
+  <!-- ===== FOOTER ===== -->
   <footer class="footer">
     <div class="container">
-      <div class="copy">© 2026 Flash Market — Marketplace malienne.</div>
-      <div class="f-links">
-        <a href="cgu.html">CGU</a>
-        <a href="cgv.html">CGV</a>
-        <a href="confidentialite.html">Confidentialité</a>
-        <a href="support.html">Support</a>
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="index.html" class="brand">
+            <span class="logo" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M13 2 4.5 13.5H11l-1 8.5L20 10.5h-6.6L13 2Z"/></svg>
+            </span>
+            Flash Market
+          </a>
+          <p>La marketplace malienne pour acheter et vendre en toute confiance, partout au Mali.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Produit</h4>
+          <a href="index.html#features">Fonctionnalités</a>
+          <a href="index.html#how">Comment ça marche</a>
+          <a href="index.html#categories">Catégories</a>
+          <a href="support.html">Support</a>
+        </div>
+        <div class="footer-col">
+          <h4>Légal</h4>
+          <a href="cgu.html">Conditions d'utilisation</a>
+          <a href="cgv.html">Conditions de vente</a>
+          <a href="confidentialite.html">Politique de confidentialité</a>
+        </div>
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <a href="mailto:contact@app-flashmarket.com">contact@app-flashmarket.com</a>
+          <a href="support.html">Centre d'aide</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <div class="copy">© 2026 Flash Market — Marketplace malienne. Tous droits réservés.</div>
+        <div class="social-links">
+          <a href="#" class="social-link" aria-label="Facebook">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+          </a>
+          <a href="#" class="social-link" aria-label="Instagram">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+          </a>
+          <a href="#" class="social-link" aria-label="Twitter / X">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          </a>
+        </div>
       </div>
     </div>
   </footer>
+
+  <!-- ===== BACK TO TOP ===== -->
+  <button class="back-to-top" id="backToTop" aria-label="Retour en haut">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+  </button>
+
+  <script>
+    const nav = document.getElementById('nav');
+    const backToTop = document.getElementById('backToTop');
+    
+    window.addEventListener('scroll', () => {
+      const scrolled = window.scrollY > 40;
+      nav.classList.toggle('scrolled', scrolled);
+      backToTop.classList.toggle('show', window.scrollY > 400);
+    }, { passive: true });
+
+    backToTop.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    const navToggle = document.getElementById('navToggle');
+    const navLinks = document.getElementById('navLinks');
+    
+    navToggle.addEventListener('click', () => {
+      navLinks.classList.toggle('open');
+    });
+  </script>
 
 </body>
 </html>

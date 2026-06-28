@@ -42,12 +42,14 @@
   </script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <nav class="nav">
+  <!-- ===== NAVIGATION ===== -->
+  <nav class="nav" id="nav">
     <div class="container">
       <a href="index.html" class="brand">
         <span class="logo" aria-hidden="true">
@@ -55,21 +57,403 @@
         </span>
         Flash Market
       </a>
-      <div class="nav-links">
+      <div class="nav-links" id="navLinks">
         <a href="#features">Fonctionnalités</a>
         <a href="#how">Comment ça marche</a>
+        <a href="#categories">Catégories</a>
         <a href="support.html">Support</a>
+        <a href="#cta" class="nav-cta">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Télécharger
+        </a>
       </div>
+      <button class="nav-toggle" id="navToggle" aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
     </div>
   </nav>
 
-  <!-- ===== Hero ===== -->
+  <!-- ===== HERO ===== -->
   <header class="hero">
+    <!-- Animated background elements -->
+    <div class="hero-orb hero-orb-1"></div>
+    <div class="hero-orb hero-orb-2"></div>
+    <div class="hero-orb hero-orb-3"></div>
+    <div class="hero-grid"></div>
+
     <div class="container">
       <div class="hero-copy">
-        <span class="eyebrow"><span class="dot"></span> La marketplace malienne</span>
-        <h1>Achetez et vendez <span class="accent">près de chez vous</span></h1>
-        <p class="lead">Donnez une seconde vie à vos objets et trouvez de bonnes affaires partout au Mali. Publiez une annonce en deux minutes, discutez en direct, vendez en toute confiance.</p>
+        <span class="eyebrow">
+          <span class="dot"></span>
+          La marketplace #1 au Mali
+        </span>
+        <h1>Achetez et vendez <span class="accent">en toute confiance</span></h1>
+        <p class="lead">
+          Donnez une seconde vie à vos objets et trouvez de bonnes affaires partout au Mali. 
+          Publiez une annonce en deux minutes, discutez en direct et vendez près de chez vous.
+        </p>
+        <div class="hero-actions">
+          <div class="badges">
+            <a href="#" class="badge" aria-label="Bientôt sur Google Play">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.6 2.3 13 12 3.6 21.7c-.4-.2-.6-.6-.6-1.1V3.4c0-.5.2-.9.6-1.1Zm10.9 8.9 2.9 2.9-3.4 1.9-2.4-2.4 2.9-2.4Zm-2.9-.2L8.7 8.1l6.1-3.5 1.9 1.1-4.2 5.3Zm0 2.4 1.8 2.3-6.2 3.5-1.8-1 6.2-4.8Z"/></svg>
+              <span>Bientôt sur<small>GOOGLE PLAY</small></span>
+            </a>
+            <a href="#" class="badge" aria-label="Bientôt sur l'App Store">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 1.4c0 1.1-.5 2.3-1.2 3.1-.7.9-2 1.6-3 1.5-.1-1.1.5-2.3 1.2-3 .8-.9 2.1-1.6 3-1.6Zm4.5 15.7c-.5 1.2-1 1.9-1.7 2.9-1 1.4-2.4 3.2-4 3.2-1.5 0-1.9-.9-3.6-.9s-2.3.9-3.7.9c-1.6 0-2.8-1.6-3.8-3-2.1-3-3.4-7.5-1.4-10.6 1-1.5 2.7-2.5 4.3-2.5 1.5 0 2.5 1 3.6 1 1.1 0 1.9-1 3.7-1 1.4 0 2.9.8 3.9 2.1-3.4 1.9-2.9 6.8.7 7.9Z"/></svg>
+              <span>Bientôt sur<small>APP STORE</small></span>
+            </a>
+          </div>
+        </div>
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <div class="num" data-count="10000">10 000+</div>
+            <div class="label">Utilisateurs actifs</div>
+          </div>
+          <div class="hero-stat">
+            <div class="num">50 000+</div>
+            <div class="label">Annonces publiées</div>
+          </div>
+          <div class="hero-stat">
+            <div class="num">8</div>
+            <div class="label">Catégories</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-art" aria-hidden="true">
+        <div class="phone">
+          <div class="notch">
+            <div class="dynamic-island"></div>
+          </div>
+          <div class="screen">
+            <div class="topbar">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="margin-right:6px"><path d="M13 2 4.5 13.5H11l-1 8.5L20 10.5h-6.6L13 2Z"/></svg>
+              Flash Market
+            </div>
+            <div class="searchbar">
+              <div class="search-icon"></div>
+              <div class="search-text"></div>
+            </div>
+            <div class="cat-row">
+              <div class="cat-pill"><div class="cat-dot"></div></div>
+              <div class="cat-pill"><div class="cat-dot"></div></div>
+              <div class="cat-pill"><div class="cat-dot"></div></div>
+              <div class="cat-pill"><div class="cat-dot"></div></div>
+            </div>
+            <div class="cardrow">
+              <div class="tile"><div class="ph"></div><div class="tile-body"><div class="pl"></div><div class="pl short"></div><div class="pl price"></div></div></div>
+              <div class="tile"><div class="ph"></div><div class="tile-body"><div class="pl"></div><div class="pl short"></div><div class="pl price"></div></div></div>
+              <div class="tile"><div class="ph"></div><div class="tile-body"><div class="pl"></div><div class="pl short"></div><div class="pl price"></div></div></div>
+              <div class="tile"><div class="ph"></div><div class="tile-body"><div class="pl"></div><div class="pl short"></div><div class="pl price"></div></div></div>
+            </div>
+          </div>
+        </div>
+        <!-- Floating notification -->
+        <div class="phone-notif">
+          <div class="notif-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div class="notif-text">
+            <div class="notif-title">Article vendu ! 🎉</div>
+            <div class="notif-body">iPhone 13 — 180 000 FCFA</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== TRUST STRIP ===== -->
+  <section class="trust-strip">
+    <div class="trust-label">La confiance des Maliens, partout au pays</div>
+    <div class="marquee-track" aria-hidden="true">
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+        Bamako
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+        Sikasso
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+        Ségou
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+        Mopti
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+        Kayes
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+        Koutiala
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+        Gao
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+        Tombouctou
+      </div>
+      <!-- Duplicate for seamless loop -->
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+        Bamako
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+        Sikasso
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+        Ségou
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+        Mopti
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+        Kayes
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+        Koutiala
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+        Gao
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3" fill="white"/></svg>
+        Tombouctou
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FEATURES ===== -->
+  <section class="section" id="features">
+    <div class="container">
+      <div class="head reveal">
+        <div class="section-label">
+          <span class="label-line"></span>
+          Fonctionnalités
+          <span class="label-line"></span>
+        </div>
+        <h2>Tout ce qu'il faut pour vendre vite</h2>
+        <p>Une application pensée pour le quotidien des Maliens. Simple, rapide, et terriblement efficace.</p>
+      </div>
+      <div class="features-grid">
+        <!-- Card 1 -->
+        <div class="feature-card reveal reveal-delay-1">
+          <div class="ic ic-green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </div>
+          <h3>Publiez en 2 minutes</h3>
+          <p>Quelques photos, un prix, une description : votre annonce est en ligne et visible par tous les acheteurs.</p>
+        </div>
+        <!-- Card 2 -->
+        <div class="feature-card reveal reveal-delay-2">
+          <div class="ic ic-blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg>
+          </div>
+          <h3>Discutez en direct</h3>
+          <p>Échangez avec acheteurs et vendeurs via la messagerie intégrée, avec des notifications en temps réel.</p>
+        </div>
+        <!-- Card 3 -->
+        <div class="feature-card reveal reveal-delay-3">
+          <div class="ic ic-purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </div>
+          <h3>Près de chez vous</h3>
+          <p>Trouvez des annonces dans votre ville et organisez des remises en main propre en toute simplicité.</p>
+        </div>
+        <!-- Card 4 -->
+        <div class="feature-card reveal reveal-delay-1">
+          <div class="ic ic-yellow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <h3>Paiement sécurisé</h3>
+          <p>Réglez les frais de publication directement via Orange Money Mali, de façon simple et sécurisée.</p>
+        </div>
+        <!-- Card 5 -->
+        <div class="feature-card reveal reveal-delay-2">
+          <div class="ic ic-rose">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3 12 2"/></svg>
+          </div>
+          <h3>Vos favoris</h3>
+          <p>Gardez un œil sur les annonces qui vous intéressent et soyez notifié des nouveautés.</p>
+        </div>
+        <!-- Card 6 -->
+        <div class="feature-card reveal reveal-delay-3">
+          <div class="ic ic-emerald">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          </div>
+          <h3>Comptes professionnels</h3>
+          <p>Passez en compte Pro pour mettre en avant votre boutique et gagner la confiance des acheteurs.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== HOW IT WORKS ===== -->
+  <section class="section alt" id="how">
+    <div class="container">
+      <div class="head reveal">
+        <div class="section-label">
+          <span class="label-line"></span>
+          Comment ça marche
+          <span class="label-line"></span>
+        </div>
+        <h2>Vendez en 3 étapes simples</h2>
+        <p>Vendre n'a jamais été aussi simple. Trois étapes, c'est tout ce qu'il vous faut.</p>
+      </div>
+      <div class="steps-wrapper">
+        <div class="step-card reveal reveal-delay-1">
+          <div class="step-num">1</div>
+          <h3>Créez votre compte</h3>
+          <p>Inscrivez-vous en quelques secondes avec votre numéro de téléphone. C'est gratuit et instantané.</p>
+        </div>
+        <div class="step-card reveal reveal-delay-2">
+          <div class="step-num">2</div>
+          <h3>Publiez votre annonce</h3>
+          <p>Ajoutez vos photos, fixez votre prix, choisissez votre catégorie et mettez en ligne.</p>
+        </div>
+        <div class="step-card reveal reveal-delay-3">
+          <div class="step-num">3</div>
+          <h3>Vendez en confiance</h3>
+          <p>Discutez avec les acheteurs via le chat et concluez la vente près de chez vous.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CATEGORIES ===== -->
+  <section class="section" id="categories">
+    <div class="container">
+      <div class="head reveal">
+        <div class="section-label">
+          <span class="label-line"></span>
+          Catégories
+          <span class="label-line"></span>
+        </div>
+        <h2>Explorez toutes les catégories</h2>
+        <p>Des téléphones aux voitures, en passant par la mode et l'immobilier — trouvez tout ce dont vous avez besoin.</p>
+      </div>
+      <div class="categories-grid">
+        <div class="cat-card reveal reveal-delay-1">
+          <div class="cat-icon cat-bg-green">📱</div>
+          <div><div class="cat-name">Téléphonie & Électronique</div><div class="cat-count">Smartphones, tablettes, accessoires</div></div>
+        </div>
+        <div class="cat-card reveal reveal-delay-2">
+          <div class="cat-icon cat-bg-rose">👗</div>
+          <div><div class="cat-name">Mode & Beauté</div><div class="cat-count">Vêtements, chaussures, cosmétiques</div></div>
+        </div>
+        <div class="cat-card reveal reveal-delay-3">
+          <div class="cat-icon cat-bg-blue">🏠</div>
+          <div><div class="cat-name">Maison & Électroménager</div><div class="cat-count">Meubles, appareils, décoration</div></div>
+        </div>
+        <div class="cat-card reveal reveal-delay-4">
+          <div class="cat-icon cat-bg-purple">🚗</div>
+          <div><div class="cat-name">Voitures</div><div class="cat-count">Berlines, SUV, utilitaires</div></div>
+        </div>
+        <div class="cat-card reveal reveal-delay-1">
+          <div class="cat-icon cat-bg-orange">🏍️</div>
+          <div><div class="cat-name">Motos</div><div class="cat-count">Motos, scooters, pièces</div></div>
+        </div>
+        <div class="cat-card reveal reveal-delay-2">
+          <div class="cat-icon cat-bg-sky">🏢</div>
+          <div><div class="cat-name">Immobilier</div><div class="cat-count">Location, vente, terrains</div></div>
+        </div>
+        <div class="cat-card reveal reveal-delay-3">
+          <div class="cat-icon cat-bg-yellow">🍽️</div>
+          <div><div class="cat-name">Alimentation</div><div class="cat-count">Produits locaux, épicerie</div></div>
+        </div>
+        <div class="cat-card reveal reveal-delay-4">
+          <div class="cat-icon cat-bg-teal">🔧</div>
+          <div><div class="cat-name">Services</div><div class="cat-count">Réparation, artisanat, cours</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TESTIMONIALS ===== -->
+  <section class="section alt">
+    <div class="container">
+      <div class="head reveal">
+        <div class="section-label">
+          <span class="label-line"></span>
+          Témoignages
+          <span class="label-line"></span>
+        </div>
+        <h2>Ce que disent nos utilisateurs</h2>
+        <p>Des milliers de Maliens utilisent Flash Market au quotidien. Voici ce qu'ils en pensent.</p>
+      </div>
+      <div class="testimonials-grid">
+        <div class="testimonial-card reveal reveal-delay-1">
+          <div class="stars">
+            <svg class="star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>
+            <svg class="star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>
+            <svg class="star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>
+            <svg class="star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>
+            <svg class="star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>
+          </div>
+          <blockquote>« J'ai vendu mon iPhone en moins de 2 heures ! L'application est super simple et les acheteurs sont sérieux. Je recommande à 100%. »</blockquote>
+          <div class="author">
+            <div class="avatar" style="background: linear-gradient(135deg, #16a34a, #166534)">A</div>
+            <div class="author-info">
+              <div class="author-name">Aminata T.</div>
+              <div class="author-location">Bamako</div>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial-card reveal reveal-delay-2">
+          <div class="stars">
+            <svg class="star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>
+            <svg class="star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>
+            <svg class="star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>
+            <svg class="star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>
+            <svg class="star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>
+          </div>
+          <blockquote>« En tant que commerçant, Flash Market m'a permis de toucher des clients que je n'aurais jamais atteints. Mon chiffre d'affaires a doublé. »</blockquote>
+          <div class="author">
+            <div class="avatar" style="background: linear-gradient(135deg, #eab308, #ca8a04)">M</div>
+            <div class="author-info">
+              <div class="author-name">Moussa K.</div>
+              <div class="author-location">Sikasso</div>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial-card reveal reveal-delay-3">
+          <div class="stars">
+            <svg class="star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>
+            <svg class="star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>
+            <svg class="star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>
+            <svg class="star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>
+            <svg class="star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3"/></svg>
+          </div>
+          <blockquote>« Le paiement via Orange Money, c'est génial. Pas besoin de carte bancaire. Tout est fait pour nous les Maliens. Bravo ! »</blockquote>
+          <div class="author">
+            <div class="avatar" style="background: linear-gradient(135deg, #6d28d9, #4c1d95)">F</div>
+            <div class="author-info">
+              <div class="author-name">Fatoumata D.</div>
+              <div class="author-location">Ségou</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CTA ===== -->
+  <section class="cta-section" id="cta">
+    <div class="container">
+      <div class="cta-band reveal">
+        <h2>Prêt à faire de bonnes affaires ?</h2>
+        <p>Rejoignez la communauté Flash Market et commencez à acheter et vendre dès aujourd'hui.</p>
         <div class="badges">
           <a href="#" class="badge" aria-label="Bientôt sur Google Play">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.6 2.3 13 12 3.6 21.7c-.4-.2-.6-.6-.6-1.1V3.4c0-.5.2-.9.6-1.1Zm10.9 8.9 2.9 2.9-3.4 1.9-2.4-2.4 2.9-2.4Zm-2.9-.2L8.7 8.1l6.1-3.5 1.9 1.1-4.2 5.3Zm0 2.4 1.8 2.3-6.2 3.5-1.8-1 6.2-4.8Z"/></svg>
@@ -81,113 +465,125 @@
           </a>
         </div>
       </div>
-
-      <div class="hero-art" aria-hidden="true">
-        <div class="phone">
-          <div class="notch"></div>
-          <div class="screen">
-            <div class="topbar">Flash Market</div>
-            <div class="cardrow">
-              <div class="tile"><div class="ph"></div><div class="pl"></div><div class="pl short"></div></div>
-              <div class="tile"><div class="ph"></div><div class="pl"></div><div class="pl short"></div></div>
-              <div class="tile"><div class="ph"></div><div class="pl"></div><div class="pl short"></div></div>
-              <div class="tile"><div class="ph"></div><div class="pl"></div><div class="pl short"></div></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </header>
-
-  <!-- ===== Features ===== -->
-  <section class="section" id="features">
-    <div class="container">
-      <div class="head">
-        <h2>Tout ce qu'il faut pour vendre vite</h2>
-        <p>Une application pensée pour le quotidien des Maliens, simple et rapide.</p>
-      </div>
-      <div class="grid">
-        <div class="card">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
-          <h3>Publiez en 2 minutes</h3>
-          <p>Quelques photos, un prix, une description : votre annonce est en ligne et visible par tous les acheteurs.</p>
-        </div>
-        <div class="card">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg></div>
-          <h3>Discutez en direct</h3>
-          <p>Échangez avec acheteurs et vendeurs via la messagerie intégrée, avec des notifications en temps réel.</p>
-        </div>
-        <div class="card">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
-          <h3>Près de chez vous</h3>
-          <p>Trouvez des annonces dans votre ville et organisez des remises en main propre en toute simplicité.</p>
-        </div>
-        <div class="card">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-          <h3>Paiement sécurisé</h3>
-          <p>Réglez les frais de publication directement via Orange Money Mali, de façon simple et sécurisée.</p>
-        </div>
-        <div class="card">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3 12 2"/></svg></div>
-          <h3>Vos favoris</h3>
-          <p>Gardez un œil sur les annonces qui vous intéressent et soyez notifié des nouveautés.</p>
-        </div>
-        <div class="card">
-          <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
-          <h3>Comptes professionnels</h3>
-          <p>Passez en compte Pro pour mettre en avant votre boutique et gagner la confiance des acheteurs.</p>
-        </div>
-      </div>
     </div>
   </section>
 
-  <!-- ===== How it works ===== -->
-  <section class="section alt" id="how">
-    <div class="container">
-      <div class="head">
-        <h2>Comment ça marche</h2>
-        <p>Vendre n'a jamais été aussi simple. Trois étapes, c'est tout.</p>
-      </div>
-      <div class="steps">
-        <div class="step"><div class="n">1</div><h3>Créez votre compte</h3><p>Inscrivez-vous en quelques secondes avec votre numéro de téléphone.</p></div>
-        <div class="step"><div class="n">2</div><h3>Publiez votre annonce</h3><p>Ajoutez vos photos, fixez votre prix et mettez en ligne.</p></div>
-        <div class="step"><div class="n">3</div><h3>Vendez en confiance</h3><p>Discutez avec les acheteurs et concluez la vente près de chez vous.</p></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===== CTA ===== -->
-  <section class="section">
-    <div class="container">
-      <div class="cta-band">
-        <h2>Prêt à faire de bonnes affaires ?</h2>
-        <p>Rejoignez la communauté Flash Market et commencez à acheter et vendre dès aujourd'hui.</p>
-        <div class="badges" style="justify-content:center">
-          <a href="#" class="badge" aria-label="Bientôt sur Google Play">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.6 2.3 13 12 3.6 21.7c-.4-.2-.6-.6-.6-1.1V3.4c0-.5.2-.9.6-1.1Zm10.9 8.9 2.9 2.9-3.4 1.9-2.4-2.4 2.9-2.4Zm-2.9-.2L8.7 8.1l6.1-3.5 1.9 1.1-4.2 5.3Zm0 2.4 1.8 2.3-6.2 3.5-1.8-1 6.2-4.8Z"/></svg>
-            <span>Bientôt sur<small>GOOGLE PLAY</small></span>
-          </a>
-          <a href="#" class="badge" aria-label="Bientôt sur l'App Store">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 1.4c0 1.1-.5 2.3-1.2 3.1-.7.9-2 1.6-3 1.5-.1-1.1.5-2.3 1.2-3 .8-.9 2.1-1.6 3-1.6Zm4.5 15.7c-.5 1.2-1 1.9-1.7 2.9-1 1.4-2.4 3.2-4 3.2-1.5 0-1.9-.9-3.6-.9s-2.3.9-3.7.9c-1.6 0-2.8-1.6-3.8-3-2.1-3-3.4-7.5-1.4-10.6 1-1.5 2.7-2.5 4.3-2.5 1.5 0 2.5 1 3.6 1 1.1 0 1.9-1 3.7-1 1.4 0 2.9.8 3.9 2.1-3.4 1.9-2.9 6.8.7 7.9Z"/></svg>
-            <span>Bientôt sur<small>APP STORE</small></span>
-          </a>
-        </div>
-      </div>
-    </div>
-  </section>
-
+  <!-- ===== FOOTER ===== -->
   <footer class="footer">
     <div class="container">
-      <div class="copy">© 2026 Flash Market — Marketplace malienne. Tous droits réservés.</div>
-      <div class="f-links">
-        <a href="cgu.html">CGU</a>
-        <a href="cgv.html">CGV</a>
-        <a href="confidentialite.html">Confidentialité</a>
-        <a href="support.html">Support</a>
-        <a href="mailto:contact@app-flashmarket.com">contact@app-flashmarket.com</a>
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="index.html" class="brand">
+            <span class="logo" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M13 2 4.5 13.5H11l-1 8.5L20 10.5h-6.6L13 2Z"/></svg>
+            </span>
+            Flash Market
+          </a>
+          <p>La marketplace malienne pour acheter et vendre en toute confiance, partout au Mali.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Produit</h4>
+          <a href="#features">Fonctionnalités</a>
+          <a href="#how">Comment ça marche</a>
+          <a href="#categories">Catégories</a>
+          <a href="support.html">Support</a>
+        </div>
+        <div class="footer-col">
+          <h4>Légal</h4>
+          <a href="cgu.html">Conditions d'utilisation</a>
+          <a href="cgv.html">Conditions de vente</a>
+          <a href="confidentialite.html">Politique de confidentialité</a>
+        </div>
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <a href="mailto:contact@app-flashmarket.com">contact@app-flashmarket.com</a>
+          <a href="support.html">Centre d'aide</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <div class="copy">© 2026 Flash Market — Marketplace malienne. Tous droits réservés.</div>
+        <div class="social-links">
+          <a href="#" class="social-link" aria-label="Facebook">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+          </a>
+          <a href="#" class="social-link" aria-label="Instagram">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+          </a>
+          <a href="#" class="social-link" aria-label="Twitter / X">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          </a>
+        </div>
       </div>
     </div>
   </footer>
+
+  <!-- ===== BACK TO TOP ===== -->
+  <button class="back-to-top" id="backToTop" aria-label="Retour en haut">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+  </button>
+
+  <!-- ===== SCRIPTS ===== -->
+  <script>
+    // --- Navigation scroll effect ---
+    const nav = document.getElementById('nav');
+    const backToTop = document.getElementById('backToTop');
+    
+    window.addEventListener('scroll', () => {
+      const scrolled = window.scrollY > 40;
+      nav.classList.toggle('scrolled', scrolled);
+      backToTop.classList.toggle('show', window.scrollY > 600);
+    }, { passive: true });
+
+    // --- Back to top ---
+    backToTop.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // --- Mobile menu toggle ---
+    const navToggle = document.getElementById('navToggle');
+    const navLinks = document.getElementById('navLinks');
+    
+    navToggle.addEventListener('click', () => {
+      navLinks.classList.toggle('open');
+    });
+    
+    // Close menu on link click
+    navLinks.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', () => navLinks.classList.remove('open'));
+    });
+
+    // --- Scroll reveal (IntersectionObserver) ---
+    const revealElements = document.querySelectorAll('.reveal');
+    
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, {
+      threshold: 0.12,
+      rootMargin: '0px 0px -60px 0px'
+    });
+    
+    revealElements.forEach(el => revealObserver.observe(el));
+
+    // --- Smooth scroll for anchor links ---
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        const href = this.getAttribute('href');
+        if (href === '#') return;
+        e.preventDefault();
+        const target = document.querySelector(href);
+        if (target) {
+          const offset = nav.offsetHeight + 20;
+          const top = target.getBoundingClientRect().top + window.scrollY - offset;
+          window.scrollTo({ top, behavior: 'smooth' });
+        }
+      });
+    });
+  </script>
 
 </body>
 </html>
