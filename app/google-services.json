@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "263370083660",
+    "project_id": "flash-market-20428",
+    "storage_bucket": "flash-market-20428.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:263370083660:android:29ebfa867be0d6ec4ad3e9",
+        "android_client_info": {
+          "package_name": "com.chapchap.flashmarket"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBWdWIs5Nt1uOUUu8R_rsmgehtY1GufirU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
