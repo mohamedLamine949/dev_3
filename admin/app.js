@@ -291,8 +291,8 @@ function renderCharts() {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', font: { family: 'Outfit' }, precision: 0 } },
-        x: { grid: { display: false }, ticks: { color: '#9ca3af', font: { family: 'Outfit' } } }
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.07)' }, ticks: { color: '#6b7280', font: { family: 'Outfit' }, precision: 0 } },
+        x: { grid: { display: false }, ticks: { color: '#6b7280', font: { family: 'Outfit' } } }
       },
       plugins: { legend: { display: false }, tooltip: tooltipStyle() }
     }
@@ -319,7 +319,7 @@ function renderCharts() {
       maintainAspectRatio: false,
       cutout: '70%',
       plugins: {
-        legend: { position: 'bottom', labels: { color: '#9ca3af', padding: 20, font: { family: 'Outfit', size: 12 } } },
+        legend: { position: 'bottom', labels: { color: '#6b7280', padding: 20, font: { family: 'Outfit', size: 12 } } },
         tooltip: tooltipStyle()
       }
     }
@@ -337,15 +337,15 @@ function tooltipStyle() {
 // ================= BADGES =================
 function accountBadge(type) {
   return type === 'professionnel'
-    ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">PRO</span>'
-    : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-500/10 text-gray-400 border border-gray-500/20">Particulier</span>';
+    ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">PRO</span>'
+    : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-600 border border-gray-200">Particulier</span>';
 }
 
 function statusBadge(a) {
   if (a.est_payee) {
-    return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">En ligne</span>';
+    return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">En ligne</span>';
   }
-  return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">Attente paiement</span>';
+  return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Attente paiement</span>';
 }
 
 // ================= TABLES RÉCENTES (Dashboard) =================
@@ -355,8 +355,8 @@ function renderRecentTables() {
   usersBody.innerHTML = recentUsers.length === 0
     ? '<tr><td colspan="4" class="py-6 text-center text-gray-500">Aucun utilisateur.</td></tr>'
     : recentUsers.map(u => `
-      <tr class="hover:bg-gray-800/10 transition-colors">
-        <td class="py-3.5 pl-2 font-semibold text-white">${fullName(u)}</td>
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="py-3.5 pl-2 font-semibold text-gray-900">${fullName(u)}</td>
         <td class="py-3.5 text-gray-400">${u.num_telephone || '—'}</td>
         <td class="py-3.5">${accountBadge(u.type_compte)}</td>
         <td class="py-3.5 text-right pr-2 text-gray-500 text-xs">${fmtDate(u.date_creation)}</td>
@@ -367,10 +367,10 @@ function renderRecentTables() {
   adsBody.innerHTML = recentAds.length === 0
     ? '<tr><td colspan="5" class="py-6 text-center text-gray-500">Aucune annonce.</td></tr>'
     : recentAds.map(a => `
-      <tr class="hover:bg-gray-800/10 transition-colors">
-        <td class="py-3.5 pl-2 font-semibold text-white truncate max-w-[150px]" title="${a.titre || ''}">${a.titre || '—'}</td>
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="py-3.5 pl-2 font-semibold text-gray-900 truncate max-w-[150px]" title="${a.titre || ''}">${a.titre || '—'}</td>
         <td class="py-3.5 text-xs text-gray-400">${CATEGORY_LABELS[a.categorie] || a.categorie || '—'}</td>
-        <td class="py-3.5 text-emerald-400 font-bold">${fmt(a.prix)} FCFA</td>
+        <td class="py-3.5 text-emerald-600 font-bold">${fmt(a.prix)} FCFA</td>
         <td class="py-3.5">${statusBadge(a)}</td>
         <td class="py-3.5 text-right pr-2 text-gray-500 text-xs">${fmtDate(a.date_creation)}</td>
       </tr>`).join('');
@@ -400,11 +400,11 @@ function renderUsersPage() {
   body.innerHTML = list.length === 0
     ? '<tr><td colspan="5" class="py-8 text-center text-gray-500">Aucun utilisateur ne correspond.</td></tr>'
     : list.map(u => `
-      <tr class="hover:bg-gray-800/10 transition-colors">
-        <td class="py-3.5 pl-2 font-semibold text-white">${fullName(u)}</td>
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="py-3.5 pl-2 font-semibold text-gray-900">${fullName(u)}</td>
         <td class="py-3.5 text-gray-400">${u.num_telephone || '—'}</td>
         <td class="py-3.5">${accountBadge(u.type_compte)}</td>
-        <td class="py-3.5 text-center text-gray-300">${fmt(adsCountByUser(u.id))}</td>
+        <td class="py-3.5 text-center text-gray-700">${fmt(adsCountByUser(u.id))}</td>
         <td class="py-3.5 text-right pr-2 text-gray-500 text-xs">${fmtDate(u.date_creation)}</td>
       </tr>`).join('');
 }
@@ -441,11 +441,11 @@ function renderAnnoncesPage() {
   body.innerHTML = list.length === 0
     ? '<tr><td colspan="6" class="py-8 text-center text-gray-500">Aucune annonce ne correspond.</td></tr>'
     : list.map(a => `
-      <tr class="hover:bg-gray-800/10 transition-colors">
-        <td class="py-3.5 pl-2 font-semibold text-white truncate max-w-[180px]" title="${a.titre || ''}">${a.titre || '—'}</td>
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="py-3.5 pl-2 font-semibold text-gray-900 truncate max-w-[180px]" title="${a.titre || ''}">${a.titre || '—'}</td>
         <td class="py-3.5 text-gray-400 text-xs">${fullName(a.users)}</td>
         <td class="py-3.5 text-xs text-gray-400">${CATEGORY_LABELS[a.categorie] || a.categorie || '—'}</td>
-        <td class="py-3.5 text-emerald-400 font-bold">${fmt(a.prix)} FCFA</td>
+        <td class="py-3.5 text-emerald-600 font-bold">${fmt(a.prix)} FCFA</td>
         <td class="py-3.5">${statusBadge(a)}</td>
         <td class="py-3.5 text-right pr-2 text-gray-500 text-xs">${fmtDate(a.date_creation)}</td>
       </tr>`).join('');
@@ -506,8 +506,8 @@ function renderFinancesPage() {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', font: { family: 'Outfit' }, callback: v => fmt(v) } },
-        x: { grid: { display: false }, ticks: { color: '#9ca3af', font: { family: 'Outfit' } } }
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.07)' }, ticks: { color: '#6b7280', font: { family: 'Outfit' }, callback: v => fmt(v) } },
+        x: { grid: { display: false }, ticks: { color: '#6b7280', font: { family: 'Outfit' } } }
       },
       plugins: { legend: { display: false }, tooltip: tooltipStyle() }
     }
@@ -519,10 +519,10 @@ function renderFinancesPage() {
   body.innerHTML = recentPaid.length === 0
     ? '<tr><td colspan="4" class="py-8 text-center text-gray-500">Aucun paiement enregistré.</td></tr>'
     : recentPaid.map(a => `
-      <tr class="hover:bg-gray-800/10 transition-colors">
-        <td class="py-3.5 pl-2 font-semibold text-white truncate max-w-[200px]" title="${a.titre || ''}">${a.titre || '—'}</td>
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="py-3.5 pl-2 font-semibold text-gray-900 truncate max-w-[200px]" title="${a.titre || ''}">${a.titre || '—'}</td>
         <td class="py-3.5 text-gray-400 text-xs">${fullName(a.users)}</td>
-        <td class="py-3.5 text-emerald-400 font-bold">${fmt(feeOf(a))} FCFA</td>
+        <td class="py-3.5 text-emerald-600 font-bold">${fmt(feeOf(a))} FCFA</td>
         <td class="py-3.5 text-right pr-2 text-gray-500 text-xs">${fmtDate(a.date_creation)}</td>
       </tr>`).join('');
 }
