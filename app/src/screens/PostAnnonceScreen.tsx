@@ -220,6 +220,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
       est_payee: true,
       statut: 'active',
       id_transaction_paiement: transactionId,
+      montant_depot: price, // frais de dépôt réellement payé (varie selon la catégorie)
       user_id: session?.user?.id,
     };
 

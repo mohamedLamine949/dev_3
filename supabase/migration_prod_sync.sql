@@ -14,6 +14,30 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS banniere_url TEXT;
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS images_business TEXT[] DEFAULT '{}';
 
 -- ---------------------------------------------------------------------
+-- 1bis. MONTANT RÉEL DU FRAIS DE DÉPÔT (annonces)
+--   Le frais varie selon la catégorie (barème CATEGORY_PRICES côté app).
+--   On capture le montant réellement payé pour chaque annonce afin que le
+--   dashboard admin somme les vrais chiffres, pas une estimation forfaitaire.
+-- ---------------------------------------------------------------------
+ALTER TABLE public.annonces ADD COLUMN IF NOT EXISTS montant_depot INTEGER;
+
+-- Backfill historique : déduire le frais depuis la catégorie pour les
+-- annonces déjà payées avant l'ajout de la colonne. Idempotent grâce au
+-- garde-fou « montant_depot IS NULL ».
+UPDATE public.annonces SET montant_depot = CASE categorie
+  WHEN 'voitures'                THEN 5000
+  WHEN 'immobilier'              THEN 2500
+  WHEN 'motos'                   THEN 1000
+  WHEN 'alimentation'            THEN 500
+  WHEN 'services'                THEN 500
+  WHEN 'telephonie_electronique' THEN 250
+  WHEN 'mode_beaute'             THEN 250
+  WHEN 'maison_electromenager'   THEN 250
+  ELSE 250
+END
+WHERE est_payee = TRUE AND montant_depot IS NULL;
+
+-- ---------------------------------------------------------------------
 -- 2. SYSTÈME DE NOTIFICATIONS (table + push + triggers)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.notifications (

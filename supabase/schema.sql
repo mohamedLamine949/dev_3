@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS annonces (
   statut TEXT DEFAULT 'en_attente', -- en_attente, active, vendu, expire
   est_payee BOOLEAN DEFAULT FALSE,
   id_transaction_paiement TEXT,
+  montant_depot INTEGER, -- frais de dépôt réellement payé (varie selon la catégorie)
   ville TEXT DEFAULT 'Bamako',
   quartier TEXT,
   latitude DOUBLE PRECISION,
@@ -97,6 +98,7 @@ CREATE TABLE IF NOT EXISTS annonces (
 ALTER TABLE annonces ADD COLUMN IF NOT EXISTS quartier TEXT;
 ALTER TABLE annonces ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;
 ALTER TABLE annonces ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
+ALTER TABLE annonces ADD COLUMN IF NOT EXISTS montant_depot INTEGER;
 
 -- 3. Table Images d'annonces
 CREATE TABLE IF NOT EXISTS images_annonce (

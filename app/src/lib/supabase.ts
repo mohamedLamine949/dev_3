@@ -46,6 +46,7 @@ export interface Annonce {
   statut: 'en_attente' | 'active' | 'vendu' | 'expire';
   est_payee: boolean;
   id_transaction_paiement?: string;
+  montant_depot?: number;
   ville: string;
   quartier?: string;
   latitude?: number;

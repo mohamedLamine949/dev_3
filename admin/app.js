@@ -3,8 +3,27 @@ const supabaseUrl = 'https://kmydbkaytrxtcequngnn.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtteWRia2F5dHJ4dGNlcXVuZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTg3MzAsImV4cCI6MjA5MjI5NDczMH0.r2-XqflO75NbxVvqMfU7c-A367R9oKZ841To4uznhOA';
 const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-// Frais de dépôt (plat) facturé pour chaque annonce payée
-const DEPOT_FEE = 1000; // FCFA
+// Barème des frais de dépôt par catégorie (miroir de CATEGORY_PRICES côté app).
+// Sert UNIQUEMENT de repli pour les annonces dont le montant n'a pas été stocké
+// (anciennes annonces). Le montant réel payé est lu depuis annonces.montant_depot.
+const CATEGORY_FEES = {
+  'telephonie_electronique': 250,
+  'mode_beaute':             250,
+  'maison_electromenager':   250,
+  'voitures':                5000,
+  'motos':                   1000,
+  'immobilier':              2500,
+  'alimentation':            500,
+  'services':                500
+};
+const DEFAULT_FEE = 250;
+
+// Frais réellement payé pour une annonce : montant stocké en base, sinon repli
+// sur le barème de la catégorie.
+function feeOf(a) {
+  if (a && typeof a.montant_depot === 'number' && a.montant_depot > 0) return a.montant_depot;
+  return CATEGORY_FEES[a?.categorie] ?? DEFAULT_FEE;
+}
 
 // Libellés des catégories (clé technique -> affichage)
 const CATEGORY_LABELS = {
@@ -227,7 +246,7 @@ function updateKPIs() {
   const proUsers = allUsers.filter(u => u.type_compte === 'professionnel').length;
   const totalAds = allAnnonces.length;
   const paidAds = allAnnonces.filter(a => a.est_payee === true);
-  const totalRevenue = paidAds.length * DEPOT_FEE;
+  const totalRevenue = paidAds.reduce((sum, a) => sum + feeOf(a), 0);
 
   const newUsersMonth = countThisMonth(allUsers);
   const newAdsMonth = countThisMonth(allAnnonces);
@@ -441,11 +460,10 @@ function renderFinancesPage() {
   const paidAds = allAnnonces.filter(a => a.est_payee === true);
   const pendingAds = allAnnonces.filter(a => !a.est_payee);
 
-  const totalRevenue = paidAds.length * DEPOT_FEE;
-  const pendingRevenue = pendingAds.length * DEPOT_FEE;
+  const totalRevenue = paidAds.reduce((sum, a) => sum + feeOf(a), 0);
+  const pendingRevenue = pendingAds.reduce((sum, a) => sum + feeOf(a), 0);
 
   document.getElementById('fin-total-revenue').textContent = fmt(totalRevenue) + ' FCFA';
-  document.getElementById('fin-fee').textContent = fmt(DEPOT_FEE);
   document.getElementById('fin-paid-count').textContent = fmt(paidAds.length);
   document.getElementById('fin-pending-count').textContent = fmt(pendingAds.length);
   document.getElementById('fin-pending-revenue').textContent = fmt(pendingRevenue) + ' FCFA';
@@ -464,7 +482,7 @@ function renderFinancesPage() {
     if (!a.date_creation) return;
     const d = new Date(a.date_creation);
     const key = `${d.getFullYear()}-${d.getMonth()}`;
-    if (monthIndex[key] !== undefined) months[monthIndex[key]].total += DEPOT_FEE;
+    if (monthIndex[key] !== undefined) months[monthIndex[key]].total += feeOf(a);
   });
 
   if (revenueChartInstance) revenueChartInstance.destroy();
@@ -504,7 +522,7 @@ function renderFinancesPage() {
       <tr class="hover:bg-gray-800/10 transition-colors">
         <td class="py-3.5 pl-2 font-semibold text-white truncate max-w-[200px]" title="${a.titre || ''}">${a.titre || '—'}</td>
         <td class="py-3.5 text-gray-400 text-xs">${fullName(a.users)}</td>
-        <td class="py-3.5 text-emerald-400 font-bold">${fmt(DEPOT_FEE)} FCFA</td>
+        <td class="py-3.5 text-emerald-400 font-bold">${fmt(feeOf(a))} FCFA</td>
         <td class="py-3.5 text-right pr-2 text-gray-500 text-xs">${fmtDate(a.date_creation)}</td>
       </tr>`).join('');
 }
