@@ -1,0 +1,36 @@
+name: Supabase Keep-Alive
+
+# Empeche la mise en pause du projet Supabase (offre gratuite : pause apres
+# 7 jours d'inactivite). Ce job envoie une requete legere a l'API REST toutes
+# les 6 heures, ce qui compte comme activite externe et reinitialise le
+# compteur d'inactivite.
+#
+# Limite a connaitre : GitHub desactive les workflows planifies apres 60 jours
+# SANS commit sur le repo. Tant que le projet est actif (commits ou trafic
+# reel des utilisateurs), aucun souci.
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # toutes les 6 heures (UTC)
+  workflow_dispatch:         # permet aussi un declenchement manuel
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST (garde le projet actif)
+        env:
+          SUPABASE_URL: https://kmydbkaytrxtcequngnn.supabase.co
+          # Cle anon PUBLIQUE (deja exposee cote client, protegee par la RLS).
+          SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtteWRia2F5dHJ4dGNlcXVuZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTg3MzAsImV4cCI6MjA5MjI5NDczMH0.r2-XqflO75NbxVvqMfU7c-A367R9oKZ841To4uznhOA
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" \
+            "$SUPABASE_URL/rest/v1/annonces?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+          echo "Reponse HTTP : $code"
+          if [ "$code" -lt 200 ] || [ "$code" -ge 400 ]; then
+            echo "::error::Ping Supabase echoue (HTTP $code)"
+            exit 1
+          fi
+          echo "Projet Supabase pingue avec succes."
