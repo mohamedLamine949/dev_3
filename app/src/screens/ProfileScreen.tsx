@@ -10,7 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase, Annonce } from '../lib/supabase';
 import { useSellerAvis, Avis } from '../hooks/useAvis';
-import * as ImagePicker from 'expo-image-picker';
+import { pickImages } from '../lib/imagePicker';
 import { decode } from 'base64-arraybuffer';
 
 const { width: W } = Dimensions.get('window');
@@ -141,36 +141,23 @@ export default function ProfileScreen({ navigation }: Props) {
   };
 
   const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') { Alert.alert('Permission requise pour accéder aux photos.'); return; }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true,
-    });
-    if (!result.canceled && result.assets[0].base64) {
-      setEditAvatarUri(result.assets[0].uri);
-      setEditAvatarBase64(result.assets[0].base64);
+    const assets = await pickImages({ allowsEditing: true, aspect: [1, 1], base64: true });
+    if (assets && assets[0].base64) {
+      setEditAvatarUri(assets[0].uri);
+      setEditAvatarBase64(assets[0].base64);
     }
   };
 
   const handleAvatarPress = async () => {
     if (!session) return;
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission requise', 'Autorisez l\'accès à la galerie pour changer votre photo.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true, aspect: [1, 1], quality: 0.7, base64: true,
-    });
-    if (result.canceled || !result.assets[0].base64) return;
+    const assets = await pickImages({ allowsEditing: true, aspect: [1, 1], base64: true });
+    if (!assets || !assets[0].base64) return;
     try {
       setIsUploadingAvatar(true);
       const filePath = `${session.user.id}/avatar.png`;
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, decode(result.assets[0].base64), { contentType: 'image/png', upsert: true });
+        .upload(filePath, decode(assets[0].base64), { contentType: 'image/png', upsert: true });
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
       const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
@@ -188,22 +175,14 @@ export default function ProfileScreen({ navigation }: Props) {
 
   const handleBannerPress = async () => {
     if (!session) return;
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission requise', 'Autorisez l\'accès à la galerie pour changer votre bannière.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true, aspect: [16, 9], quality: 0.7, base64: true,
-    });
-    if (result.canceled || !result.assets[0].base64) return;
+    const assets = await pickImages({ allowsEditing: true, aspect: [16, 9], base64: true });
+    if (!assets || !assets[0].base64) return;
     try {
       setIsUploadingBanner(true);
       const filePath = `${session.user.id}/banner.png`;
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, decode(result.assets[0].base64), { contentType: 'image/png', upsert: true });
+        .upload(filePath, decode(assets[0].base64), { contentType: 'image/png', upsert: true });
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
       const banniereUrl = `${data.publicUrl}?t=${Date.now()}`;
@@ -759,15 +738,10 @@ export default function ProfileScreen({ navigation }: Props) {
                   <TouchableOpacity
                     style={styles.modalBannerSelector}
                     onPress={async () => {
-                      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                      if (status !== 'granted') { Alert.alert('Permission requise pour accéder aux photos.'); return; }
-                      const result = await ImagePicker.launchImageLibraryAsync({
-                        mediaTypes: ['images'],
-                        allowsEditing: true, aspect: [16, 9], quality: 0.7, base64: true,
-                      });
-                      if (!result.canceled && result.assets[0].base64) {
-                        setEditBanniereUri(result.assets[0].uri);
-                        setEditBanniereBase64(result.assets[0].base64);
+                      const assets = await pickImages({ allowsEditing: true, aspect: [16, 9], base64: true });
+                      if (assets && assets[0].base64) {
+                        setEditBanniereUri(assets[0].uri);
+                        setEditBanniereBase64(assets[0].base64);
                       }
                     }}
                     activeOpacity={0.8}
@@ -806,19 +780,11 @@ export default function ProfileScreen({ navigation }: Props) {
                           Alert.alert('Maximum atteint', 'Vous avez atteint la limite de photos pour votre vitrine.');
                           return;
                         }
-                        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                        if (status !== 'granted') { Alert.alert('Permission requise pour accéder aux photos.'); return; }
                         const remaining = 20 - editImagesBusiness.length;
-                        const result = await ImagePicker.launchImageLibraryAsync({
-                          mediaTypes: ['images'],
-                          allowsMultipleSelection: true,
-                          selectionLimit: remaining,
-                          quality: 0.7,
-                          base64: true,
-                        });
-                        if (!result.canceled && result.assets.length > 0) {
-                          const newUris = result.assets.map(a => a.uri);
-                          const newBase64s = result.assets.map(a => a.base64 || null);
+                        const assets = await pickImages({ allowsMultipleSelection: true, selectionLimit: remaining, base64: true });
+                        if (assets && assets.length > 0) {
+                          const newUris = assets.map(a => a.uri);
+                          const newBase64s = assets.map(a => a.base64 || null);
                           setEditImagesBusiness([...editImagesBusiness, ...newUris].slice(0, 20));
                           setEditImagesBusinessBase64([...editImagesBusinessBase64, ...newBase64s].slice(0, 20));
                         }

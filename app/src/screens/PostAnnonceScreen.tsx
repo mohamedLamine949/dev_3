@@ -15,7 +15,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
+import { pickImages } from '../lib/imagePicker';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, ETAT_ARTICLE, CATEGORY_PRICES } from '../constants/theme';
 import { WebView } from 'react-native-webview';
 import { createAnnonce } from '../hooks/useAnnonces';
@@ -101,15 +101,13 @@ export default function PostAnnonceScreen({ navigation }: any) {
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'] as any,
+    const assets = await pickImages({
       allowsMultipleSelection: true,
-      quality: 0.7,
       selectionLimit: MAX_IMAGES - images.length,
     });
 
-    if (!result.canceled) {
-      const newImages = result.assets.map((a) => a.uri);
+    if (assets) {
+      const newImages = assets.map((a) => a.uri);
       setImages([...images, ...newImages].slice(0, MAX_IMAGES));
     }
   };

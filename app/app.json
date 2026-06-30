@@ -42,6 +42,13 @@
           "color": "#16a34a",
           "defaultChannel": "default"
         }
+      ],
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Flash Market accède à vos photos pour ajouter des images à vos annonces et à votre profil."
+        }
       ]
     ],
     "extra": {
