@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS, FONTS, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
@@ -120,6 +121,10 @@ function MainTabs() {
   const { session } = useAuth();
   const unreadCount = useUnreadCount(session?.user?.id);
   const { theme } = useTheme();
+  // Zone occupée par la barre système Android (boutons de navigation ou barre de gestes).
+  // Indispensable avec edgeToEdgeEnabled: sans ça, la tab bar passe SOUS les boutons Android.
+  const insets = useSafeAreaInsets();
+  const bottomInset = Platform.OS === 'android' ? insets.bottom : 0;
 
   return (
     <Tab.Navigator
@@ -152,8 +157,8 @@ function MainTabs() {
         tabBarStyle: {
           backgroundColor: theme.surface,
           borderTopWidth: 0,
-          height: Platform.OS === 'ios' ? 88 : 65,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
+          height: (Platform.OS === 'ios' ? 88 : 65) + bottomInset,
+          paddingBottom: (Platform.OS === 'ios' ? 28 : 10) + bottomInset,
           paddingTop: 8,
           ...SHADOWS.md,
         },
