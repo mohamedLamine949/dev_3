@@ -9,6 +9,7 @@ import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { isPasswordValid, getPasswordErrors, translateAuthError } from '../lib/passwordPolicy';
 
 interface Props {
   navigation: any;
@@ -24,7 +25,7 @@ export default function ResetPasswordScreen({ navigation }: Props) {
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
-  const valid = password.length >= 6 && password === confirm;
+  const valid = isPasswordValid(password) && password === confirm;
 
   async function handleReset() {
     if (!valid || loading) return;
@@ -39,7 +40,7 @@ export default function ResetPasswordScreen({ navigation }: Props) {
       );
     } catch (err: any) {
       console.error(err);
-      Alert.alert('Erreur', err.message || 'Impossible de modifier le mot de passe.');
+      Alert.alert('Erreur', translateAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -74,7 +75,7 @@ export default function ResetPasswordScreen({ navigation }: Props) {
                   <Ionicons name="lock-closed-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
                   <TextInput
                     style={styles.inputFlex}
-                    placeholder="6 caractères minimum"
+                    placeholder="8 caractères min. (ex. MonPass1!)"
                     placeholderTextColor={theme.textMuted}
                     value={password}
                     onChangeText={setPassword}
@@ -85,6 +86,11 @@ export default function ResetPasswordScreen({ navigation }: Props) {
                     <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={theme.textMuted} />
                   </TouchableOpacity>
                 </View>
+                {password.length > 0 && !isPasswordValid(password) && (
+                  <Text style={styles.hint}>
+                    Il manque : {getPasswordErrors(password).join(', ')}
+                  </Text>
+                )}
               </View>
 
               <View style={styles.inputGroup}>

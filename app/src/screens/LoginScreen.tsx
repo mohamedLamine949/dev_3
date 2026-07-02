@@ -7,6 +7,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { supabase } from '../lib/supabase';
+import { isPasswordValid, getPasswordErrors, translateAuthError } from '../lib/passwordPolicy';
 
 // Validation stricte du format e-mail (rejette les saisies fantaisistes)
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -66,8 +67,10 @@ export default function LoginScreen({ navigation }: Props) {
   // Connexion et inscription se font uniquement par numéro de téléphone (8 chiffres).
   const isIdentifierValid = identifier.replace(/[^0-9]/g, '').length === 8;
 
+  // Connexion : seuil historique de 6 caractères (comptes existants).
+  // Inscription : politique serveur complète (8 car., majuscule, minuscule, chiffre, spécial).
   const isLoginValid = isIdentifierValid && password.length >= 6;
-  const isRegisterValid = isLoginValid && prenom.length >= 2 && nom.length >= 2 && acceptCgv;
+  const isRegisterValid = isIdentifierValid && isPasswordValid(password) && prenom.length >= 2 && nom.length >= 2 && acceptCgv;
   const canSubmit = mode === 'login' ? isLoginValid : isRegisterValid;
 
   async function handleSubmit() {
@@ -88,9 +91,17 @@ export default function LoginScreen({ navigation }: Props) {
           .select('email')
           .eq('num_telephone', formattedIdentifier);
 
-        if (dbUser && dbUser.length > 0 && dbUser[0].email) {
+        // Ignorer les e-mails techniques (@phone.market / @phone.chapchap.app) :
+        // seul un vrai e-mail lié sert d'identifiant d'authentification
+        const linkedUser = dbUser?.find(u =>
+          u.email &&
+          !u.email.endsWith('@phone.market') &&
+          !u.email.endsWith('@phone.chapchap.app')
+        );
+
+        if (linkedUser?.email) {
           // Un e-mail personnalisé est associé à ce téléphone, on l'utilise pour s'authentifier
-          loginParams.email = dbUser[0].email;
+          loginParams.email = linkedUser.email;
         } else {
           // Aucun email lié, on utilise le format par défaut @phone.market (sans le '+' au début)
           loginParams.email = formattedIdentifier.replace('+', '') + "@phone.market";
@@ -125,6 +136,22 @@ export default function LoginScreen({ navigation }: Props) {
           Alert.alert('Vérification requise', 'Veuillez vérifier votre compte.');
         }
       } else {
+        // Empêcher un doublon : un compte lié à ce numéro existe peut-être déjà
+        // sous un autre e-mail d'authentification (e-mail personnalisé lié).
+        const { data: existing } = await supabase
+          .from('users')
+          .select('id')
+          .eq('num_telephone', formattedIdentifier)
+          .limit(1);
+
+        if (existing && existing.length > 0) {
+          Alert.alert(
+            'Numéro déjà utilisé',
+            'Un compte existe déjà avec ce numéro de téléphone. Veuillez vous connecter ou utiliser « Mot de passe oublié ».'
+          );
+          return;
+        }
+
         // Inscription (sans OTP, création directe)
         let signUpParams: any = {
           email: formattedIdentifier.replace('+', '') + "@phone.market",
@@ -175,7 +202,7 @@ export default function LoginScreen({ navigation }: Props) {
       }
     } catch (err: any) {
       console.error(err);
-      Alert.alert('Erreur', err.message || 'Une erreur est survenue.');
+      Alert.alert('Erreur', translateAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -330,7 +357,7 @@ export default function LoginScreen({ navigation }: Props) {
 
   // Étape 3 : définir le nouveau mot de passe (session déjà ouverte par le code).
   async function handleSetNewPassword() {
-    if (forgotNewPassword.length < 6) return;
+    if (!isPasswordValid(forgotNewPassword)) return;
 
     setForgotPasswordLoading(true);
     try {
@@ -352,7 +379,7 @@ export default function LoginScreen({ navigation }: Props) {
       );
     } catch (err: any) {
       console.error(err);
-      Alert.alert('Erreur', err.message || 'Impossible de définir le nouveau mot de passe.');
+      Alert.alert('Erreur', translateAuthError(err));
     } finally {
       setForgotPasswordLoading(false);
     }
@@ -463,7 +490,7 @@ export default function LoginScreen({ navigation }: Props) {
                       <Ionicons name="lock-closed-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
                       <TextInput
                         style={styles.inputFlex}
-                        placeholder="6 caractères minimum"
+                        placeholder="8 caractères min. (ex. MonPass1!)"
                         placeholderTextColor={theme.textMuted}
                         value={forgotNewPassword}
                         onChangeText={setForgotNewPassword}
@@ -478,12 +505,17 @@ export default function LoginScreen({ navigation }: Props) {
                         <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={theme.textMuted} />
                       </TouchableOpacity>
                     </View>
+                    {forgotNewPassword.length > 0 && !isPasswordValid(forgotNewPassword) && (
+                      <Text style={styles.passwordHint}>
+                        Il manque : {getPasswordErrors(forgotNewPassword).join(', ')}
+                      </Text>
+                    )}
                   </View>
 
                   <TouchableOpacity
-                    style={[styles.ctaBtn, forgotNewPassword.length < 6 && styles.ctaBtnDisabled]}
+                    style={[styles.ctaBtn, !isPasswordValid(forgotNewPassword) && styles.ctaBtnDisabled]}
                     onPress={handleSetNewPassword}
-                    disabled={forgotNewPassword.length < 6 || forgotPasswordLoading}
+                    disabled={!isPasswordValid(forgotNewPassword) || forgotPasswordLoading}
                   >
                     {forgotPasswordLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Réinitialiser le mot de passe</Text>}
                   </TouchableOpacity>
@@ -597,7 +629,7 @@ export default function LoginScreen({ navigation }: Props) {
                   <Ionicons name="lock-closed-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
                   <TextInput
                     style={styles.inputFlex}
-                    placeholder="6 caractères minimum"
+                    placeholder={mode === 'register' ? '8 caractères min. (ex. MonPass1!)' : 'Votre mot de passe'}
                     placeholderTextColor={theme.textMuted}
                     value={password}
                     onChangeText={setPassword}
@@ -608,6 +640,11 @@ export default function LoginScreen({ navigation }: Props) {
                     <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={theme.textMuted} />
                   </TouchableOpacity>
                 </View>
+                {mode === 'register' && password.length > 0 && !isPasswordValid(password) && (
+                  <Text style={styles.passwordHint}>
+                    Il manque : {getPasswordErrors(password).join(', ')}
+                  </Text>
+                )}
               </View>
 
               {mode === 'login' && (
@@ -727,6 +764,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   ctaBtn: { height: 54, backgroundColor: theme.primary, borderRadius: RADIUS.lg, justifyContent: 'center', alignItems: 'center', marginTop: SPACING.sm, ...SHADOWS.colored },
   ctaBtnDisabled: { backgroundColor: theme.textMuted, shadowOpacity: 0, elevation: 0 },
   ctaText: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
+  passwordHint: { fontSize: FONTS.xs, color: '#EF4444', marginTop: 2 },
   forgotBtn: { alignSelf: 'flex-end', marginTop: -4, marginBottom: 8 },
   forgotText: { fontSize: FONTS.xs, color: theme.primary, fontWeight: FONTS.semibold },
   switchModeBtn: { alignItems: 'center', paddingVertical: SPACING.md, marginTop: SPACING.sm },
