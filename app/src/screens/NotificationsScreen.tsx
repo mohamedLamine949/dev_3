@@ -40,7 +40,10 @@ export default function NotificationsScreen({ navigation }: any) {
       await markAsRead(item.id);
     }
 
-    if (item.type === 'chat' && item.donnees?.conversationId) {
+    if (item.type === 'expiration_bientot' || item.type === 'annonce_expiree') {
+      // Diriger vers "Mes annonces" où se trouve le bouton de renouvellement
+      navigation.navigate('MesAnnonces');
+    } else if (item.type === 'chat' && item.donnees?.conversationId) {
       navigation.navigate('ChatConversation', {
         conversationId: item.donnees.conversationId,
         titreAnnonce: item.donnees.titreAnnonce || 'Message'
@@ -118,6 +121,18 @@ export default function NotificationsScreen({ navigation }: any) {
           name: 'briefcase',
           color: '#7c3aed',
           bg: isDark ? 'rgba(124, 58, 237, 0.15)' : 'rgba(124, 58, 237, 0.08)'
+        };
+      case 'expiration_bientot':
+        return {
+          name: 'time',
+          color: '#d97706',
+          bg: isDark ? 'rgba(217, 119, 6, 0.15)' : 'rgba(217, 119, 6, 0.08)'
+        };
+      case 'annonce_expiree':
+        return {
+          name: 'archive',
+          color: '#e74c3c',
+          bg: isDark ? 'rgba(231, 76, 60, 0.15)' : 'rgba(231, 76, 60, 0.08)'
         };
       case 'bienvenue':
         return {

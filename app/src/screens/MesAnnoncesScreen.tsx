@@ -27,6 +27,7 @@ function getStatusBadge(statut: string, est_payee: boolean, theme: any) {
   if (statut === 'vendu') return { bg: theme.surfaceMuted, text: theme.textMuted, label: 'Vendu' };
   if (!est_payee) return { bg: 'rgba(253, 203, 110, 0.2)', text: theme.warning || '#f1c40f', label: 'Attente Paiement' };
   if (statut === 'active') return { bg: 'rgba(0, 184, 148, 0.2)', text: theme.success || '#2ecc71', label: 'En ligne' };
+  if (statut === 'expire') return { bg: 'rgba(231, 76, 60, 0.15)', text: theme.error || '#e74c3c', label: 'Expirée — à renouveler' };
   return { bg: theme.surfaceMuted, text: theme.textSecondary, label: statut };
 }
 
@@ -46,7 +47,8 @@ export default function MesAnnoncesScreen({ navigation }: any) {
 
   const handleManage = (annonce: Annonce) => {
     const diffDays = Math.floor((Date.now() - new Date(annonce.date_creation).getTime()) / (1000 * 60 * 60 * 24));
-    const showRenew = diffDays >= 15 && annonce.statut !== 'vendu';
+    // Renouvelable dès 15 jours, ou à tout moment si déjà expirée
+    const showRenew = (diffDays >= 15 || annonce.statut === 'expire') && annonce.statut !== 'vendu';
 
     const actions: any[] = [
       { text: 'Annuler', style: 'cancel' },
@@ -65,7 +67,9 @@ export default function MesAnnoncesScreen({ navigation }: any) {
               .from('annonces')
               .update({
                 date_creation: new Date().toISOString(),
-                statut: 'active'
+                statut: 'active',
+                // Réarme la notification d'expiration pour le nouveau cycle de 30 jours
+                expiration_notifiee: false,
               })
               .eq('id', annonce.id);
 
