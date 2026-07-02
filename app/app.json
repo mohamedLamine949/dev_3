@@ -8,6 +8,13 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "updates": {
+      "url": "https://u.expo.dev/388e45d1-3af0-4012-b1c8-68ecd8748b7a",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -44,6 +51,14 @@
         }
       ],
       "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Flash Market utilise votre position pour vous montrer les annonces publiées près de chez vous et afficher la distance qui vous sépare de chaque vendeur. Par exemple, les annonces de la page d'accueil sont triées de la plus proche à la plus éloignée et chaque annonce indique « à 2,5 km de vous ». Votre position n'est jamais partagée avec les autres utilisateurs.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false
+        }
+      ],
       [
         "expo-image-picker",
         {
