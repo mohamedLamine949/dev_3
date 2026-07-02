@@ -43,6 +43,9 @@ export default function NotificationsScreen({ navigation }: any) {
     if (item.type === 'expiration_bientot' || item.type === 'annonce_expiree') {
       // Diriger vers "Mes annonces" où se trouve le bouton de renouvellement
       navigation.navigate('MesAnnonces');
+    } else if (item.type === 'avis') {
+      // L'avis reçu est visible dans l'onglet Avis du profil
+      navigation.navigate('ProfileMain');
     } else if (item.type === 'chat' && item.donnees?.conversationId) {
       navigation.navigate('ChatConversation', {
         conversationId: item.donnees.conversationId,
@@ -115,6 +118,12 @@ export default function NotificationsScreen({ navigation }: any) {
           name: 'star',
           color: '#eab308',
           bg: isDark ? 'rgba(234, 179, 8, 0.15)' : 'rgba(234, 179, 8, 0.08)'
+        };
+      case 'avis':
+        return {
+          name: 'star-half',
+          color: '#f59e0b',
+          bg: isDark ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.08)'
         };
       case 'compte_pro_active':
         return {
