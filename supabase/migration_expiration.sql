@@ -36,7 +36,8 @@ BEGIN
     'Votre annonce "' || titre || '" expire dans 10 jours. Renouvelez-la gratuitement depuis "Mes annonces" pour la garder en ligne.',
     'expiration_bientot',
     jsonb_build_object('annonceId', id)
-  FROM a_notifier;
+  FROM a_notifier
+  WHERE user_id IS NOT NULL; -- annonces orphelines : pas de destinataire à notifier
 
   -- b) Expirer les annonces de plus de 30 jours (retirées du public,
   --    encore renouvelables depuis "Mes annonces")
@@ -54,7 +55,8 @@ BEGIN
     'Votre annonce "' || titre || '" a expiré après 30 jours. Vous pouvez encore la renouveler gratuitement depuis "Mes annonces".',
     'annonce_expiree',
     jsonb_build_object('annonceId', id)
-  FROM a_expirer;
+  FROM a_expirer
+  WHERE user_id IS NOT NULL; -- annonces orphelines : pas de destinataire à notifier
 
   -- c) Supprimer définitivement les annonces expirées depuis plus de 30 jours
   --    (soit 60 jours après publication ; images et conversations suivent en cascade)
