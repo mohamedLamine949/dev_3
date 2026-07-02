@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
-import { Annonce } from '../lib/supabase';
+import { supabase, Annonce } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useMesAnnonces, updateAnnonceStatus, deleteAnnonceById } from '../hooks/useAnnonces';
 
@@ -37,33 +37,79 @@ export default function MesAnnoncesScreen({ navigation }: any) {
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
+  React.useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      refetch();
+    });
+    return unsubscribe;
+  }, [navigation, refetch]);
+
   const handleManage = (annonce: Annonce) => {
+    const diffDays = Math.floor((Date.now() - new Date(annonce.date_creation).getTime()) / (1000 * 60 * 60 * 24));
+    const showRenew = diffDays >= 15 && annonce.statut !== 'vendu';
+
+    const actions: any[] = [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Modifier les détails',
+        onPress: () => navigation.navigate('EditAnnonce', { annonce })
+      }
+    ];
+
+    if (showRenew) {
+      actions.push({
+        text: 'Renouveler l\'annonce (Gratuit)',
+        onPress: async () => {
+          try {
+            const { error } = await supabase
+              .from('annonces')
+              .update({
+                date_creation: new Date().toISOString(),
+                statut: 'active'
+              })
+              .eq('id', annonce.id);
+
+            if (error) {
+              Alert.alert('Erreur', error.message);
+            } else {
+              Alert.alert('Succès', 'Votre annonce a été renouvelée et remise en avant gratuitement.');
+              refetch();
+            }
+          } catch (err: any) {
+            Alert.alert('Erreur', err.message || 'Une erreur est survenue.');
+          }
+        }
+      });
+    }
+
+    actions.push(
+      { 
+        text: annonce.statut === 'vendu' ? 'Marquer comme disponible' : 'Marquer comme vendu', 
+        onPress: async () => {
+          const newStatus = annonce.statut === 'vendu' ? 'active' : 'vendu';
+          await updateAnnonceStatus(annonce.id, newStatus);
+          refetch();
+        } 
+      },
+      { 
+        text: 'Supprimer', 
+        style: 'destructive' as const, 
+        onPress: () => {
+          Alert.alert('Confirmer la suppression', 'Cette action est définitive.', [
+            { text: 'Annuler', style: 'cancel' },
+            { text: 'Oui, supprimer', style: 'destructive', onPress: async () => {
+               await deleteAnnonceById(annonce.id);
+               refetch();
+            }}
+          ])
+        } 
+      }
+    );
+
     Alert.alert(
       'Gérer l\'annonce',
       `Que souhaitez-vous faire avec "${annonce.titre}" ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { 
-          text: 'Marquer comme vendu', 
-          onPress: async () => {
-            await updateAnnonceStatus(annonce.id, 'vendu');
-            refetch();
-          } 
-        },
-        { 
-          text: 'Supprimer', 
-          style: 'destructive', 
-          onPress: () => {
-            Alert.alert('Confirmer', 'La suppression est définitive.', [
-              { text: 'Annuler', style: 'cancel' },
-              { text: 'Oui, supprimer', style: 'destructive', onPress: async () => {
-                 await deleteAnnonceById(annonce.id);
-                 refetch();
-              }}
-            ])
-          } 
-        },
-      ]
+      actions
     );
   };
 
@@ -95,7 +141,7 @@ export default function MesAnnoncesScreen({ navigation }: any) {
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <Ionicons name="eye-outline" size={14} color={theme.textMuted} />
-              <Text style={styles.statText}>0</Text>
+              <Text style={styles.statText}>{(item as any).nombre_vues || 0}</Text>
             </View>
             <View style={styles.stat}>
               <TouchableOpacity onPress={() => handleManage(item)}>

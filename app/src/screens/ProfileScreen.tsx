@@ -104,21 +104,112 @@ export default function ProfileScreen({ navigation }: Props) {
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
   // Fetch own listings
-  useEffect(() => {
+  const fetchAnnonces = React.useCallback(() => {
     if (!session) return;
     setLoadingAnnonces(true);
     supabase
       .from('annonces')
       .select('*, images:images_annonce(image_url, ordre)')
       .eq('user_id', session.user.id)
-      .eq('statut', 'active')
       .eq('est_payee', true)
       .order('date_creation', { ascending: false })
       .then(({ data }) => {
         if (data) setAnnonces(data as Annonce[]);
         setLoadingAnnonces(false);
       });
-  }, [session?.user?.id, isEditing]);
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!session) return;
+    fetchAnnonces();
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchAnnonces();
+    });
+    return unsubscribe;
+  }, [navigation, session, fetchAnnonces, isEditing]);
+
+  const handleManageAnnonce = (annonce: Annonce) => {
+    const diffDays = Math.floor((Date.now() - new Date(annonce.date_creation).getTime()) / (1000 * 60 * 60 * 24));
+    const showRenew = diffDays >= 15 && annonce.statut !== 'vendu';
+
+    const actions: any[] = [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Modifier les détails',
+        onPress: () => navigation.navigate('EditAnnonce', { annonce })
+      }
+    ];
+
+    if (showRenew) {
+      actions.push({
+        text: 'Renouveler l\'annonce (Gratuit)',
+        onPress: async () => {
+          try {
+            const { error } = await supabase
+              .from('annonces')
+              .update({
+                date_creation: new Date().toISOString(),
+                statut: 'active'
+              })
+              .eq('id', annonce.id);
+
+            if (error) {
+              Alert.alert('Erreur', error.message);
+            } else {
+              Alert.alert('Succès', 'Votre annonce a été renouvelée et remise en avant gratuitement.');
+              fetchAnnonces();
+            }
+          } catch (err: any) {
+            Alert.alert('Erreur', err.message || 'Une erreur est survenue.');
+          }
+        }
+      });
+    }
+
+    actions.push(
+      { 
+        text: annonce.statut === 'vendu' ? 'Marquer comme disponible' : 'Marquer comme vendu', 
+        onPress: async () => {
+          const newStatus = annonce.statut === 'vendu' ? 'active' : 'vendu';
+          const { error } = await supabase
+            .from('annonces')
+            .update({ statut: newStatus })
+            .eq('id', annonce.id);
+          if (error) {
+            Alert.alert('Erreur', error.message);
+          } else {
+            fetchAnnonces();
+          }
+        } 
+      },
+      { 
+        text: 'Supprimer', 
+        style: 'destructive' as const, 
+        onPress: () => {
+          Alert.alert('Confirmer la suppression', 'Cette action est irréversible et supprimera définitivement votre annonce.', [
+            { text: 'Annuler', style: 'cancel' },
+            { text: 'Supprimer', style: 'destructive', onPress: async () => {
+              const { error } = await supabase
+                .from('annonces')
+                .delete()
+                .eq('id', annonce.id);
+              if (error) {
+                Alert.alert('Erreur', error.message);
+              } else {
+                fetchAnnonces();
+              }
+            }}
+          ])
+        } 
+      }
+    );
+
+    Alert.alert(
+      'Gérer l\'annonce',
+      `Que souhaitez-vous faire avec "${annonce.titre}" ?`,
+      actions
+    );
+  };
 
   const openEditModal = () => {
     if (!session) return;
@@ -331,6 +422,11 @@ export default function ProfileScreen({ navigation }: Props) {
                     <Ionicons name="eye-outline" size={20} color="#fff" />
                   </TouchableOpacity>
                 </>
+              )}
+              {session && (
+                <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('HistoriquePaiements')} activeOpacity={0.8}>
+                  <Ionicons name="receipt-outline" size={20} color="#fff" />
+                </TouchableOpacity>
               )}
               <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Settings')} activeOpacity={0.8}>
                 <Ionicons name="settings-outline" size={20} color="#fff" />
@@ -595,18 +691,31 @@ export default function ProfileScreen({ navigation }: Props) {
                           key={item.id}
                           style={[styles.annonceCard, index % 2 === 1 && { marginLeft: SPACING.md }]}
                           onPress={() => navigation.navigate('AnnonceDetail', { annonce: item })}
+                          onLongPress={() => handleManageAnnonce(item)}
                           activeOpacity={0.8}
                         >
-                          {imageUrl ? (
-                            <Image source={{ uri: imageUrl }} style={styles.annonceImage} />
-                          ) : (
-                            <View style={[styles.annonceImage, { backgroundColor: theme.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
-                              <Ionicons name="image-outline" size={28} color={theme.borderLight} />
-                            </View>
-                          )}
+                          <View style={{ position: 'relative' }}>
+                            {imageUrl ? (
+                              <Image source={{ uri: imageUrl }} style={styles.annonceImage} />
+                            ) : (
+                              <View style={[styles.annonceImage, { backgroundColor: theme.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
+                                <Ionicons name="image-outline" size={28} color={theme.borderLight} />
+                              </View>
+                            )}
+                            {item.statut === 'vendu' && (
+                              <View style={styles.soldBadgeOverlay}>
+                                <Text style={styles.soldBadgeText}>Vendu</Text>
+                              </View>
+                            )}
+                          </View>
                           <View style={styles.annonceInfo}>
                             <Text style={styles.annonceTitle} numberOfLines={2}>{item.titre}</Text>
-                            <Text style={styles.annoncePrice}>{formatPrix(item.prix)}</Text>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                              <Text style={styles.annoncePrice}>{formatPrix(item.prix)}</Text>
+                              <TouchableOpacity onPress={() => handleManageAnnonce(item)} style={{ padding: 4 }}>
+                                <Ionicons name="ellipsis-horizontal" size={16} color={theme.textMuted} />
+                              </TouchableOpacity>
+                            </View>
                           </View>
                         </TouchableOpacity>
                       );
@@ -1609,5 +1718,20 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   viewerImage: {
     width: W,
     height: '100%',
+  },
+  soldBadgeOverlay: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  soldBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
   },
 });

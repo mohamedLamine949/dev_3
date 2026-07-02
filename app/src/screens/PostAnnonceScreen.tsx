@@ -55,10 +55,13 @@ export default function PostAnnonceScreen({ navigation }: any) {
 
   // Pre-fill phone from user profile
   useEffect(() => {
-    if (user?.telephone) {
-      const cleaned = user.telephone.replace(/[^0-9]/g, '');
+    const rawPhone = user?.telephone || user?.num_telephone;
+    if (rawPhone) {
+      const cleaned = rawPhone.replace(/[^0-9]/g, '');
       const last8 = cleaned.length >= 8 ? cleaned.substring(cleaned.length - 8) : cleaned;
       setPaymentPhone(last8);
+    } else {
+      setPaymentPhone('00000000');
     }
   }, [user]);
 
@@ -126,33 +129,18 @@ export default function PostAnnonceScreen({ navigation }: any) {
     setQuartier('');
   };
 
-  const handlePreSubmit = () => {
-    if (!session?.user) {
-      Alert.alert('Connexion requise', 'Vous devez être connecté pour publier une annonce.', [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Se connecter', onPress: () => navigation.navigate('Login') }
-      ]);
-      return;
-    }
-
-    if (!titre || !prix || !selectedCategory || images.length === 0) {
-      Alert.alert('Champs manquants', 'Titre, prix, catégorie et au moins une photo sont requis.');
-      return;
-    }
-    isProcessingRef.current = false;
-    setPaymentError('');
-    setPaymentStep('form');
-    setPaymentModalVisible(true);
-  };
-
   const performPaymentAndUpload = async () => {
-    if (paymentPhone.length < 8) {
-      Alert.alert('Erreur', 'Veuillez entrer un numéro valide de 8 chiffres.');
-      return;
-    }
-
+    isProcessingRef.current = false; // Réinitialiser le verrouillage pour autoriser les succès sur cette tentative
     setPaymentStep('init_payment');
     setPaymentError('');
+
+    // Calcul dynamique à partir du profil utilisateur pour éviter tout retard d'état React
+    const rawPhone = user?.telephone || user?.num_telephone;
+    let finalPhone = '00000000';
+    if (rawPhone) {
+      const cleaned = rawPhone.replace(/[^0-9]/g, '');
+      finalPhone = cleaned.length >= 8 ? cleaned.substring(cleaned.length - 8) : cleaned;
+    }
 
     const refNum = `CC-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
     setTransactionId(refNum);
@@ -171,9 +159,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
           customerEmail: session?.user?.email || 'client@app-flashmarket.com',
           customerFirstName: user?.prenom || 'Client',
           customerLastname: user?.nom || 'Chap Chap',
-          customerPhoneNumber: paymentPhone,
-          // Force directement Orange Money Mali (code provider PaiementPro = OMML),
-          // au lieu d'afficher la page de sélection des opérateurs.
+          customerPhoneNumber: finalPhone,
           channel: 'OMML',
           notificationURL: 'https://app-flashmarket.com/payment/notify',
           returnURL: 'https://app-flashmarket.com/payment/success',
@@ -200,6 +186,27 @@ export default function PostAnnonceScreen({ navigation }: any) {
       setPaymentError(error.message || "Une erreur est survenue lors de l'initialisation du paiement.");
       setPaymentStep('error');
     }
+  };
+
+  const handlePreSubmit = () => {
+    if (!session?.user) {
+      Alert.alert('Connexion requise', 'Vous devez être connecté pour publier une annonce.', [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Se connecter', onPress: () => navigation.navigate('Login') }
+      ]);
+      return;
+    }
+
+    if (!titre || !prix || !selectedCategory || images.length === 0) {
+      Alert.alert('Champs manquants', 'Titre, prix, catégorie et au moins une photo sont requis.');
+      return;
+    }
+    isProcessingRef.current = false;
+    setPaymentError('');
+    setPaymentModalVisible(true);
+    
+    // Lancer directement le processus de paiement
+    performPaymentAndUpload();
   };
 
   const handlePaymentSuccess = async () => {
@@ -258,6 +265,20 @@ export default function PostAnnonceScreen({ navigation }: any) {
       if (isProcessingRef.current) return;
       isProcessingRef.current = true;
       handlePaymentFailure("Le paiement a été annulé ou a échoué.");
+    }
+  };
+
+  const handleMessage = (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      console.log('WebView Message received:', data);
+      if (data && data.status === 'success') {
+        if (isProcessingRef.current) return;
+        isProcessingRef.current = true;
+        handlePaymentSuccess();
+      }
+    } catch (e) {
+      console.warn("Failed to parse message from WebView:", e);
     }
   };
 
@@ -452,40 +473,6 @@ export default function PostAnnonceScreen({ navigation }: any) {
               )}
             </View>
 
-            {paymentStep === 'form' && (
-              <View>
-                <View style={styles.paymentSummaryCard}>
-                  <Text style={styles.paymentSummaryLabel}>Annonce</Text>
-                  <Text style={styles.paymentSummaryTitle} numberOfLines={1}>{titre}</Text>
-                  <View style={styles.costDivider} />
-                  <View style={styles.costRow}>
-                    <Text style={styles.costLabel}>Total à payer :</Text>
-                    <Text style={styles.costValue}>{price} FCFA</Text>
-                  </View>
-                </View>
-
-                <Text style={styles.sectionTitle}>Numéro de téléphone</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ex: 76 00 00 00"
-                  placeholderTextColor={theme.textMuted}
-                  keyboardType="numeric"
-                  value={paymentPhone}
-                  onChangeText={setPaymentPhone}
-                  maxLength={8}
-                />
-                
-                <TouchableOpacity 
-                  style={[styles.ctaButton, { marginTop: SPACING.xl, backgroundColor: '#FF6600' }]} 
-                  onPress={performPaymentAndUpload}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="lock-closed" size={20} color={theme.textInverse} />
-                  <Text style={styles.ctaText}>Payer avec Orange Money</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
             {paymentStep === 'init_payment' && (
               <View style={styles.processingContainer}>
                 <ActivityIndicator size="large" color={theme.primary} />
@@ -499,6 +486,28 @@ export default function PostAnnonceScreen({ navigation }: any) {
                 <WebView
                   source={{ uri: paymentUrl }}
                   onNavigationStateChange={handleNavigationStateChange}
+                  onMessage={handleMessage}
+                  injectedJavaScript={`
+                    (function() {
+                      function checkPayment() {
+                        var bodyText = document.body ? document.body.innerText : '';
+                        var clean = bodyText.toLowerCase();
+                        if (clean.normalize) {
+                          clean = clean.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
+                        }
+                        if (
+                          clean.indexOf('votre paiement est confirme') !== -1 ||
+                          clean.indexOf('paiement reussi') !== -1 ||
+                          clean.indexOf('paiement effectue') !== -1
+                        ) {
+                          window.ReactNativeWebView.postMessage(JSON.stringify({ status: 'success' }));
+                        }
+                      }
+                      setInterval(checkPayment, 1000);
+                      checkPayment();
+                    })();
+                    true;
+                  `}
                   style={{ flex: 1 }}
                   javaScriptEnabled={true}
                   domStorageEnabled={true}
@@ -537,7 +546,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
                 </Text>
                 <TouchableOpacity
                   style={[styles.ctaButton, { marginTop: SPACING.xl, width: '100%' }]}
-                  onPress={() => setPaymentStep('form')}
+                  onPress={performPaymentAndUpload}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.ctaText}>Réessayer</Text>

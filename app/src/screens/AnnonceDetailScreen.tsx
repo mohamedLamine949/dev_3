@@ -79,6 +79,11 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (annonce) {
       addToRecent(annonce);
+      // Incrémenter le nombre de vues via la fonction RPC
+      supabase.rpc('increment_views', { annonce_id: annonce.id })
+        .then(({ error }) => {
+          if (error) console.log("Failed to increment views:", error.message);
+        });
     }
   }, [annonce?.id]);
 

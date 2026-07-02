@@ -52,6 +52,7 @@ export interface Annonce {
   latitude?: number;
   longitude?: number;
   date_creation: string;
+  nombre_vues?: number;
   // Joined
   images?: ImageAnnonce[];
   user?: User;

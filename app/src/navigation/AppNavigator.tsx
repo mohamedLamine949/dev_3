@@ -24,6 +24,8 @@ import SettingsScreen from '../screens/SettingsScreen';
 import LoginScreen from '../screens/LoginScreen';
 import LinkEmailScreen from '../screens/LinkEmailScreen';
 import MesAnnoncesScreen from '../screens/MesAnnoncesScreen';
+import EditAnnonceScreen from '../screens/EditAnnonceScreen';
+import HistoriquePaiementsScreen from '../screens/HistoriquePaiementsScreen';
 import FavorisScreen from '../screens/FavorisScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
 import VendeurProfileScreen from '../screens/VendeurProfileScreen';
@@ -256,6 +258,16 @@ export default function AppNavigator() {
           name="ResetPassword"
           component={ResetPasswordScreen}
           options={{ animation: 'slide_from_right', gestureEnabled: false }}
+        />
+        <Stack.Screen
+          name="EditAnnonce"
+          component={EditAnnonceScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="HistoriquePaiements"
+          component={HistoriquePaiementsScreen}
+          options={{ animation: 'slide_from_right' }}
         />
       </Stack.Navigator>
     </NavigationContainer>
