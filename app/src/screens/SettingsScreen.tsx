@@ -18,9 +18,29 @@ export default function SettingsScreen({ navigation }: Props) {
   const { theme, toggleTheme, isDark } = useTheme();
   const [isDeletingAccount, setIsDeletingAccount] = React.useState(false);
 
+  // Le DELETE direct sur storage.objects est interdit côté SQL par Supabase :
+  // la purge des fichiers doit passer par l'API Storage, avant la RPC.
+  // Best-effort : un échec ici ne doit jamais bloquer la suppression du compte.
+  const purgeStorage = async (uid: string) => {
+    try {
+      const { data: avatarFiles } = await supabase.storage.from('avatars').list(uid);
+      if (avatarFiles && avatarFiles.length > 0) {
+        await supabase.storage.from('avatars').remove(avatarFiles.map(f => `${uid}/${f.name}`));
+      }
+      const { data: annonces } = await supabase.from('annonces').select('id').eq('user_id', uid);
+      for (const annonce of annonces || []) {
+        const { data: imgs } = await supabase.storage.from('annonces-images').list(annonce.id);
+        if (imgs && imgs.length > 0) {
+          await supabase.storage.from('annonces-images').remove(imgs.map(f => `${annonce.id}/${f.name}`));
+        }
+      }
+    } catch {}
+  };
+
   const performAccountDeletion = async () => {
     try {
       setIsDeletingAccount(true);
+      if (session?.user?.id) await purgeStorage(session.user.id);
       const { error } = await supabase.rpc('delete_own_account');
       if (error) throw error;
       await signOut();
