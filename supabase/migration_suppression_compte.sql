@@ -29,9 +29,12 @@ BEGIN
   END IF;
 
   -- 1. Données applicatives. La plupart cascadent depuis public.users,
-  --    mais on supprime explicitement pour ne pas dépendre des FK
-  --    (ex. avis créée via le dashboard).
-  DELETE FROM public.avis WHERE auteur_id = uid OR vendeur_id = uid;
+  --    mais on supprime explicitement pour ne pas dépendre des FK.
+  --    La table avis n'existe pas (encore) sur tous les environnements :
+  --    on la garde derrière un garde-fou to_regclass.
+  IF to_regclass('public.avis') IS NOT NULL THEN
+    DELETE FROM public.avis WHERE auteur_id = uid OR vendeur_id = uid;
+  END IF;
   DELETE FROM public.notifications WHERE user_id = uid;
   DELETE FROM public.favoris WHERE user_id = uid;
   DELETE FROM public.messages WHERE expediteur_id = uid;
