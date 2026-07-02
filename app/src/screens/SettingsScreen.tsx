@@ -1,12 +1,13 @@
 import React from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  StatusBar, Alert, Platform,
+  StatusBar, Alert, Platform, ActivityIndicator,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { supabase } from '../lib/supabase';
 
 interface Props {
   navigation: any;
@@ -15,6 +16,61 @@ interface Props {
 export default function SettingsScreen({ navigation }: Props) {
   const { session, signOut } = useAuth();
   const { theme, toggleTheme, isDark } = useTheme();
+  const [isDeletingAccount, setIsDeletingAccount] = React.useState(false);
+
+  const performAccountDeletion = async () => {
+    try {
+      setIsDeletingAccount(true);
+      const { error } = await supabase.rpc('delete_own_account');
+      if (error) throw error;
+      await signOut();
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Main', params: { screen: 'Accueil' } }],
+      });
+      setTimeout(() => {
+        Alert.alert(
+          'Compte supprimé',
+          'Votre compte et toutes vos données ont été définitivement supprimés.'
+        );
+      }, 400);
+    } catch (err: any) {
+      Alert.alert(
+        'Erreur',
+        err?.message || 'La suppression du compte a échoué. Veuillez réessayer.'
+      );
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    if (!session) {
+      navigation.navigate('Login');
+      return;
+    }
+    Alert.alert(
+      'Supprimer mon compte',
+      'Cette action est définitive et irréversible. Toutes vos données seront supprimées : profil, annonces et leurs photos, conversations, messages, avis, favoris et notifications.\n\nVoulez-vous continuer ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Continuer',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Confirmation définitive',
+              'Dernière étape : votre compte sera supprimé immédiatement et ne pourra pas être récupéré.',
+              [
+                { text: 'Annuler', style: 'cancel' },
+                { text: 'Supprimer définitivement', style: 'destructive', onPress: performAccountDeletion },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
 
   const MENU_ITEMS = [
     {
@@ -139,6 +195,25 @@ export default function SettingsScreen({ navigation }: Props) {
           </Text>
         </TouchableOpacity>
 
+        {/* Suppression de compte (App Store Guideline 5.1.1(v)) */}
+        {session && (
+          <TouchableOpacity
+            style={styles.deleteAccountBtn}
+            onPress={handleDeleteAccount}
+            disabled={isDeletingAccount}
+            activeOpacity={0.7}
+          >
+            {isDeletingAccount ? (
+              <ActivityIndicator size="small" color={COLORS.error} />
+            ) : (
+              <>
+                <Feather name="trash-2" size={18} color={COLORS.error} />
+                <Text style={styles.deleteAccountText}>Supprimer mon compte</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
+
         <Text style={styles.version}>Flash Market v2.0</Text>
       </ScrollView>
     </View>
@@ -262,6 +337,24 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   logoutText: {
     fontSize: FONTS.md,
     fontWeight: FONTS.semibold,
+  },
+  deleteAccountBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.md,
+    backgroundColor: theme.surface,
+    borderRadius: RADIUS.xl,
+    borderWidth: 1,
+    borderColor: COLORS.error,
+    marginTop: SPACING.md,
+    ...SHADOWS.sm,
+  },
+  deleteAccountText: {
+    fontSize: FONTS.md,
+    fontWeight: FONTS.semibold,
+    color: COLORS.error,
   },
   version: {
     textAlign: 'center',
