@@ -97,7 +97,8 @@ export default function SettingsScreen({ navigation }: Props) {
       section: 'Mon compte',
       items: [
         { icon: 'list', label: 'Mes annonces', screen: 'MesAnnonces', private: true },
-        { icon: 'credit-card', label: 'Historique des paiements', screen: 'HistoriquePaiements', private: true },
+        // Historique des paiements masqué pendant la phase gratuite —
+        // à réactiver quand payments_enabled repassera à TRUE.
         { icon: 'heart', label: 'Mes favoris', screen: 'Favoris', private: true },
       ],
     },

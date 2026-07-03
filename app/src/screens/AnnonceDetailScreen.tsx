@@ -54,6 +54,19 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
 
+  // Visionneuse d'images plein écran (comme la vitrine du profil)
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const viewerScrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (viewerVisible) {
+      setTimeout(() => {
+        viewerScrollRef.current?.scrollTo({ x: viewerIndex * SCREEN_WIDTH, animated: false });
+      }, 100);
+    }
+  }, [viewerVisible]);
+
   useEffect(() => {
     if (!seller && annonce.user_id) {
       supabase
@@ -182,8 +195,16 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
               const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
               setCurrentImageIndex(index);
             }}
-            renderItem={({ item }) => (
-              <Image source={{ uri: item }} style={styles.carouselImage} />
+            renderItem={({ item, index }) => (
+              <TouchableOpacity
+                activeOpacity={0.95}
+                onPress={() => {
+                  setViewerIndex(index);
+                  setViewerVisible(true);
+                }}
+              >
+                <Image source={{ uri: item }} style={styles.carouselImage} />
+              </TouchableOpacity>
             )}
             keyExtractor={(_, i) => String(i)}
           />
@@ -461,6 +482,34 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* Visionneuse d'images plein écran */}
+      <Modal visible={viewerVisible} transparent animationType="fade" onRequestClose={() => setViewerVisible(false)}>
+        <View style={styles.viewerContainer}>
+          <StatusBar barStyle="light-content" backgroundColor="#000" />
+          <View style={styles.viewerHeader}>
+            <Text style={styles.viewerIndexText}>{viewerIndex + 1} / {images.length}</Text>
+            <TouchableOpacity style={styles.viewerCloseBtn} onPress={() => setViewerVisible(false)}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            ref={viewerScrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) => {
+              setViewerIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH));
+            }}
+          >
+            {images.map((imgUrl, idx) => (
+              <View key={idx} style={styles.viewerImageWrapper}>
+                <Image source={{ uri: imgUrl }} style={styles.viewerImage} resizeMode="contain" />
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
+
       {/* CTA fixe en bas */}
       <View style={styles.ctaContainer}>
         <TouchableOpacity
@@ -492,6 +541,26 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
 }
 
 const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
+  // Visionneuse d'images plein écran
+  viewerContainer: { flex: 1, backgroundColor: '#000' },
+  viewerHeader: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 54 : 30,
+    left: 0, right: 0, zIndex: 10,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+  },
+  viewerIndexText: { color: '#fff', fontSize: FONTS.md, fontWeight: FONTS.bold },
+  viewerCloseBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  viewerImageWrapper: {
+    width: SCREEN_WIDTH, height: '100%',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  viewerImage: { width: SCREEN_WIDTH, height: '100%' },
   container: {
     flex: 1,
     backgroundColor: theme.background,

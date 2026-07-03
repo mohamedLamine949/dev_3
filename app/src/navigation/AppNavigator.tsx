@@ -251,6 +251,12 @@ export default function AppNavigator() {
           component={VendeurProfileScreen}
           options={{ animation: 'slide_from_right' }}
         />
+        {/* Nécessaire au niveau racine : VendeurProfile (racine) navigue vers AnnonceDetail */}
+        <Stack.Screen
+          name="AnnonceDetail"
+          component={AnnonceDetailScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
         <Stack.Screen
           name="Legal"
           component={LegalScreen}

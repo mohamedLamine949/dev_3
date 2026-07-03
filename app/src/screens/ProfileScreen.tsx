@@ -423,11 +423,7 @@ export default function ProfileScreen({ navigation }: Props) {
                   </TouchableOpacity>
                 </>
               )}
-              {session && (
-                <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('HistoriquePaiements')} activeOpacity={0.8}>
-                  <Ionicons name="receipt-outline" size={20} color="#fff" />
-                </TouchableOpacity>
-              )}
+              {/* Bouton historique des paiements masqué pendant la phase gratuite */}
               <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Settings')} activeOpacity={0.8}>
                 <Ionicons name="settings-outline" size={20} color="#fff" />
               </TouchableOpacity>
