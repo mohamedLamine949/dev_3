@@ -72,7 +72,15 @@
           "iosUrlScheme": "com.googleusercontent.apps.263370083660-ufequbeluh1d0jnu5t4un8uuvadpv7hk"
         }
       ],
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {
