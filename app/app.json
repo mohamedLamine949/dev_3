@@ -23,6 +23,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.chapchap.flashmarket",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -64,7 +65,14 @@
         {
           "photosPermission": "Flash Market accède à vos photos pour ajouter des images à vos annonces et à votre profil."
         }
-      ]
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.REMPLACER_PAR_ID_CLIENT_IOS_GOOGLE"
+        }
+      ],
+      "expo-apple-authentication"
     ],
     "extra": {
       "eas": {

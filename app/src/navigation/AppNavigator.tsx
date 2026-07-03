@@ -23,6 +23,7 @@ import ChatConversationScreen from '../screens/ChatConversationScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import LoginScreen from '../screens/LoginScreen';
+import CompleteProfileScreen from '../screens/CompleteProfileScreen';
 import LinkEmailScreen from '../screens/LinkEmailScreen';
 import MesAnnoncesScreen from '../screens/MesAnnoncesScreen';
 import EditAnnonceScreen from '../screens/EditAnnonceScreen';
@@ -238,6 +239,11 @@ export default function AppNavigator() {
           name="Login"
           component={LoginScreen}
           options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="CompleteProfile"
+          component={CompleteProfileScreen}
+          options={{ animation: 'slide_from_right', gestureEnabled: false }}
         />
         <Stack.Screen
           name="LinkEmail"
