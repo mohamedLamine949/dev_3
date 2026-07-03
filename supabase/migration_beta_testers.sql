@@ -37,8 +37,9 @@ CREATE POLICY "Anyone can register as tester" ON public.beta_testers
 -- marquage pour ne pas ré-exporter les mêmes personnes la fois suivante.
 -- =====================================================================
 
--- 1) EXPORT APPLE (TestFlight — colonnes attendues par App Store Connect) :
--- SELECT prenom AS "First Name", nom AS "Last Name", email AS "Email"
+-- 1) EXPORT APPLE (TestFlight — ordre des colonnes du dialogue App Store
+--    Connect : E-MAIL, PRÉNOM, NOM) :
+-- SELECT email, prenom, nom
 -- FROM public.beta_testers
 -- WHERE platform = 'ios' AND invite = FALSE
 -- ORDER BY date_inscription;
