@@ -22,6 +22,7 @@ import { createAnnonce } from '../hooks/useAnnonces';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation } from '../hooks/useLocation';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAppConfig } from '../hooks/useAppConfig';
 
 const MAX_IMAGES = 10;
 
@@ -33,6 +34,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
   const { session, user } = useAuth();
   const { location } = useLocation();
   const { theme, isDark } = useTheme();
+  const { paymentsEnabled } = useAppConfig();
 
   const [images, setImages] = useState<string[]>([]);
   const [titre, setTitre] = useState('');
@@ -51,6 +53,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
   const [paymentStep, setPaymentStep] = useState<'form' | 'init_payment' | 'webview' | 'processing' | 'success' | 'error'>('form');
   const [transactionId, setTransactionId] = useState('');
   const [paymentError, setPaymentError] = useState('');
+  const [isFreePublish, setIsFreePublish] = useState(false); // publication gratuite (paiement désactivé)
   const isProcessingRef = React.useRef(false);
 
   // Pre-fill phone from user profile
@@ -203,10 +206,60 @@ export default function PostAnnonceScreen({ navigation }: any) {
     }
     isProcessingRef.current = false;
     setPaymentError('');
+
+    // Interrupteur distant (Supabase app_config) : si le paiement est
+    // désactivé (phase de lancement gratuite), on publie directement.
+    if (!paymentsEnabled) {
+      publishFree();
+      return;
+    }
+
+    setIsFreePublish(false);
     setPaymentModalVisible(true);
-    
+
     // Lancer directement le processus de paiement
     performPaymentAndUpload();
+  };
+
+  // Publication gratuite : crée l'annonce sans passer par le paiement.
+  const publishFree = async () => {
+    setIsFreePublish(true);
+    setPaymentError('');
+    setPaymentStep('processing');
+    setPaymentModalVisible(true);
+
+    const annonceData = {
+      titre,
+      description: description || null,
+      prix: parseInt(prix, 10),
+      categorie: selectedCategory!,
+      etat_article: selectedEtat || 'non_specifie',
+      ville: location?.ville || 'Mali',
+      quartier: quartier || null,
+      latitude: location?.latitude || null,
+      longitude: location?.longitude || null,
+      est_payee: true,
+      statut: 'active',
+      id_transaction_paiement: null,
+      montant_depot: 0,
+      user_id: session?.user?.id,
+    };
+
+    const { error } = await createAnnonce(annonceData as any, images);
+
+    if (error) {
+      console.error(error);
+      setPaymentError('La publication a échoué. ' + error);
+      setPaymentStep('error');
+      return;
+    }
+
+    setPaymentStep('success');
+    setTimeout(() => {
+      setPaymentModalVisible(false);
+      resetForm();
+      navigation.navigate('Accueil');
+    }, 3000);
   };
 
   const handlePaymentSuccess = async () => {
@@ -415,12 +468,16 @@ export default function PostAnnonceScreen({ navigation }: any) {
           <View style={styles.costCard}>
             <View style={styles.costRow}>
               <Text style={styles.costLabel}>Frais de publication</Text>
-              <Text style={styles.costValue}>{price} FCFA</Text>
+              <Text style={styles.costValue}>{paymentsEnabled ? `${price} FCFA` : 'Gratuit'}</Text>
             </View>
             <View style={styles.costDivider} />
             <View style={styles.costInfo}>
               <Ionicons name="information-circle-outline" size={16} color={theme.textMuted} />
-              <Text style={styles.costInfoText}>Le paiement s'effectuera via Mobile Money.</Text>
+              <Text style={styles.costInfoText}>
+                {paymentsEnabled
+                  ? "Le paiement s'effectuera via Mobile Money."
+                  : "Publication gratuite pendant la période de lancement."}
+              </Text>
             </View>
           </View>
 
@@ -437,7 +494,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
           activeOpacity={0.8}
         >
           <Ionicons name="flash" size={20} color={theme.textInverse} />
-          <Text style={styles.ctaText}>Publier pour {price} FCFA</Text>
+          <Text style={styles.ctaText}>{paymentsEnabled ? `Publier pour ${price} FCFA` : 'Publier gratuitement'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -464,7 +521,11 @@ export default function PostAnnonceScreen({ navigation }: any) {
             {/* Header du Modal */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {paymentStep === 'webview' ? 'Portail de Paiement' : 'Paiement Mobile Money'}
+                {paymentStep === 'webview'
+                  ? 'Portail de Paiement'
+                  : isFreePublish
+                  ? 'Publication'
+                  : 'Paiement Mobile Money'}
               </Text>
               {(paymentStep !== 'processing' && paymentStep !== 'init_payment') && (
                 <TouchableOpacity onPress={() => setPaymentModalVisible(false)}>
@@ -525,15 +586,25 @@ export default function PostAnnonceScreen({ navigation }: any) {
               <View style={styles.processingContainer}>
                 <ActivityIndicator size="large" color={theme.primary} />
                 <Text style={styles.processingTitle}>Publication en cours...</Text>
-                <Text style={styles.processingText}>Validation de votre paiement et mise en ligne de votre annonce. Ne quittez pas l'application.</Text>
+                <Text style={styles.processingText}>
+                  {isFreePublish
+                    ? "Mise en ligne de votre annonce. Ne quittez pas l'application."
+                    : "Validation de votre paiement et mise en ligne de votre annonce. Ne quittez pas l'application."}
+                </Text>
               </View>
             )}
 
             {paymentStep === 'success' && (
               <View style={styles.processingContainer}>
                 <Ionicons name="checkmark-circle" size={80} color={theme.success} />
-                <Text style={[styles.processingTitle, { color: theme.success }]}>Paiement Réussi !</Text>
-                <Text style={styles.processingText}>Votre paiement de {price} FCFA a été validé. Votre annonce est maintenant en ligne.</Text>
+                <Text style={[styles.processingTitle, { color: theme.success }]}>
+                  {isFreePublish ? 'Annonce publiée !' : 'Paiement Réussi !'}
+                </Text>
+                <Text style={styles.processingText}>
+                  {isFreePublish
+                    ? 'Votre annonce est maintenant en ligne.'
+                    : `Votre paiement de ${price} FCFA a été validé. Votre annonce est maintenant en ligne.`}
+                </Text>
               </View>
             )}
 
@@ -546,7 +617,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
                 </Text>
                 <TouchableOpacity
                   style={[styles.ctaButton, { marginTop: SPACING.xl, width: '100%' }]}
-                  onPress={performPaymentAndUpload}
+                  onPress={isFreePublish ? publishFree : performPaymentAndUpload}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.ctaText}>Réessayer</Text>
