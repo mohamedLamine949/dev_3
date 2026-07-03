@@ -99,7 +99,6 @@ export default function SettingsScreen({ navigation }: Props) {
         { icon: 'list', label: 'Mes annonces', screen: 'MesAnnonces', private: true },
         { icon: 'credit-card', label: 'Historique des paiements', screen: 'HistoriquePaiements', private: true },
         { icon: 'heart', label: 'Mes favoris', screen: 'Favoris', private: true },
-        { icon: 'mail', label: 'E-mail de secours', screen: 'LinkEmail', private: true },
       ],
     },
     {

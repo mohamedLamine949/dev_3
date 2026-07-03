@@ -505,29 +505,6 @@ export default function ProfileScreen({ navigation }: Props) {
         {session ? (
           <View style={styles.body}>
 
-            {session && (!user?.email || user.email.endsWith('@phone.market')) && (
-              <View style={styles.emailBanner}>
-                <View style={styles.emailBannerContent}>
-                  <View style={styles.emailBannerIcon}>
-                    <Ionicons name="shield-half-outline" size={20} color={theme.primary} />
-                  </View>
-                  <View style={styles.emailBannerTextContainer}>
-                    <Text style={styles.emailBannerTitle}>Sécurisez votre compte</Text>
-                    <Text style={styles.emailBannerDesc}>
-                      Associez une adresse e-mail pour certifier votre numéro de téléphone et récupérer votre compte en cas d'oubli de mot de passe.
-                    </Text>
-                  </View>
-                </View>
-                <TouchableOpacity 
-                  style={styles.emailBannerBtn}
-                  onPress={() => navigation.navigate('LinkEmail')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.emailBannerBtnText}>Lier mon adresse e-mail</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
             {/* Barre d'onglets (Vitrine, Annonces, Avis) */}
             <View style={styles.tabsContainer}>
               <TouchableOpacity 
@@ -1024,55 +1001,6 @@ export default function ProfileScreen({ navigation }: Props) {
 
 const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
-
-  emailBanner: {
-    backgroundColor: isDark ? '#1E293B' : '#ECFDF5',
-    borderWidth: 1,
-    borderColor: isDark ? '#065F46' : '#A7F3D0',
-    borderRadius: RADIUS.lg,
-    padding: SPACING.md,
-    marginBottom: SPACING.lg,
-    gap: SPACING.md,
-  },
-  emailBannerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-  },
-  emailBannerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: isDark ? '#065F46' : '#D1FAE5',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emailBannerTextContainer: {
-    flex: 1,
-  },
-  emailBannerTitle: {
-    fontSize: FONTS.sm,
-    fontWeight: FONTS.bold,
-    color: theme.textPrimary,
-  },
-  emailBannerDesc: {
-    fontSize: 11,
-    color: theme.textSecondary,
-    marginTop: 2,
-    lineHeight: 15,
-  },
-  emailBannerBtn: {
-    backgroundColor: theme.primary,
-    paddingVertical: 8,
-    borderRadius: RADIUS.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emailBannerBtnText: {
-    fontSize: FONTS.xs,
-    fontWeight: FONTS.bold,
-    color: '#fff',
-  },
 
   // PRO Snapchat style header styles
   proHeaderContainer: {

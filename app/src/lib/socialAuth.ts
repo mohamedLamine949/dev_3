@@ -67,6 +67,34 @@ export async function signInWithGoogle() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Connexion par e-mail (OTP à 6 chiffres, SANS mot de passe).
+//   signInWithOtp crée le compte s'il n'existe pas, ou connecte s'il existe :
+//   « s'inscrire » et « se connecter » sont donc le même flux.
+//   Prérequis dashboard : le template e-mail « Magic Link » de Supabase doit
+//   contenir {{ .Token }} pour envoyer le CODE (et non un lien).
+// ---------------------------------------------------------------------------
+
+/** Envoie un code OTP à 6 chiffres à l'adresse e-mail. */
+export async function sendEmailOtp(email: string) {
+  const { error } = await supabase.auth.signInWithOtp({
+    email: email.trim().toLowerCase(),
+    options: { shouldCreateUser: true },
+  });
+  if (error) throw error;
+}
+
+/** Vérifie le code OTP e-mail → ouvre (ou crée) la session. */
+export async function verifyEmailOtp(email: string, token: string) {
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: email.trim().toLowerCase(),
+    token: token.trim(),
+    type: 'email',
+  });
+  if (error) throw error;
+  return data;
+}
+
 /** Sign in with Apple n'est disponible que sur iOS (≥ 13). */
 export const isAppleAuthSupported = Platform.OS === 'ios';
 
