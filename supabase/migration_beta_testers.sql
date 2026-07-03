@@ -32,27 +32,36 @@ CREATE POLICY "Anyone can register as tester" ON public.beta_testers
   WITH CHECK (platform IN ('ios', 'android'));
 
 -- =====================================================================
--- EXPORTS CSV (à lancer dans le SQL Editor, puis bouton « Download CSV »
--- sur le résultat). Après import dans le store, lance la requête de
--- marquage pour ne pas ré-exporter les mêmes personnes la fois suivante.
+-- EXPORTS CSV « TOUT-EN-UN » (à sauvegarder comme requêtes dans le SQL
+-- Editor). Chaque Run renvoie UNIQUEMENT les nouveaux inscrits ET les
+-- marque comme invités dans la même opération : le Run suivant ne
+-- ressortira jamais les mêmes personnes. Bouton « Download CSV » sur le
+-- résultat, puis import direct dans le store.
 -- =====================================================================
 
--- 1) EXPORT APPLE (TestFlight — ordre des colonnes du dialogue App Store
---    Connect : E-MAIL, PRÉNOM, NOM) :
--- SELECT email, prenom, nom
--- FROM public.beta_testers
+-- 1) EXPORT APPLE (TestFlight — ordre du dialogue ASC : e-mail, prénom, nom).
+--    Renvoie les nouveaux testeurs iOS et les marque invités d'un coup :
+-- UPDATE public.beta_testers
+-- SET invite = TRUE
 -- WHERE platform = 'ios' AND invite = FALSE
--- ORDER BY date_inscription;
+-- RETURNING email, prenom, nom;
 
--- 2) EXPORT GOOGLE (Play Console — une adresse par ligne) :
--- SELECT email
--- FROM public.beta_testers
+-- 2) EXPORT GOOGLE (Play Console — une adresse par ligne).
+--    Renvoie les nouveaux testeurs Android et les marque invités d'un coup :
+-- UPDATE public.beta_testers
+-- SET invite = TRUE
 -- WHERE platform = 'android' AND invite = FALSE
--- ORDER BY date_inscription;
+-- RETURNING email;
 
--- 3) APRÈS IMPORT — marquer comme invités (par plateforme) :
--- UPDATE public.beta_testers SET invite = TRUE WHERE platform = 'ios'     AND invite = FALSE;
--- UPDATE public.beta_testers SET invite = TRUE WHERE platform = 'android' AND invite = FALSE;
+-- 3) RATTRAPAGE : si tu as lancé l'export mais perdu/raté le fichier CSV,
+--    remets les personnes concernées en « non invitées » puis relance :
+-- UPDATE public.beta_testers SET invite = FALSE WHERE email IN ('adresse1@...', 'adresse2@...');
+--    ou tout ré-exporter depuis le début (re-marque TOUT comme nouveau) :
+-- UPDATE public.beta_testers SET invite = FALSE;
 
--- 4) VUE D'ENSEMBLE (compteurs) :
+-- 4) VUE D'ENSEMBLE (compteurs par plateforme) :
 -- SELECT platform, invite, COUNT(*) FROM public.beta_testers GROUP BY platform, invite ORDER BY platform;
+
+-- 5) TOUT VOIR (consultation simple, ne modifie rien) :
+-- SELECT prenom, nom, email, platform, invite, date_inscription
+-- FROM public.beta_testers ORDER BY date_inscription DESC;
