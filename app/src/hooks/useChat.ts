@@ -64,7 +64,9 @@ export function useConversations(userId: string | undefined) {
         .from('conversations')
         .select(`
           *,
-          annonce:annonces(*, images:images_annonce(*))
+          annonce:annonces(*, images:images_annonce(*)),
+          acheteur:users!conversations_acheteur_id_fkey(id, prenom, nom, avatar_url),
+          vendeur:users!conversations_vendeur_id_fkey(id, prenom, nom, avatar_url)
         `)
         .or(`acheteur_id.eq.${userId},vendeur_id.eq.${userId}`)
         .order('date_dernier_message', { ascending: false });
@@ -135,6 +137,40 @@ export function useConversations(userId: string | undefined) {
   }, [userId, fetchConversations]);
 
   return { conversations, loading, refetch: fetchConversations };
+}
+
+/**
+ * Présence temps réel dans une conversation : indique si l'interlocuteur
+ * a réellement la conversation ouverte (au lieu d'un « En ligne » factice)
+ */
+export function useConversationPresence(conversationId: string | undefined, currentUserId: string | undefined) {
+  const [otherOnline, setOtherOnline] = useState(false);
+
+  useEffect(() => {
+    setOtherOnline(false);
+    if (!conversationId || !currentUserId) return;
+
+    const channel = supabase.channel(`presence_conv_${conversationId}`, {
+      config: { presence: { key: currentUserId } },
+    });
+
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        setOtherOnline(Object.keys(state).some((key) => key !== currentUserId));
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ online_at: new Date().toISOString() });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId, currentUserId]);
+
+  return otherOnline;
 }
 
 /**

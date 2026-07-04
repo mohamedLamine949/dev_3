@@ -12,13 +12,14 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useTheme } from '../contexts/ThemeContext';
-import { Message } from '../lib/supabase';
+import { supabase, Message } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { useChat, getOrCreateConversation } from '../hooks/useChat';
+import { useChat, getOrCreateConversation, useConversationPresence } from '../hooks/useChat';
 
 function formatTime(dateStr: string): string {
   if (!dateStr) return '';
@@ -45,6 +46,25 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   headerInfo: {
     flex: 1,
   },
+  headerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.surfaceMuted,
+  },
+  headerAvatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.surfaceMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerAvatarInitial: {
+    fontSize: FONTS.md,
+    fontWeight: FONTS.bold,
+    color: theme.primary,
+  },
   headerTitle: {
     fontSize: FONTS.md,
     fontWeight: FONTS.bold,
@@ -52,8 +72,11 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 12,
-    color: theme.primary,
+    color: theme.textMuted,
     fontWeight: FONTS.medium,
+  },
+  headerSubtitleOnline: {
+    color: theme.primary,
   },
   messagesList: {
     padding: SPACING.lg,
@@ -165,7 +188,8 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
 });
 
 export default function ChatConversationScreen({ route, navigation }: any) {
-  const { conversationId: initialConvId, titreAnnonce, vendeurId, annonceId } = route.params || {};
+  const { conversationId: initialConvId, vendeurId, annonceId, interlocuteur } = route.params || {};
+  const titreAnnonce = route.params?.titreAnnonce || route.params?.titrAnnonce;
   const { session } = useAuth();
   const { theme, isDark } = useTheme();
   const currentUserId = session?.user?.id;
@@ -180,8 +204,10 @@ export default function ChatConversationScreen({ route, navigation }: any) {
   
   const [activeConversationId, setActiveConversationId] = useState<string | undefined>(initialConvId);
   const [resolving, setResolving] = useState(!initialConvId);
+  const [otherUser, setOtherUser] = useState<any>(interlocuteur || null);
   
   const { messages, loading, sendMessage } = useChat(activeConversationId, currentUserId);
+  const otherOnline = useConversationPresence(activeConversationId, currentUserId);
   const [inputText, setInputText] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
@@ -207,6 +233,40 @@ export default function ChatConversationScreen({ route, navigation }: any) {
     }
     initConv();
   }, [initialConvId, vendeurId, annonceId, currentUserId]);
+
+  // Récupère le profil de l'interlocuteur s'il n'a pas été passé en paramètre
+  // (ex : ouverture depuis une notification qui ne connaît que l'id de conversation)
+  useEffect(() => {
+    if (otherUser || !currentUserId) return;
+    let cancelled = false;
+
+    async function fetchOtherUser() {
+      let otherId: string | undefined = vendeurId;
+      if (!otherId && activeConversationId) {
+        const { data: conv } = await supabase
+          .from('conversations')
+          .select('acheteur_id, vendeur_id')
+          .eq('id', activeConversationId)
+          .maybeSingle();
+        if (conv) {
+          otherId = conv.acheteur_id === currentUserId ? conv.vendeur_id : conv.acheteur_id;
+        }
+      }
+      if (!otherId || otherId === currentUserId) return;
+
+      const { data } = await supabase
+        .from('users')
+        .select('id, prenom, nom, avatar_url')
+        .eq('id', otherId)
+        .maybeSingle();
+      if (data && !cancelled) setOtherUser(data);
+    }
+
+    fetchOtherUser();
+    return () => { cancelled = true; };
+  }, [otherUser, activeConversationId, vendeurId, currentUserId]);
+
+  const otherUserName = [otherUser?.prenom, otherUser?.nom].filter(Boolean).join(' ').trim();
 
   const handleSend = async (text?: string) => {
     const finalMsg = text || inputText;
@@ -264,9 +324,27 @@ export default function ChatConversationScreen({ route, navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={theme.textPrimary} />
         </TouchableOpacity>
+        {otherUser?.avatar_url ? (
+          <Image source={{ uri: otherUser.avatar_url }} style={styles.headerAvatar} />
+        ) : (
+          <View style={styles.headerAvatarPlaceholder}>
+            {otherUserName ? (
+              <Text style={styles.headerAvatarInitial}>{otherUserName[0].toUpperCase()}</Text>
+            ) : (
+              <Ionicons name="person" size={20} color={theme.textMuted} />
+            )}
+          </View>
+        )}
         <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle} numberOfLines={1}>{titreAnnonce || 'Conversation'}</Text>
-          <Text style={styles.headerSubtitle}>{activeConversationId ? 'En ligne' : 'Nouveau'}</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {otherUserName || titreAnnonce || 'Conversation'}
+          </Text>
+          <Text
+            style={[styles.headerSubtitle, otherOnline && styles.headerSubtitleOnline]}
+            numberOfLines={1}
+          >
+            {otherOnline ? 'En ligne' : !activeConversationId ? 'Nouveau' : titreAnnonce || ''}
+          </Text>
         </View>
       </View>
 
