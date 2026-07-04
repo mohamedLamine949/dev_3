@@ -64,7 +64,9 @@ export function useConversations(userId: string | undefined) {
         .from('conversations')
         .select(`
           *,
-          annonce:annonces(*, images:images_annonce(*))
+          annonce:annonces(*, images:images_annonce(*)),
+          acheteur:users!conversations_acheteur_id_fkey(id, prenom, nom, avatar_url),
+          vendeur:users!conversations_vendeur_id_fkey(id, prenom, nom, avatar_url)
         `)
         .or(`acheteur_id.eq.${userId},vendeur_id.eq.${userId}`)
         .order('date_dernier_message', { ascending: false });

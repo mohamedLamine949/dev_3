@@ -163,7 +163,10 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
     navigation.navigate('ChatConversation', {
       annonceId: annonce.id,
       vendeurId: annonce.user_id,
-      titrAnnonce: annonce.titre,
+      titreAnnonce: annonce.titre,
+      interlocuteur: seller
+        ? { id: seller.id, prenom: seller.prenom, nom: seller.nom, avatar_url: seller.avatar_url }
+        : undefined,
     });
   };
 
