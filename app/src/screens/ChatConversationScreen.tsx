@@ -19,7 +19,7 @@ import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase, Message } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { useChat, getOrCreateConversation } from '../hooks/useChat';
+import { useChat, getOrCreateConversation, useConversationPresence } from '../hooks/useChat';
 
 function formatTime(dateStr: string): string {
   if (!dateStr) return '';
@@ -72,8 +72,11 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 12,
-    color: theme.primary,
+    color: theme.textMuted,
     fontWeight: FONTS.medium,
+  },
+  headerSubtitleOnline: {
+    color: theme.primary,
   },
   messagesList: {
     padding: SPACING.lg,
@@ -204,6 +207,7 @@ export default function ChatConversationScreen({ route, navigation }: any) {
   const [otherUser, setOtherUser] = useState<any>(interlocuteur || null);
   
   const { messages, loading, sendMessage } = useChat(activeConversationId, currentUserId);
+  const otherOnline = useConversationPresence(activeConversationId, currentUserId);
   const [inputText, setInputText] = useState('');
   const flatListRef = useRef<FlatList>(null);
 
@@ -335,8 +339,11 @@ export default function ChatConversationScreen({ route, navigation }: any) {
           <Text style={styles.headerTitle} numberOfLines={1}>
             {otherUserName || titreAnnonce || 'Conversation'}
           </Text>
-          <Text style={styles.headerSubtitle} numberOfLines={1}>
-            {otherUserName && titreAnnonce ? titreAnnonce : activeConversationId ? 'En ligne' : 'Nouveau'}
+          <Text
+            style={[styles.headerSubtitle, otherOnline && styles.headerSubtitleOnline]}
+            numberOfLines={1}
+          >
+            {otherOnline ? 'En ligne' : !activeConversationId ? 'Nouveau' : titreAnnonce || ''}
           </Text>
         </View>
       </View>

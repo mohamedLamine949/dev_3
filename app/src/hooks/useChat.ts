@@ -140,6 +140,40 @@ export function useConversations(userId: string | undefined) {
 }
 
 /**
+ * Présence temps réel dans une conversation : indique si l'interlocuteur
+ * a réellement la conversation ouverte (au lieu d'un « En ligne » factice)
+ */
+export function useConversationPresence(conversationId: string | undefined, currentUserId: string | undefined) {
+  const [otherOnline, setOtherOnline] = useState(false);
+
+  useEffect(() => {
+    setOtherOnline(false);
+    if (!conversationId || !currentUserId) return;
+
+    const channel = supabase.channel(`presence_conv_${conversationId}`, {
+      config: { presence: { key: currentUserId } },
+    });
+
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        setOtherOnline(Object.keys(state).some((key) => key !== currentUserId));
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ online_at: new Date().toISOString() });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId, currentUserId]);
+
+  return otherOnline;
+}
+
+/**
  * Gère une conversation spécifique (messages en temps réel)
  */
 export function useChat(conversationId: string | undefined, currentUserId: string | undefined) {
