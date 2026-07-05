@@ -103,6 +103,28 @@
     .appstore-btn span small { display: block; font-size: .72rem; font-weight: 500; opacity: .85; }
     .appstore-btn span strong { font-size: 1.12rem; font-weight: 700; }
     .ios-note { font-size: .85rem; color: #8a93a2; margin-top: 18px !important; }
+
+    /* Carte d'identification de la fiche App Store (une app homonyme existe) */
+    .app-identity {
+      display: flex; align-items: center; gap: 14px; text-align: left;
+      background: #fafbfd; border: 1.5px solid #e8ecf1; border-radius: 16px;
+      padding: 14px 16px; margin: 0 auto 18px; max-width: 340px;
+    }
+    .app-identity .app-icon {
+      flex-shrink: 0; width: 58px; height: 58px; border-radius: 13px;
+      background: linear-gradient(160deg, #22b558, #128a3e);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: #fff; box-shadow: 0 4px 12px rgba(22, 163, 74, .35);
+    }
+    .app-identity .app-icon svg { width: 26px; height: 26px; }
+    .app-identity .app-icon small { font-size: .58rem; font-weight: 800; letter-spacing: .2px; margin-top: 1px; }
+    .app-identity .app-meta strong { display: block; font-size: 1.02rem; color: #1a1d26; }
+    .app-identity .app-meta span { display: block; font-size: .82rem; color: #5b6472; margin-top: 2px; }
+    .warn-box {
+      background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px;
+      padding: 12px 14px; margin: 0 auto 20px; max-width: 400px;
+      font-size: .88rem; color: #92400e; line-height: 1.55; text-align: left;
+    }
   </style>
 </head>
 <body>
@@ -164,6 +186,31 @@
             Plus besoin d'invitation ni d'inscription : téléchargez Flash Market
             directement sur votre iPhone, comme n'importe quelle application.
           </p>
+
+          <!-- Identification : une app homonyme (« FlashMarket ») existe sur l'App Store -->
+          <div class="app-identity">
+            <div class="app-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 7h12l1 13H5L6 7Z"/>
+                <path d="M9 7a3 3 0 0 1 6 0"/>
+                <path d="m12.6 10-2.1 3.4h1.7l-.7 3.2 2.9-4h-1.7l.9-2.6Z" fill="currentColor" stroke="none"/>
+              </svg>
+              <small>Flash</small>
+            </div>
+            <div class="app-meta">
+              <strong>Flash-Market</strong>
+              <span>par Mohamed Lamine Kone</span>
+              <span>Shopping, vente, e-commerce</span>
+            </div>
+          </div>
+
+          <div class="warn-box">
+            ⚠️ <strong>Attention :</strong> une autre application s'appelle aussi « FlashMarket ».
+            La nôtre a l'<strong>icône verte « Flash »</strong> et l'éditeur
+            <strong>Mohamed Lamine Kone</strong>. Le bouton ci-dessous vous amène
+            directement sur la bonne fiche :
+          </div>
+
           <a class="appstore-btn" href="https://apps.apple.com/app/flash-market/id6784725073" target="_blank" rel="noopener">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.4 1.4c0 1.1-.5 2.3-1.2 3.1-.7.9-2 1.6-3 1.5-.1-1.1.5-2.3 1.2-3 .8-.9 2.1-1.6 3-1.6Zm4.5 15.7c-.5 1.2-1 1.9-1.7 2.9-1 1.4-2.4 3.2-4 3.2-1.5 0-1.9-.9-3.6-.9s-2.3.9-3.7.9c-1.6 0-2.8-1.6-3.8-3-2.1-3-3.4-7.5-1.4-10.6 1-1.5 2.7-2.5 4.3-2.5 1.5 0 2.5 1 3.6 1 1.1 0 1.9-1 3.7-1 1.4 0 2.9.8 3.9 2.1-3.4 1.9-2.9 6.8.7 7.9Z"/></svg>
             <span><small>Télécharger dans</small><strong>l'App Store</strong></span>
