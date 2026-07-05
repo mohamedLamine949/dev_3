@@ -219,9 +219,13 @@ export default function HomeScreen({ navigation }: Props) {
     );
   };
 
-  const ListHeader = () => {
-    const welcomeText = user?.prenom ? `Salut, ${user.prenom} ! 👋` : "Bienvenue ! 👋";
-    return (
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
+
+  // Rendu comme ÉLÉMENT (et non comme composant inline) : un composant défini
+  // ici serait recréé à chaque frappe dans la barre de recherche, ce qui
+  // démonterait le TextInput et fermerait le clavier.
+  const welcomeText = user?.prenom ? `Salut, ${user.prenom} ! 👋` : "Bienvenue ! 👋";
+  const listHeader = (
       <View>
         {/* Hero Section */}
         <View style={styles.heroSection}>
@@ -348,10 +352,7 @@ export default function HomeScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
       </View>
-    );
-  };
-
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  );
 
   return (
     <View style={styles.container}>
@@ -384,9 +385,10 @@ export default function HomeScreen({ navigation }: Props) {
           renderItem={renderAnnonceCard}
           keyExtractor={(item) => item.id}
           numColumns={2}
-          ListHeaderComponent={ListHeader}
+          ListHeaderComponent={listHeader}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
               refreshing={loading}

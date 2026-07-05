@@ -314,9 +314,13 @@ export default function ChatConversationScreen({ route, navigation }: any) {
   }
 
   return (
+    // 'padding' sur les deux plateformes : contrairement à 'height', il ne
+    // compense que le chevauchement réellement mesuré avec le clavier, donc il
+    // fonctionne avec l'edge-to-edge Android que la fenêtre soit redimensionnée
+    // ou non ('height' laissait le clavier cacher la saisie).
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior="padding"
     >
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.surface} />
 
