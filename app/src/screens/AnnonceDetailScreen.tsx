@@ -19,7 +19,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, ETAT_ARTICLE } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, getSousCategorieLabel, ETAT_ARTICLE } from '../constants/theme';
 import { Annonce } from '../lib/supabase';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -110,8 +110,10 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
     ? annonce.images.map((img) => img.image_url)
     : [];
 
+  const sousCategorieLabel = getSousCategorieLabel(annonce.sous_categorie);
   const categoryLabel =
-    CATEGORIES.find((c) => c.id === annonce.categorie)?.label || annonce.categorie;
+    (CATEGORIES.find((c) => c.id === annonce.categorie)?.label || annonce.categorie) +
+    (sousCategorieLabel ? ` · ${sousCategorieLabel}` : '');
   const etatLabel =
     ETAT_ARTICLE.find((e) => e.id === annonce.etat_article)?.label || annonce.etat_article;
 

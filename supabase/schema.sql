@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS annonces (
   description TEXT,
   prix INTEGER NOT NULL,
   categorie TEXT NOT NULL, -- telephonie_electronique, mode_beaute, maison_electromenager, voitures, motos, immobilier, alimentation, services
+  sous_categorie TEXT, -- facultatif, voir SUBCATEGORIES dans app/src/constants/theme.ts
   etat_article TEXT NOT NULL,
   statut TEXT DEFAULT 'en_attente', -- en_attente, active, vendu, expire
   est_payee BOOLEAN DEFAULT FALSE,
@@ -140,6 +141,7 @@ CREATE TABLE IF NOT EXISTS favoris (
 
 -- INDEXES POUR LES PERFORMANCES (Point crucial pour une DB rapide)
 CREATE INDEX IF NOT EXISTS idx_annonces_categorie ON annonces(categorie);
+CREATE INDEX IF NOT EXISTS idx_annonces_sous_categorie ON annonces(sous_categorie);
 CREATE INDEX IF NOT EXISTS idx_annonces_statut ON annonces(statut);
 CREATE INDEX IF NOT EXISTS idx_annonces_date ON annonces(date_creation DESC);
 CREATE INDEX IF NOT EXISTS idx_annonces_est_payee ON annonces(est_payee);

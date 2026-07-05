@@ -42,6 +42,7 @@ export interface Annonce {
   description: string;
   prix: number;
   categorie: string;
+  sous_categorie?: string | null;
   etat_article: string;
   statut: 'en_attente' | 'active' | 'vendu' | 'expire';
   est_payee: boolean;

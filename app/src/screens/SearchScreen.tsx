@@ -14,7 +14,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, RADIUS, CATEGORIES, SHADOWS, ETAT_ARTICLE } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, CATEGORIES, SUBCATEGORIES, getSousCategorieLabel, getSousCategorieSearchText, SHADOWS, ETAT_ARTICLE } from '../constants/theme';
 import { supabase, Annonce, User } from '../lib/supabase';
 import { useAnnonces } from '../hooks/useAnnonces';
 import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
@@ -65,6 +65,7 @@ function calculateRelevanceScore(query: string, item: any, isUser: boolean): num
     const title = (item.titre || '').toLowerCase();
     const desc = (item.description || '').toLowerCase();
     const category = (item.categorie || '').toLowerCase();
+    const sousCategorie = getSousCategorieSearchText(item.sous_categorie);
     const location = `${item.ville || ''} ${item.quartier || ''}`.toLowerCase();
     
     // Check if full exact query matches title/description
@@ -95,6 +96,10 @@ function calculateRelevanceScore(query: string, item: any, isUser: boolean): num
       }
       if (category.includes(word)) {
         score += 4;
+        wordMatched = true;
+      }
+      if (sousCategorie && sousCategorie.includes(word)) {
+        score += 5;
         wordMatched = true;
       }
       if (location.includes(word)) {
@@ -191,6 +196,9 @@ export default function SearchScreen({ navigation }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedSousCategorie, setSelectedSousCategorie] = useState<string | null>(null);
+  // Catégorie dont le panneau de sous-catégories (entonnoir) est ouvert
+  const [subcatPickerCat, setSubcatPickerCat] = useState<string | null>(null);
 
   // Filtres avancés
   const [showFilters, setShowFilters] = useState(false);
@@ -215,6 +223,7 @@ export default function SearchScreen({ navigation }: Props) {
   // Fetch les annonces correspondant aux critères
   const { annonces, loading: loadingAnnonces } = useAnnonces({
     categorie: selectedCategory,
+    sousCategorie: selectedSousCategorie,
     search: debouncedSearch || undefined,
     minPrice: minPrice ? parseInt(minPrice) : null,
     maxPrice: maxPrice ? parseInt(maxPrice) : null,
@@ -285,6 +294,7 @@ export default function SearchScreen({ navigation }: Props) {
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedCategory(null);
+    setSelectedSousCategorie(null);
   };
 
   // ---- Rendu carte résultat ----
@@ -381,7 +391,16 @@ export default function SearchScreen({ navigation }: Props) {
         key={cat.id}
         style={[styles.tile, { backgroundColor: color }]}
         activeOpacity={0.8}
-        onPress={() => setSelectedCategory(cat.id)}
+        onPress={() => {
+          // Entonnoir : si la catégorie a des sous-catégories, on propose
+          // d'abord de préciser ; sinon on filtre directement.
+          if (SUBCATEGORIES[cat.id]?.length > 0) {
+            setSubcatPickerCat(cat.id);
+          } else {
+            setSelectedSousCategorie(null);
+            setSelectedCategory(cat.id);
+          }
+        }}
       >
         <Text style={styles.tileEmoji}>{emoji}</Text>
         <Text style={styles.tileLabel}>{cat.label}</Text>
@@ -389,9 +408,16 @@ export default function SearchScreen({ navigation }: Props) {
     );
   };
 
+  const selectFromPicker = (categoryId: string, sousCategorieId: string | null) => {
+    setSelectedCategory(categoryId);
+    setSelectedSousCategorie(sousCategorieId);
+    setSubcatPickerCat(null);
+  };
+
   const activeCatLabel = selectedCategory
     ? CATEGORIES.find(c => c.id === selectedCategory)?.label
     : null;
+  const activeSousCatLabel = getSousCategorieLabel(selectedSousCategorie);
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
@@ -446,9 +472,9 @@ export default function SearchScreen({ navigation }: Props) {
           <View style={styles.activeFilter}>
             <View style={[styles.activeCatChip, { backgroundColor: CAT_COLORS[selectedCategory] + '22', borderColor: CAT_COLORS[selectedCategory] }]}>
               <Text style={[styles.activeCatText, { color: CAT_COLORS[selectedCategory] }]}>
-                {CAT_EMOJIS[selectedCategory]} {activeCatLabel}
+                {CAT_EMOJIS[selectedCategory]} {activeCatLabel}{activeSousCatLabel ? ` · ${activeSousCatLabel}` : ''}
               </Text>
-              <TouchableOpacity onPress={() => setSelectedCategory(null)}>
+              <TouchableOpacity onPress={() => { setSelectedCategory(null); setSelectedSousCategorie(null); }}>
                 <Ionicons name="close" size={15} color={CAT_COLORS[selectedCategory]} />
               </TouchableOpacity>
             </View>
@@ -458,6 +484,31 @@ export default function SearchScreen({ navigation }: Props) {
               </Text>
             )}
           </View>
+        )}
+
+        {/* Chips de sous-catégories pour affiner dans les résultats */}
+        {selectedCategory && SUBCATEGORIES[selectedCategory]?.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subcatRow}>
+            <TouchableOpacity
+              style={[styles.subcatChip, !selectedSousCategorie && styles.subcatChipSelected]}
+              onPress={() => setSelectedSousCategorie(null)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.subcatChipText, !selectedSousCategorie && styles.subcatChipTextSelected]}>Tout</Text>
+            </TouchableOpacity>
+            {SUBCATEGORIES[selectedCategory].map((sub) => (
+              <TouchableOpacity
+                key={sub.id}
+                style={[styles.subcatChip, selectedSousCategorie === sub.id && styles.subcatChipSelected]}
+                onPress={() => setSelectedSousCategorie(selectedSousCategorie === sub.id ? null : sub.id)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.subcatChipText, selectedSousCategorie === sub.id && styles.subcatChipTextSelected]}>
+                  {sub.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         )}
       </View>
 
@@ -626,6 +677,55 @@ export default function SearchScreen({ navigation }: Props) {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Bottom sheet entonnoir : sous-catégories de la catégorie tapée */}
+      <Modal
+        visible={subcatPickerCat !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSubcatPickerCat(null)}
+      >
+        <View style={styles.sheetContainer}>
+          <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => setSubcatPickerCat(null)} />
+          {subcatPickerCat && (
+            <View style={styles.sheetContent}>
+              <View style={styles.sheetHandle} />
+              <View style={styles.sheetHeader}>
+                <Text style={styles.sheetTitle}>
+                  {CAT_EMOJIS[subcatPickerCat]} {CATEGORIES.find(c => c.id === subcatPickerCat)?.label}
+                </Text>
+                <TouchableOpacity onPress={() => setSubcatPickerCat(null)}>
+                  <Ionicons name="close-circle" size={26} color={theme.textMuted} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <TouchableOpacity
+                  style={styles.sheetRow}
+                  activeOpacity={0.7}
+                  onPress={() => selectFromPicker(subcatPickerCat, null)}
+                >
+                  <Text style={[styles.sheetRowText, { fontWeight: FONTS.bold, color: theme.primary }]}>
+                    Tout voir dans cette catégorie
+                  </Text>
+                  <Ionicons name="chevron-forward" size={18} color={theme.primary} />
+                </TouchableOpacity>
+                {SUBCATEGORIES[subcatPickerCat]?.map((sub) => (
+                  <TouchableOpacity
+                    key={sub.id}
+                    style={styles.sheetRow}
+                    activeOpacity={0.7}
+                    onPress={() => selectFromPicker(subcatPickerCat, sub.id)}
+                  >
+                    <Text style={styles.sheetRowText}>{sub.label}</Text>
+                    <Ionicons name="chevron-forward" size={18} color={theme.borderLight} />
+                  </TouchableOpacity>
+                ))}
+                <View style={{ height: 30 }} />
+              </ScrollView>
+            </View>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -714,6 +814,83 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     fontSize: FONTS.sm,
     color: theme.textMuted,
     fontWeight: FONTS.medium,
+  },
+
+  // Chips de sous-catégories (affinage dans les résultats)
+  subcatRow: {
+    gap: SPACING.sm,
+    paddingVertical: 2,
+  },
+  subcatChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 7,
+    borderRadius: RADIUS.full,
+    backgroundColor: theme.surfaceMuted,
+    borderWidth: 1,
+    borderColor: theme.borderLight,
+  },
+  subcatChipSelected: {
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
+  },
+  subcatChipText: {
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.medium,
+    color: theme.textSecondary,
+  },
+  subcatChipTextSelected: {
+    color: '#fff',
+  },
+
+  // Bottom sheet sous-catégories (entonnoir)
+  sheetContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  sheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  sheetContent: {
+    backgroundColor: theme.background,
+    borderTopLeftRadius: RADIUS.xxl,
+    borderTopRightRadius: RADIUS.xxl,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.md,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    maxHeight: '75%',
+    ...SHADOWS.md,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: theme.borderLight,
+    marginBottom: SPACING.md,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.sm,
+  },
+  sheetTitle: {
+    fontSize: FONTS.lg,
+    fontWeight: FONTS.bold,
+    color: theme.textPrimary,
+  },
+  sheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.borderLight,
+  },
+  sheetRowText: {
+    fontSize: FONTS.md,
+    color: theme.textPrimary,
   },
 
   // Grille catégories

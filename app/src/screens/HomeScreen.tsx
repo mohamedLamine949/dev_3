@@ -15,7 +15,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES } from '../constants/theme';
+import { FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, SUBCATEGORIES } from '../constants/theme';
 import { useAnnonces } from '../hooks/useAnnonces';
 import { Annonce } from '../lib/supabase';
 import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
@@ -56,6 +56,7 @@ export default function HomeScreen({ navigation }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedSousCategorie, setSelectedSousCategorie] = useState<string | null>(null);
 
   // Debounce search query to avoid spamming Supabase
   useEffect(() => {
@@ -67,6 +68,7 @@ export default function HomeScreen({ navigation }: Props) {
 
   const { annonces, loading, error, refetch } = useAnnonces({
     categorie: selectedCategory,
+    sousCategorie: selectedSousCategorie,
     search: debouncedSearch,
   });
   const { location } = useLocation();
@@ -102,7 +104,10 @@ export default function HomeScreen({ navigation }: Props) {
           styles.categoryChip,
           isSelected && styles.categoryChipSelected,
         ]}
-        onPress={() => setSelectedCategory(isSelected ? null : item.id)}
+        onPress={() => {
+          setSelectedSousCategorie(null);
+          setSelectedCategory(isSelected ? null : item.id);
+        }}
       >
         <Ionicons
           name={item.icon as any}
@@ -269,6 +274,32 @@ export default function HomeScreen({ navigation }: Props) {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoriesContainer}
         />
+
+        {/* Sous-catégories de la catégorie sélectionnée */}
+        {selectedCategory && SUBCATEGORIES[selectedCategory]?.length > 0 && (
+          <FlatList
+            data={[{ id: '__tout__', label: 'Tout' }, ...SUBCATEGORIES[selectedCategory]]}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoriesContainer}
+            renderItem={({ item }) => {
+              const isTout = item.id === '__tout__';
+              const isSelected = isTout ? selectedSousCategorie === null : selectedSousCategorie === item.id;
+              return (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={[styles.subcategoryChip, isSelected && styles.categoryChipSelected]}
+                  onPress={() => setSelectedSousCategorie(isTout ? null : (isSelected ? null : item.id))}
+                >
+                  <Text style={[styles.subcategoryLabel, isSelected && styles.categoryLabelSelected]}>
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        )}
 
         {/* Bannière astuce sécurité / info */}
         <View style={styles.bannerContainer}>
@@ -474,6 +505,19 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   categoryLabelSelected: {
     color: theme.textInverse,
+  },
+  subcategoryChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+    backgroundColor: theme.surfaceMuted,
+    borderWidth: 1,
+    borderColor: theme.borderLight,
+  },
+  subcategoryLabel: {
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.medium,
+    color: theme.textSecondary,
   },
 
   // Section

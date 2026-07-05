@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { pickImages } from '../lib/imagePicker';
-import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, ETAT_ARTICLE, CATEGORY_PRICES } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, SUBCATEGORIES, ETAT_ARTICLE, CATEGORY_PRICES } from '../constants/theme';
 import { WebView } from 'react-native-webview';
 import { createAnnonce } from '../hooks/useAnnonces';
 import { useAuth } from '../contexts/AuthContext';
@@ -41,6 +41,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
   const [prix, setPrix] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedSousCategorie, setSelectedSousCategorie] = useState<string | null>(null);
   const [selectedEtat, setSelectedEtat] = useState<string | null>(null);
   const [quartier, setQuartier] = useState('');
 
@@ -128,6 +129,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
     setPrix('');
     setDescription('');
     setSelectedCategory(null);
+    setSelectedSousCategorie(null);
     setSelectedEtat(null);
     setQuartier('');
   };
@@ -233,6 +235,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
       description: description || null,
       prix: parseInt(prix, 10),
       categorie: selectedCategory!,
+      sous_categorie: selectedSousCategorie,
       etat_article: selectedEtat || 'non_specifie',
       ville: location?.ville || 'Mali',
       quartier: quartier || null,
@@ -270,6 +273,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
       description: description || null,
       prix: parseInt(prix, 10),
       categorie: selectedCategory!,
+      sous_categorie: selectedSousCategorie,
       etat_article: selectedEtat || 'non_specifie',
       ville: location?.ville || 'Mali',
       quartier: quartier || null,
@@ -398,7 +402,10 @@ export default function PostAnnonceScreen({ navigation }: any) {
               <TouchableOpacity
                 key={cat.id}
                 style={[styles.chip, selectedCategory === cat.id && styles.chipSelected]}
-                onPress={() => setSelectedCategory(cat.id)}
+                onPress={() => {
+                  if (selectedCategory !== cat.id) setSelectedSousCategorie(null);
+                  setSelectedCategory(cat.id);
+                }}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.chipText, selectedCategory === cat.id && styles.chipTextSelected]}>
@@ -407,6 +414,27 @@ export default function PostAnnonceScreen({ navigation }: any) {
               </TouchableOpacity>
             ))}
           </View>
+
+          {/* Sous-catégorie (optionnel, dépend de la catégorie choisie) */}
+          {selectedCategory && SUBCATEGORIES[selectedCategory]?.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>Sous-catégorie <Text style={styles.optionalLabel}>(facultatif, aide les acheteurs à vous trouver)</Text></Text>
+              <View style={styles.chipsContainer}>
+                {SUBCATEGORIES[selectedCategory].map((sub) => (
+                  <TouchableOpacity
+                    key={sub.id}
+                    style={[styles.chip, selectedSousCategorie === sub.id && styles.chipSelected]}
+                    onPress={() => setSelectedSousCategorie(selectedSousCategorie === sub.id ? null : sub.id)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.chipText, selectedSousCategorie === sub.id && styles.chipTextSelected]}>
+                      {sub.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
 
           {/* État (optionnel) */}
           <Text style={styles.sectionTitle}>État de l'article <Text style={styles.optionalLabel}>(facultatif)</Text></Text>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, Annonce, ImageAnnonce } from '../lib/supabase';
+import { getSousCategorieSearchText } from '../constants/theme';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 
@@ -13,6 +14,7 @@ function calculatePostRelevance(query: string, item: any): number {
   const title = (item.titre || '').toLowerCase();
   const desc = (item.description || '').toLowerCase();
   const category = (item.categorie || '').toLowerCase();
+  const sousCategorie = getSousCategorieSearchText(item.sous_categorie);
   const location = `${item.ville || ''} ${item.quartier || ''}`.toLowerCase();
   
   if (title.includes(cleanQuery)) {
@@ -40,6 +42,10 @@ function calculatePostRelevance(query: string, item: any): number {
     }
     if (category.includes(word)) {
       score += 4;
+      wordMatched = true;
+    }
+    if (sousCategorie && sousCategorie.includes(word)) {
+      score += 5;
       wordMatched = true;
     }
     if (location.includes(word)) {
@@ -70,6 +76,7 @@ function calculatePostRelevance(query: string, item: any): number {
  */
 export function useAnnonces(options?: {
   categorie?: string | null;
+  sousCategorie?: string | null;
   search?: string;
   limit?: number;
   minPrice?: number | null;
@@ -112,6 +119,10 @@ export function useAnnonces(options?: {
 
       if (options?.categorie) {
         query = query.eq('categorie', options.categorie);
+      }
+
+      if (options?.sousCategorie) {
+        query = query.eq('sous_categorie', options.sousCategorie);
       }
 
       // La recherche textuelle est effectuée côté client pour être plus flexible (pertinence fuzzy)
@@ -164,7 +175,7 @@ export function useAnnonces(options?: {
     } finally {
       if (!timedOut) setLoading(false);
     }
-  }, [options?.categorie, options?.search, options?.limit, options?.minPrice, options?.maxPrice, options?.etat, options?.orderBy]);
+  }, [options?.categorie, options?.sousCategorie, options?.search, options?.limit, options?.minPrice, options?.maxPrice, options?.etat, options?.orderBy]);
 
   useEffect(() => {
     fetchAnnonces();
