@@ -1,75 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, Annonce, ImageAnnonce } from '../lib/supabase';
-import { getSousCategorieSearchText } from '../constants/theme';
+import { scoreAnnonce } from '../lib/relevance';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
-
-function calculatePostRelevance(query: string, item: any): number {
-  if (!query) return 0;
-  const cleanQuery = query.toLowerCase().trim();
-  const queryWords = cleanQuery.split(/[\s,.-]+/).filter(w => w.length > 0);
-  if (queryWords.length === 0) return 0;
-  
-  let score = 0;
-  const title = (item.titre || '').toLowerCase();
-  const desc = (item.description || '').toLowerCase();
-  const category = (item.categorie || '').toLowerCase();
-  const sousCategorie = getSousCategorieSearchText(item.sous_categorie);
-  const location = `${item.ville || ''} ${item.quartier || ''}`.toLowerCase();
-  
-  if (title.includes(cleanQuery)) {
-    score += 20;
-  } else if (desc.includes(cleanQuery)) {
-    score += 10;
-  }
-  
-  let matchingWordsCount = 0;
-  queryWords.forEach(word => {
-    let wordMatched = false;
-    if (title.includes(word)) {
-      score += 8;
-      wordMatched = true;
-      if (title.split(/[\s,.-]+/).includes(word)) {
-        score += 4;
-      }
-    }
-    if (desc.includes(word)) {
-      score += 3;
-      wordMatched = true;
-      if (desc.split(/[\s,.-]+/).includes(word)) {
-        score += 1.5;
-      }
-    }
-    if (category.includes(word)) {
-      score += 4;
-      wordMatched = true;
-    }
-    if (sousCategorie && sousCategorie.includes(word)) {
-      score += 5;
-      wordMatched = true;
-    }
-    if (location.includes(word)) {
-      score += 2;
-      wordMatched = true;
-    }
-    if (!wordMatched && word.length > 2) {
-      const titleWords = title.split(/[\s,.-]+/);
-      const partialMatch = titleWords.some((tw: string) => tw.includes(word) || word.includes(tw));
-      if (partialMatch) {
-        score += 2.5;
-      }
-    }
-    if (wordMatched) {
-      matchingWordsCount++;
-    }
-  });
-  
-  if (queryWords.length > 1 && matchingWordsCount > 0) {
-    score += (matchingWordsCount / queryWords.length) * 10;
-  }
-  
-  return score;
-}
 
 /**
  * Hook pour récupérer les annonces actives avec filtrage
@@ -159,9 +92,9 @@ export function useAnnonces(options?: {
       }
 
       let finalData = (data as Annonce[]) || [];
-      if (options?.search) {
+      if (options?.search && options.search.trim().length > 0) {
         finalData = finalData
-          .map(a => ({ ...a, searchScore: calculatePostRelevance(options.search!, a) }))
+          .map(a => ({ ...a, searchScore: scoreAnnonce(options.search!, a) }))
           .filter(a => (a as any).searchScore > 0)
           .sort((a, b) => (b as any).searchScore - (a as any).searchScore);
       }

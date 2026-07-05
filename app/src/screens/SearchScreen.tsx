@@ -14,7 +14,8 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, RADIUS, CATEGORIES, SUBCATEGORIES, getSousCategorieLabel, getSousCategorieSearchText, SHADOWS, ETAT_ARTICLE } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, CATEGORIES, SUBCATEGORIES, getSousCategorieLabel, SHADOWS, ETAT_ARTICLE } from '../constants/theme';
+import { scoreAnnonce, scoreUser } from '../lib/relevance';
 import { supabase, Annonce, User } from '../lib/supabase';
 import { useAnnonces } from '../hooks/useAnnonces';
 import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
@@ -52,116 +53,8 @@ const CAT_EMOJIS: Record<string, string> = {
   services:                '🔧',
 };
 
-function calculateRelevanceScore(query: string, item: any, isUser: boolean): number {
-  if (!query) return 0;
-  
-  const cleanQuery = query.toLowerCase().trim();
-  const queryWords = cleanQuery.split(/[\s,.-]+/).filter(w => w.length > 0);
-  if (queryWords.length === 0) return 0;
-  
-  let score = 0;
-  
-  if (!isUser) {
-    const title = (item.titre || '').toLowerCase();
-    const desc = (item.description || '').toLowerCase();
-    const category = (item.categorie || '').toLowerCase();
-    const sousCategorie = getSousCategorieSearchText(item.sous_categorie);
-    const location = `${item.ville || ''} ${item.quartier || ''}`.toLowerCase();
-    
-    // Check if full exact query matches title/description
-    if (title.includes(cleanQuery)) {
-      score += 20;
-    } else if (desc.includes(cleanQuery)) {
-      score += 10;
-    }
-    
-    // Check word matches
-    let matchingWordsCount = 0;
-    queryWords.forEach(word => {
-      let wordMatched = false;
-      if (title.includes(word)) {
-        score += 8;
-        wordMatched = true;
-        // Exact word match bonus (e.g. not just substring)
-        if (title.split(/[\s,.-]+/).includes(word)) {
-          score += 4;
-        }
-      }
-      if (desc.includes(word)) {
-        score += 3;
-        wordMatched = true;
-        if (desc.split(/[\s,.-]+/).includes(word)) {
-          score += 1.5;
-        }
-      }
-      if (category.includes(word)) {
-        score += 4;
-        wordMatched = true;
-      }
-      if (sousCategorie && sousCategorie.includes(word)) {
-        score += 5;
-        wordMatched = true;
-      }
-      if (location.includes(word)) {
-        score += 2;
-        wordMatched = true;
-      }
-      
-      // Fuzzy prefix/suffix/closeness match (character matching)
-      if (!wordMatched && word.length > 2) {
-        const titleWords = title.split(/[\s,.-]+/);
-        const partialMatch = titleWords.some((tw: string) => tw.includes(word) || word.includes(tw));
-        if (partialMatch) {
-          score += 2.5;
-        }
-      }
-      
-      if (wordMatched) {
-        matchingWordsCount++;
-      }
-    });
-    
-    // Bonus for matching multiple query words
-    if (queryWords.length > 1 && matchingWordsCount > 0) {
-      score += (matchingWordsCount / queryWords.length) * 10;
-    }
-  } else {
-    const prenom = (item.prenom || '').toLowerCase();
-    const nom = (item.nom || '').toLowerCase();
-    const fullName = `${prenom} ${nom}`;
-    const bio = (item.bio || '').toLowerCase();
-    
-    if (fullName.includes(cleanQuery)) {
-      score += 20;
-    }
-    
-    let matchingWordsCount = 0;
-    queryWords.forEach(word => {
-      let wordMatched = false;
-      if (prenom.includes(word) || nom.includes(word)) {
-        score += 8;
-        wordMatched = true;
-        if (prenom === word || nom === word) {
-          score += 4;
-        }
-      }
-      if (bio.includes(word)) {
-        score += 3;
-        wordMatched = true;
-      }
-      
-      if (wordMatched) {
-        matchingWordsCount++;
-      }
-    });
-    
-    if (queryWords.length > 1 && matchingWordsCount > 0) {
-      score += (matchingWordsCount / queryWords.length) * 8;
-    }
-  }
-  
-  return score;
-}
+// Scoring de pertinence : voir src/lib/relevance.ts (scoreAnnonce / scoreUser),
+// partagé avec l'écran d'accueil. Score 0 = résultat exclu (filtre strict).
 
 function mergeResults(posts: any[], users: any[]): any[] {
   const merged: any[] = [];
@@ -267,7 +160,7 @@ export default function SearchScreen({ navigation }: Props) {
     // 1. Noter les posts
     const scoredAnnonces = annonces
       .map(annonce => {
-        const score = calculateRelevanceScore(query, annonce, false);
+        const score = scoreAnnonce(query, annonce);
         return { ...annonce, isUserProfile: false, searchScore: score };
       })
       .filter(a => a.searchScore > 0);
@@ -275,7 +168,7 @@ export default function SearchScreen({ navigation }: Props) {
     // 2. Noter les utilisateurs
     const scoredUsers = users
       .map(user => {
-        const score = calculateRelevanceScore(query, user, true);
+        const score = scoreUser(query, user);
         return { ...user, isUserProfile: true, searchScore: score };
       })
       .filter(u => u.searchScore > 0);
