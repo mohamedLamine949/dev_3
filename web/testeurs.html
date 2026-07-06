@@ -125,6 +125,32 @@
       padding: 12px 14px; margin: 0 auto 20px; max-width: 400px;
       font-size: .88rem; color: #92400e; line-height: 1.55; text-align: left;
     }
+
+    /* Bloc de téléchargement Android (lien de test Play Store) */
+    .play-access {
+      max-width: 560px; margin: 24px auto 0;
+      background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 18px;
+      padding: 26px 24px; text-align: center;
+    }
+    .play-access h2 { font-size: 1.2rem; margin: 0 0 10px; color: #14532d; }
+    .play-access p { color: #4b5563; line-height: 1.65; margin: 0 0 20px; font-size: .96rem; }
+    .playstore-btn {
+      display: inline-flex; align-items: center; gap: 12px;
+      background: #16a34a; color: #fff; text-decoration: none;
+      padding: 14px 28px; border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(22, 163, 74, .3);
+      transition: background .15s ease, transform .12s ease;
+    }
+    .playstore-btn:hover { background: #15803d; transform: translateY(-1px); }
+    .playstore-btn svg { width: 26px; height: 26px; flex-shrink: 0; }
+    .playstore-btn span { text-align: left; line-height: 1.25; }
+    .playstore-btn span small { display: block; font-size: .72rem; font-weight: 500; opacity: .9; }
+    .playstore-btn span strong { font-size: 1.12rem; font-weight: 700; }
+    .play-note {
+      font-size: .85rem !important; color: #166534 !important;
+      margin: 20px 0 0 !important; line-height: 1.6 !important;
+      background: #dcfce7; border-radius: 10px; padding: 12px 14px; text-align: left;
+    }
   </style>
 </head>
 <body>
@@ -159,8 +185,8 @@
           🎉 <strong>Bonne nouvelle : Flash Market est désormais disponible sur l'App&nbsp;Store !</strong>
           Sur iPhone, téléchargez l'application directement — plus besoin d'invitation.
           Sur Android, la phase de test se poursuit encore quelques jours : inscrivez-vous
-          ci-dessous pour recevoir votre <strong>lien d'accès par e-mail</strong>
-          (généralement sous 24&nbsp;h).
+          ci-dessous, puis <strong>téléchargez l'app via le lien Google&nbsp;Play</strong>
+          une fois votre adresse ajoutée à la liste des testeurs (généralement sous 24&nbsp;h).
         </p>
       </div>
 
@@ -250,19 +276,43 @@
         </form>
       </div>
 
+      <!-- Lien de test Play Store (Android) : Google n'envoie AUCUN e-mail —
+           c'est au testeur d'ouvrir ce lien lui-même une fois son adresse ajoutée. -->
+      <div class="play-access" id="playAccess">
+        <h2>📥 Pour télécharger l'application</h2>
+        <p>
+          Après votre inscription ci-dessus, c'est par <strong>ce lien</strong> que vous
+          téléchargerez Flash Market. Google n'envoie pas d'e-mail : gardez ce lien
+          (ajoutez-le à vos favoris) et rouvrez-le dès que votre adresse aura été ajoutée
+          à la liste des testeurs.
+        </p>
+        <a class="playstore-btn" href="https://play.google.com/store/apps/details?id=com.chapchap.flashmarket" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.6 2.3 13 12 3.6 21.7c-.4-.2-.6-.6-.6-1.1V3.4c0-.5.2-.9.6-1.1Zm10.9 8.9 2.9 2.9-3.4 1.9-2.4-2.4 2.9-2.4Zm-2.9-.2L8.7 8.1l6.1-3.5 1.9 1.1-4.2 5.3Zm0 2.4 1.8 2.3-6.2 3.5-1.8-1 6.2-4.8Z"/></svg>
+          <span><small>Télécharger en test sur</small><strong>Google Play</strong></span>
+        </a>
+        <p class="play-note">
+          ⏳ <strong>Un délai est normal.</strong> Entre le moment où vous vous inscrivez et
+          celui où vous pourrez installer l'app, il faut le temps que nous ajoutions votre
+          adresse (généralement sous 24&nbsp;h). Si le lien affiche « Vous n'êtes pas un
+          testeur » ou une erreur, c'est que ce n'est pas encore fait — réessayez un peu
+          plus tard, sans vous réinscrire. Ouvrez toujours le lien avec le
+          <strong>même compte Google</strong> que celui indiqué dans le formulaire.
+        </p>
+      </div>
+
       <div class="steps-box" id="stepsBox">
-        <h2>Et ensuite ? (Android)</h2>
+        <h2>Comment ça marche (Android)</h2>
         <div class="step-item">
           <div class="step-num">1</div>
-          <p><strong>Nous vous ajoutons à la liste des testeurs</strong> (généralement sous 24&nbsp;h). Rien à faire de votre côté.</p>
+          <p><strong>Vous vous inscrivez ci-dessus</strong> avec l'e-mail de votre compte Google Play.</p>
         </div>
         <div class="step-item">
           <div class="step-num">2</div>
-          <p><strong>Vous recevez un e-mail avec votre lien d'accès</strong> au test sur le Play Store — sur l'adresse indiquée ci-dessus. <em>Ce lien ne fonctionne qu'une fois votre adresse ajoutée de notre côté.</em></p>
+          <p><strong>Nous ajoutons votre adresse à la liste des testeurs</strong> (généralement sous 24&nbsp;h). Vous n'avez rien à faire pendant ce temps.</p>
         </div>
         <div class="step-item">
           <div class="step-num">3</div>
-          <p><strong>Vous installez et testez !</strong> Ouvrez le lien avec le compte Google indiqué, puis installez Flash Market depuis le Play Store. L'app sera bientôt disponible publiquement sur le Play Store — en attendant, le test vous y donne accès immédiatement.</p>
+          <p><strong>Vous rouvrez le lien Google Play ci-dessus</strong> et installez Flash Market en test — comme n'importe quelle application. <em>Google ne vous envoie pas d'e-mail : pensez à revenir sur ce lien vous-même.</em></p>
         </div>
         <div class="step-item">
           <div class="step-num">4</div>
@@ -297,6 +347,7 @@
     const iosDownload = document.getElementById('iosDownload');
     const testerForm = document.getElementById('testerForm');
     const stepsBox = document.getElementById('stepsBox');
+    const playAccess = document.getElementById('playAccess');
 
     function selectPlatform(p) {
       platform = p;
@@ -306,6 +357,7 @@
       iosDownload.classList.toggle('show', p === 'ios');
       testerForm.style.display = p === 'ios' ? 'none' : '';
       stepsBox.style.display = p === 'ios' ? 'none' : '';
+      playAccess.style.display = p === 'ios' ? 'none' : '';
     }
     btnIos.addEventListener('click', () => selectPlatform('ios'));
     btnAndroid.addEventListener('click', () => selectPlatform('android'));
@@ -357,9 +409,9 @@
         if (res.status === 201) {
           form.reset();
           selectPlatform(platform); // garde la plateforme visible
-          showMsg('success', '✅ Merci ' + prenom + ' ! Votre inscription est enregistrée. Vous recevrez une invitation sur ' + email + ' dès que vous serez ajouté (généralement sous 24 h). Pensez à vérifier vos spams.');
+          showMsg('success', '✅ Merci ' + prenom + ' ! Votre inscription est enregistrée. Nous ajoutons votre adresse à la liste des testeurs (généralement sous 24 h). Ensuite, revenez sur cette page et cliquez sur le bouton « Télécharger en test sur Google Play » ci-dessous pour installer l’application. Google ne vous enverra pas d’e-mail.');
         } else if (res.status === 409) {
-          showMsg('success', 'ℹ️ Cette adresse est déjà inscrite — parfait, vous êtes sur la liste ! L’invitation arrivera par e-mail dès votre ajout.');
+          showMsg('success', 'ℹ️ Cette adresse est déjà inscrite — parfait, vous êtes sur la liste ! Utilisez le bouton « Télécharger en test sur Google Play » ci-dessous. Si le lien affiche une erreur, c’est que votre ajout n’est pas encore finalisé : réessayez un peu plus tard.');
         } else {
           const body = await res.text();
           console.error('Supabase error', res.status, body);
