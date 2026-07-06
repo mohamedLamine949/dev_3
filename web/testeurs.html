@@ -151,6 +151,39 @@
       margin: 20px 0 0 !important; line-height: 1.6 !important;
       background: #dcfce7; border-radius: 10px; padding: 12px 14px; text-align: left;
     }
+
+    /* Badge « Étape 1 / 2 » */
+    .step-badge {
+      display: inline-block; background: #16a34a; color: #fff;
+      font-size: .72rem; font-weight: 800; letter-spacing: .5px; text-transform: uppercase;
+      padding: 4px 12px; border-radius: 999px; margin-bottom: 12px;
+    }
+
+    /* Android — Étape 1 : rejoindre le groupe Google */
+    .group-join {
+      max-width: 560px; margin: 24px auto 0;
+      background: #fff; border: 2px solid #16a34a; border-radius: 18px;
+      padding: 26px 24px; text-align: center;
+    }
+    .group-join h2 { font-size: 1.25rem; margin: 0 0 10px; color: #14532d; }
+    .group-join p { color: #4b5563; line-height: 1.65; margin: 0 0 20px; font-size: .96rem; }
+    .group-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+      background: #16a34a; color: #fff; text-decoration: none;
+      padding: 15px 30px; border-radius: 14px; font-weight: 800; font-size: 1.05rem;
+      box-shadow: 0 8px 24px rgba(22, 163, 74, .3);
+      transition: background .15s ease, transform .12s ease;
+    }
+    .group-btn:hover { background: #15803d; transform: translateY(-1px); }
+    .group-btn svg { width: 22px; height: 22px; flex-shrink: 0; }
+
+    /* Formulaire e-mail relégué en solution de secours */
+    .fallback-form {
+      max-width: 560px; margin: 34px auto 0;
+      border-top: 1px dashed #d5dbe4; padding-top: 26px;
+    }
+    .fallback-form h3 { font-size: 1.02rem; color: #3a4150; margin: 0 0 6px; }
+    .fallback-intro { font-size: .9rem; color: #8a93a2; margin: 0 0 18px; line-height: 1.55; }
   </style>
 </head>
 <body>
@@ -184,9 +217,9 @@
         <p>
           🎉 <strong>Bonne nouvelle : Flash Market est désormais disponible sur l'App&nbsp;Store !</strong>
           Sur iPhone, téléchargez l'application directement — plus besoin d'invitation.
-          Sur Android, la phase de test se poursuit encore quelques jours : inscrivez-vous
-          ci-dessous, puis <strong>téléchargez l'app via le lien Google&nbsp;Play</strong>
-          une fois votre adresse ajoutée à la liste des testeurs (généralement sous 24&nbsp;h).
+          Sur Android, la phase de test se poursuit encore quelques jours :
+          <strong>rejoignez le groupe des testeurs</strong>, puis téléchargez l'app via
+          Google&nbsp;Play — le tout en deux étapes ci-dessous.
         </p>
       </div>
 
@@ -243,6 +276,78 @@
             Gratuit · Vos retours restent les bienvenus : <a href="mailto:support@app-flashmarket.com">support@app-flashmarket.com</a>
           </p>
         </div>
+      </div>
+
+      <!-- Android — Étape 1 : rejoindre le groupe Google = devenir testeur automatiquement,
+           sans ajout manuel de notre côté. -->
+      <div class="group-join" id="groupJoin">
+        <span class="step-badge">Étape 1</span>
+        <h2>Rejoignez le groupe des testeurs</h2>
+        <p>
+          En rejoignant notre groupe Google, votre compte est <strong>automatiquement autorisé</strong>
+          à installer l'application en test. Cliquez sur le bouton, puis sur
+          <strong>« Rejoindre le groupe »</strong> — en étant connecté avec le compte Google
+          que vous utilisez sur le Play&nbsp;Store.
+        </p>
+        <a class="group-btn" href="https://groups.google.com/g/flashmarket-testeurs" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11a3 3 0 1 0-3-3 3 3 0 0 0 3 3Zm-8 0a3 3 0 1 0-3-3 3 3 0 0 0 3 3Zm0 2c-2.3 0-7 1.2-7 3.5V19h8v-1.5c0-.9.4-1.7 1-2.4-.6-.1-1.3-.1-2-.1Zm8 0c-.3 0-.6 0-1 .1 1.2.9 2 2 2 3.4V19h6v-2.5c0-2.3-4.7-3.5-7-3.5Z"/></svg>
+          Rejoindre le groupe des testeurs
+        </a>
+        <p class="play-note" style="background:#f0fdf4;">
+          ✅ Une fois membre du groupe, passez à l'<strong>étape 2</strong> ci-dessous pour
+          installer l'app. L'autorisation peut mettre quelques minutes à devenir active.
+        </p>
+      </div>
+
+      <!-- Android — Étape 2 : télécharger via le lien de test Play Store -->
+      <div class="play-access" id="playAccess">
+        <span class="step-badge">Étape 2</span>
+        <h2>📥 Téléchargez l'application</h2>
+        <p>
+          Une fois membre du groupe (étape 1), installez Flash Market en test via ce lien.
+          Ouvrez-le avec le <strong>même compte Google</strong> que celui utilisé pour
+          rejoindre le groupe.
+        </p>
+        <a class="playstore-btn" href="https://play.google.com/store/apps/details?id=com.chapchap.flashmarket" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.6 2.3 13 12 3.6 21.7c-.4-.2-.6-.6-.6-1.1V3.4c0-.5.2-.9.6-1.1Zm10.9 8.9 2.9 2.9-3.4 1.9-2.4-2.4 2.9-2.4Zm-2.9-.2L8.7 8.1l6.1-3.5 1.9 1.1-4.2 5.3Zm0 2.4 1.8 2.3-6.2 3.5-1.8-1 6.2-4.8Z"/></svg>
+          <span><small>Télécharger en test sur</small><strong>Google Play</strong></span>
+        </a>
+        <p class="play-note">
+          ⏳ <strong>Un délai est normal.</strong> Si le lien affiche « Vous n'êtes pas un
+          testeur » ou une erreur, c'est que votre adhésion au groupe n'est pas encore
+          active — patientez quelques minutes et réessayez, sans quitter le groupe.
+        </p>
+      </div>
+
+      <div class="steps-box" id="stepsBox">
+        <h2>Comment ça marche (Android)</h2>
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <p><strong>Vous rejoignez le groupe des testeurs</strong> (étape 1) avec votre compte Google. Votre compte devient testeur automatiquement.</p>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <p><strong>Vous téléchargez l'app via le lien Google Play</strong> (étape 2), avec le même compte Google. L'autorisation peut prendre quelques minutes après avoir rejoint le groupe.</p>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <p><strong>Vous installez et testez !</strong> Ensuite, Flash Market s'installe comme n'importe quelle application.</p>
+        </div>
+        <div class="step-item">
+          <div class="step-num">4</div>
+          <p><strong>Dites-nous tout</strong> : bugs, idées, remarques → <a href="mailto:support@app-flashmarket.com">support@app-flashmarket.com</a>. Chaque retour compte 🙏</p>
+        </div>
+      </div>
+
+      <!-- Solution de secours : pour ceux qui n'arrivent pas à rejoindre le groupe,
+           on collecte l'e-mail et on les ajoute manuellement (comme avant). -->
+      <div class="fallback-form" id="androidFallback">
+        <h3>Un problème pour rejoindre le groupe ?</h3>
+        <p class="fallback-intro">
+          Si le bouton « Rejoindre le groupe » ne fonctionne pas pour vous, laissez-nous
+          votre e-mail : nous vous ajouterons manuellement à la liste des testeurs
+          (comptez jusqu'à 24&nbsp;h), puis vous téléchargerez via l'étape&nbsp;2 ci-dessus.
+        </p>
 
         <form id="testerForm" novalidate>
 
@@ -270,54 +375,10 @@
             <input type="email" id="email" name="email" placeholder="exemple@gmail.com" autocomplete="email" required maxlength="120">
           </div>
 
-          <button type="submit" class="submit-btn" id="submitBtn">Je m'inscris comme testeur</button>
+          <button type="submit" class="submit-btn" id="submitBtn">M'ajouter manuellement</button>
 
           <div class="form-msg" id="formMsg"></div>
         </form>
-      </div>
-
-      <!-- Lien de test Play Store (Android) : Google n'envoie AUCUN e-mail —
-           c'est au testeur d'ouvrir ce lien lui-même une fois son adresse ajoutée. -->
-      <div class="play-access" id="playAccess">
-        <h2>📥 Pour télécharger l'application</h2>
-        <p>
-          Après votre inscription ci-dessus, c'est par <strong>ce lien</strong> que vous
-          téléchargerez Flash Market. Google n'envoie pas d'e-mail : gardez ce lien
-          (ajoutez-le à vos favoris) et rouvrez-le dès que votre adresse aura été ajoutée
-          à la liste des testeurs.
-        </p>
-        <a class="playstore-btn" href="https://play.google.com/store/apps/details?id=com.chapchap.flashmarket" target="_blank" rel="noopener">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.6 2.3 13 12 3.6 21.7c-.4-.2-.6-.6-.6-1.1V3.4c0-.5.2-.9.6-1.1Zm10.9 8.9 2.9 2.9-3.4 1.9-2.4-2.4 2.9-2.4Zm-2.9-.2L8.7 8.1l6.1-3.5 1.9 1.1-4.2 5.3Zm0 2.4 1.8 2.3-6.2 3.5-1.8-1 6.2-4.8Z"/></svg>
-          <span><small>Télécharger en test sur</small><strong>Google Play</strong></span>
-        </a>
-        <p class="play-note">
-          ⏳ <strong>Un délai est normal.</strong> Entre le moment où vous vous inscrivez et
-          celui où vous pourrez installer l'app, il faut le temps que nous ajoutions votre
-          adresse (généralement sous 24&nbsp;h). Si le lien affiche « Vous n'êtes pas un
-          testeur » ou une erreur, c'est que ce n'est pas encore fait — réessayez un peu
-          plus tard, sans vous réinscrire. Ouvrez toujours le lien avec le
-          <strong>même compte Google</strong> que celui indiqué dans le formulaire.
-        </p>
-      </div>
-
-      <div class="steps-box" id="stepsBox">
-        <h2>Comment ça marche (Android)</h2>
-        <div class="step-item">
-          <div class="step-num">1</div>
-          <p><strong>Vous vous inscrivez ci-dessus</strong> avec l'e-mail de votre compte Google Play.</p>
-        </div>
-        <div class="step-item">
-          <div class="step-num">2</div>
-          <p><strong>Nous ajoutons votre adresse à la liste des testeurs</strong> (généralement sous 24&nbsp;h). Vous n'avez rien à faire pendant ce temps.</p>
-        </div>
-        <div class="step-item">
-          <div class="step-num">3</div>
-          <p><strong>Vous rouvrez le lien Google Play ci-dessus</strong> et installez Flash Market en test — comme n'importe quelle application. <em>Google ne vous envoie pas d'e-mail : pensez à revenir sur ce lien vous-même.</em></p>
-        </div>
-        <div class="step-item">
-          <div class="step-num">4</div>
-          <p><strong>Dites-nous tout</strong> : bugs, idées, remarques → <a href="mailto:support@app-flashmarket.com">support@app-flashmarket.com</a>. Chaque retour compte 🙏</p>
-        </div>
       </div>
 
     </div>
@@ -345,9 +406,10 @@
     const btnAndroid = document.getElementById('btnAndroid');
     const helpAndroid = document.getElementById('helpAndroid');
     const iosDownload = document.getElementById('iosDownload');
-    const testerForm = document.getElementById('testerForm');
+    const groupJoin = document.getElementById('groupJoin');
     const stepsBox = document.getElementById('stepsBox');
     const playAccess = document.getElementById('playAccess');
+    const androidFallback = document.getElementById('androidFallback');
 
     function selectPlatform(p) {
       platform = p;
@@ -355,9 +417,11 @@
       btnAndroid.classList.toggle('active', p === 'android');
       helpAndroid.classList.toggle('show', p === 'android');
       iosDownload.classList.toggle('show', p === 'ios');
-      testerForm.style.display = p === 'ios' ? 'none' : '';
-      stepsBox.style.display = p === 'ios' ? 'none' : '';
-      playAccess.style.display = p === 'ios' ? 'none' : '';
+      const androidHidden = p === 'ios' ? 'none' : '';
+      groupJoin.style.display = androidHidden;
+      playAccess.style.display = androidHidden;
+      stepsBox.style.display = androidHidden;
+      androidFallback.style.display = androidHidden;
     }
     btnIos.addEventListener('click', () => selectPlatform('ios'));
     btnAndroid.addEventListener('click', () => selectPlatform('android'));
@@ -409,9 +473,9 @@
         if (res.status === 201) {
           form.reset();
           selectPlatform(platform); // garde la plateforme visible
-          showMsg('success', '✅ Merci ' + prenom + ' ! Votre inscription est enregistrée. Nous ajoutons votre adresse à la liste des testeurs (généralement sous 24 h). Ensuite, revenez sur cette page et cliquez sur le bouton « Télécharger en test sur Google Play » ci-dessous pour installer l’application. Google ne vous enverra pas d’e-mail.');
+          showMsg('success', '✅ Merci ' + prenom + ' ! On vous ajoute manuellement à la liste des testeurs (comptez jusqu’à 24 h). Ensuite, revenez télécharger l’app avec le bouton « Télécharger en test sur Google Play » (étape 2). En attendant, vous pouvez aussi réessayer de rejoindre le groupe des testeurs (étape 1).');
         } else if (res.status === 409) {
-          showMsg('success', 'ℹ️ Cette adresse est déjà inscrite — parfait, vous êtes sur la liste ! Utilisez le bouton « Télécharger en test sur Google Play » ci-dessous. Si le lien affiche une erreur, c’est que votre ajout n’est pas encore finalisé : réessayez un peu plus tard.');
+          showMsg('success', 'ℹ️ Cette adresse est déjà enregistrée — vous êtes sur la liste ! Utilisez le bouton « Télécharger en test sur Google Play » (étape 2). Si le lien affiche une erreur, c’est que votre ajout n’est pas encore finalisé : réessayez un peu plus tard.');
         } else {
           const body = await res.text();
           console.error('Supabase error', res.status, body);
