@@ -25,6 +25,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { submitAvis } from '../hooks/useAvis';
 import { toggleFavori } from '../hooks/useFavoris';
+import ReportModal from '../components/ReportModal';
 
 import { useTheme } from '../contexts/ThemeContext';
 import { addToRecent } from '../lib/recentStorage';
@@ -53,6 +54,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
   const [reviewNote, setReviewNote] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // Visionneuse d'images plein écran (comme la vitrine du profil)
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -418,6 +420,16 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
             </View>
           </View>
 
+          {/* Signaler l'annonce */}
+          <TouchableOpacity
+            style={styles.reportBtn}
+            onPress={() => setShowReportModal(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="flag-outline" size={16} color={theme.textMuted} />
+            <Text style={styles.reportBtnText}>Signaler cette annonce</Text>
+          </TouchableOpacity>
+
           {/* Espacement pour le CTA */}
           <View style={{ height: 100 }} />
         </View>
@@ -541,6 +553,13 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
           <Text style={styles.ctaMessageText}>Contacter le vendeur</Text>
         </TouchableOpacity>
       </View>
+
+      <ReportModal
+        isVisible={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        annonceId={annonce.id}
+        targetName={annonce.titre}
+      />
     </View>
   );
 }
@@ -805,6 +824,19 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   reviewBtnText: {
     flex: 1, fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.secondary,
+  },
+  reportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    marginTop: SPACING.xl,
+    paddingVertical: SPACING.sm,
+  },
+  reportBtnText: {
+    fontSize: FONTS.sm,
+    color: theme.textMuted,
+    fontWeight: FONTS.semibold,
   },
 
   // Modal avis

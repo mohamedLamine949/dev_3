@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase, User } from '../lib/supabase';
 import { Session } from '@supabase/supabase-js';
+import { Alert } from 'react-native';
 
 interface AuthContextType {
   session: Session | null;
@@ -51,7 +52,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (data) {
-        setUser(data as User);
+        if (data.statut === 'suspendu') {
+          await supabase.auth.signOut();
+          setSession(null);
+          setUser(null);
+          Alert.alert(
+            "Compte suspendu",
+            "Votre compte a été suspendu par un administrateur pour non-respect des règles de la communauté."
+          );
+        } else {
+          setUser(data as User);
+        }
       } else {
         if (error && error.code === 'PGRST116') {
           // Le profil n'existe pas encore, on l'initialise à la volée avec les métadonnées de la session active

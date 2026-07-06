@@ -30,6 +30,7 @@ export interface User {
   tiktok?: string;
   facebook?: string;
   type_compte?: 'particulier' | 'professionnel';
+  statut?: 'actif' | 'suspendu';
   banniere_url?: string;
   images_business?: string[];
   date_creation?: string;

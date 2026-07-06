@@ -39,10 +39,11 @@ const CATEGORY_LABELS = {
 
 // Métadonnées d'en-tête par page
 const PAGE_META = {
-  dashboard: { title: 'Tableau de Bord', subtitle: "Vue d'ensemble et métriques en temps réel de votre plateforme" },
-  users:     { title: 'Utilisateurs',    subtitle: "Liste complète des comptes inscrits sur Flash Market" },
-  annonces:  { title: 'Annonces',        subtitle: "Tous les dépôts d'annonces publiés par vos vendeurs" },
-  finances:  { title: 'Finances',        subtitle: "Revenus générés par les frais de dépôt d'annonces" }
+  dashboard:    { title: 'Tableau de Bord', subtitle: "Vue d'ensemble et métriques en temps réel de votre plateforme" },
+  users:        { title: 'Utilisateurs',    subtitle: "Liste complète des comptes inscrits sur Flash Market" },
+  annonces:     { title: 'Annonces',        subtitle: "Tous les dépôts d'annonces publiés par vos vendeurs" },
+  finances:     { title: 'Finances',        subtitle: "Revenus générés par les frais de dépôt d'annonces" },
+  signalements: { title: 'Signalements',    subtitle: "Gérez les plaintes et signalements d'annonces ou de vendeurs" }
 };
 
 // Instances Chart.js (pour pouvoir les détruire au rechargement)
@@ -53,6 +54,7 @@ let revenueChartInstance = null;
 // Données chargées en mémoire (servent à filtrer côté client)
 let allUsers = [];
 let allAnnonces = [];
+let allSignalements = [];
 
 // ================= Éléments DOM =================
 const authContainer = document.getElementById('auth-container');
@@ -210,8 +212,15 @@ async function loadDashboardData() {
       .order('date_creation', { ascending: false });
     if (annoncesError) throw annoncesError;
 
+    const { data: signalements, error: sigError } = await _supabase
+      .from('signalements')
+      .select('*, annonces(titre, user_id), users!cible_user_id(prenom, nom)')
+      .order('date_creation', { ascending: false });
+    if (sigError) throw sigError;
+
     allUsers = users || [];
     allAnnonces = annonces || [];
+    allSignalements = signalements || [];
 
     // Rendu de toutes les vues
     updateKPIs();
@@ -220,6 +229,7 @@ async function loadDashboardData() {
     renderUsersPage();
     renderAnnoncesPage();
     renderFinancesPage();
+    renderSignalementsPage();
   } catch (err) {
     console.error('Erreur lors du chargement des données:', err);
     alert('Impossible de charger les données du dashboard : ' + err.message);
@@ -342,6 +352,9 @@ function accountBadge(type) {
 }
 
 function statusBadge(a) {
+  if (a.statut === 'suspendu') {
+    return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">Suspendue</span>';
+  }
   if (a.est_payee) {
     return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">En ligne</span>';
   }
@@ -398,14 +411,24 @@ function renderUsersPage() {
 
   const body = document.getElementById('table-all-users');
   body.innerHTML = list.length === 0
-    ? '<tr><td colspan="5" class="py-8 text-center text-gray-500">Aucun utilisateur ne correspond.</td></tr>'
+    ? '<tr><td colspan="6" class="py-8 text-center text-gray-500">Aucun utilisateur ne correspond.</td></tr>'
     : list.map(u => `
       <tr class="hover:bg-gray-50 transition-colors">
         <td class="py-3.5 pl-2 font-semibold text-gray-900">${fullName(u)}</td>
         <td class="py-3.5 text-gray-400">${u.num_telephone || '—'}</td>
-        <td class="py-3.5">${accountBadge(u.type_compte)}</td>
+        <td class="py-3.5">
+          ${accountBadge(u.type_compte)}
+          ${u.statut === 'suspendu' 
+            ? '<span class="ml-1 px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">Suspendu</span>' 
+            : '<span class="ml-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Actif</span>'
+          }
+        </td>
         <td class="py-3.5 text-center text-gray-700">${fmt(adsCountByUser(u.id))}</td>
         <td class="py-3.5 text-right pr-2 text-gray-500 text-xs">${fmtDate(u.date_creation)}</td>
+        <td class="py-3.5 text-right pr-2 space-x-1 whitespace-nowrap">
+          <button onclick="toggleUserStatus('${u.id}', '${u.statut || 'actif'}')" class="px-2.5 py-1 text-xs font-semibold rounded-lg border ${u.statut === 'suspendu' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100'} transition-all">${u.statut === 'suspendu' ? 'Réactiver' : 'Suspendre'}</button>
+          <button onclick="deleteUser('${u.id}')" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-all">Supprimer</button>
+        </td>
       </tr>`).join('');
 }
 
@@ -431,7 +454,7 @@ function renderAnnoncesPage() {
 
   let list = allAnnonces;
   if (cat !== 'all') list = list.filter(a => a.categorie === cat);
-  if (status === 'paid') list = list.filter(a => a.est_payee === true);
+  if (status === 'paid') list = list.filter(a => a.est_payee === true && a.statut !== 'suspendu');
   if (status === 'pending') list = list.filter(a => !a.est_payee);
   if (search) list = list.filter(a => (a.titre || '').toLowerCase().includes(search));
 
@@ -439,7 +462,7 @@ function renderAnnoncesPage() {
 
   const body = document.getElementById('table-all-annonces');
   body.innerHTML = list.length === 0
-    ? '<tr><td colspan="6" class="py-8 text-center text-gray-500">Aucune annonce ne correspond.</td></tr>'
+    ? '<tr><td colspan="7" class="py-8 text-center text-gray-500">Aucune annonce ne correspond.</td></tr>'
     : list.map(a => `
       <tr class="hover:bg-gray-50 transition-colors">
         <td class="py-3.5 pl-2 font-semibold text-gray-900 truncate max-w-[180px]" title="${a.titre || ''}">${a.titre || '—'}</td>
@@ -448,6 +471,10 @@ function renderAnnoncesPage() {
         <td class="py-3.5 text-emerald-600 font-bold">${fmt(a.prix)} FCFA</td>
         <td class="py-3.5">${statusBadge(a)}</td>
         <td class="py-3.5 text-right pr-2 text-gray-500 text-xs">${fmtDate(a.date_creation)}</td>
+        <td class="py-3.5 text-right pr-2 space-x-1 whitespace-nowrap">
+          <button onclick="toggleAnnonceStatus('${a.id}', '${a.statut}')" class="px-2.5 py-1 text-xs font-semibold rounded-lg border ${a.statut === 'suspendu' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100'} transition-all">${a.statut === 'suspendu' ? 'Réactiver' : 'Suspendre'}</button>
+          <button onclick="deleteAnnonce('${a.id}')" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-all">Supprimer</button>
+        </td>
       </tr>`).join('');
 }
 
@@ -526,3 +553,149 @@ function renderFinancesPage() {
         <td class="py-3.5 text-right pr-2 text-gray-500 text-xs">${fmtDate(a.date_creation)}</td>
       </tr>`).join('');
 }
+
+// ================= PAGE SIGNALEMENTS =================
+function renderSignalementsPage() {
+  const filter = document.getElementById('signalements-filter').value;
+  let list = allSignalements;
+
+  if (filter === 'annonce') list = list.filter(s => s.annonce_id !== null);
+  if (filter === 'vendeur') list = list.filter(s => s.cible_user_id !== null);
+
+  document.getElementById('signalements-count').textContent = fmt(list.length);
+
+  const body = document.getElementById('table-all-signalements');
+  body.innerHTML = list.length === 0
+    ? '<tr><td colspan="6" class="py-8 text-center text-gray-500">Aucun signalement actif.</td></tr>'
+    : list.map(s => {
+        const typeBadge = s.annonce_id 
+          ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Annonce</span>'
+          : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">Vendeur</span>';
+        
+        let targetText = '—';
+        let actionBtn = '';
+
+        if (s.annonce_id) {
+          targetText = `Annonce : <span class="font-semibold text-gray-900">${s.annonces?.titre || 'Annonce supprimée'}</span>`;
+          if (s.annonce_id) {
+            actionBtn = `<button onclick="toggleAnnonceStatus('${s.annonce_id}', 'active')" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 transition-all">Suspendre l'annonce</button>`;
+          }
+        } else if (s.cible_user_id) {
+          const name = s.users ? `${s.users.prenom || ''} ${s.users.nom || ''}`.trim() : 'Vendeur supprimé';
+          targetText = `Vendeur : <span class="font-semibold text-gray-900">${name}</span>`;
+          actionBtn = `<button onclick="toggleUserStatus('${s.cible_user_id}', 'actif')" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100 transition-all">Suspendre le vendeur</button>`;
+        }
+
+        return `
+          <tr class="hover:bg-gray-50 transition-colors">
+            <td class="py-3.5 pl-2">${typeBadge}</td>
+            <td class="py-3.5 text-xs text-gray-600">${targetText}</td>
+            <td class="py-3.5 font-medium text-gray-900">${s.motif}</td>
+            <td class="py-3.5 text-xs text-gray-400 max-w-[200px] truncate" title="${s.details || ''}">${s.details || '—'}</td>
+            <td class="py-3.5 text-gray-500 text-xs">${fmtDate(s.date_creation)}</td>
+            <td class="py-3.5 text-right pr-2 space-x-1 whitespace-nowrap">
+              ${actionBtn}
+              <button onclick="dismissSignalement('${s.id}')" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition-all">Rejeter</button>
+            </td>
+          </tr>`;
+      }).join('');
+}
+
+document.getElementById('signalements-filter').addEventListener('change', renderSignalementsPage);
+
+// ================= MODÉRATION ACTIONS (WINDOW BINDINGS) =================
+window.toggleUserStatus = async function(userId, currentStatus) {
+  const newStatus = currentStatus === 'suspendu' ? 'actif' : 'suspendu';
+  const label = newStatus === 'suspendu' ? 'suspendre' : 'réactiver';
+  
+  if (confirm(`Voulez-vous vraiment ${label} cet utilisateur ?`)) {
+    try {
+      const { error } = await _supabase
+        .from('users')
+        .update({ statut: newStatus })
+        .eq('id', userId);
+      
+      if (error) throw error;
+      alert(`Utilisateur mis à jour avec succès (statut : ${newStatus}).`);
+      loadDashboardData();
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors de la modération de l\'utilisateur: ' + err.message);
+    }
+  }
+};
+
+window.deleteUser = async function(userId) {
+  if (confirm("Voulez-vous vraiment SUPPRIMER définitivement cet utilisateur et TOUTES ses annonces ? Cette action est irréversible.")) {
+    try {
+      const { error } = await _supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
+      
+      if (error) throw error;
+      alert("Utilisateur supprimé avec succès.");
+      loadDashboardData();
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors de la suppression de l\'utilisateur: ' + err.message);
+    }
+  }
+};
+
+window.toggleAnnonceStatus = async function(annonceId, currentStatus) {
+  const newStatus = currentStatus === 'suspendu' ? 'active' : 'suspendu';
+  const label = newStatus === 'suspendu' ? 'suspendre' : 'remettre en ligne';
+
+  if (confirm(`Voulez-vous vraiment ${label} cette annonce ?`)) {
+    try {
+      const { error } = await _supabase
+        .from('annonces')
+        .update({ statut: newStatus })
+        .eq('id', annonceId);
+      
+      if (error) throw error;
+      alert(`Annonce mise à jour avec succès (statut : ${newStatus}).`);
+      loadDashboardData();
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors de la modération de l\'annonce: ' + err.message);
+    }
+  }
+};
+
+window.deleteAnnonce = async function(annonceId) {
+  if (confirm("Voulez-vous vraiment SUPPRIMER définitivement cette annonce ? Cette action est irréversible.")) {
+    try {
+      const { error } = await _supabase
+        .from('annonces')
+        .delete()
+        .eq('id', annonceId);
+      
+      if (error) throw error;
+      alert("Annonce supprimée avec succès.");
+      loadDashboardData();
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors de la suppression de l\'annonce: ' + err.message);
+    }
+  }
+};
+
+window.dismissSignalement = async function(sigId) {
+  if (confirm("Voulez-vous rejeter ce signalement ? L'annonce/vendeur restera en ligne et le signalement sera effacé.")) {
+    try {
+      const { error } = await _supabase
+        .from('signalements')
+        .delete()
+        .eq('id', sigId);
+      
+      if (error) throw error;
+      alert("Signalement rejeté.");
+      loadDashboardData();
+    } catch (err) {
+      console.error(err);
+      alert('Erreur lors du rejet du signalement: ' + err.message);
+    }
+  }
+};

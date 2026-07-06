@@ -119,6 +119,10 @@
           <i class="fa-solid fa-wallet text-sm w-4 text-center"></i>
           <span class="font-semibold text-sm">Finances</span>
         </button>
+        <button type="button" data-page="signalements" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left">
+          <i class="fa-solid fa-triangle-exclamation text-sm w-4 text-center"></i>
+          <span class="font-semibold text-sm">Signalements</span>
+        </button>
       </nav>
 
       <!-- Sidebar Footer (Admin profile & logout) -->
@@ -351,10 +355,11 @@
                     <th class="pb-3">Compte</th>
                     <th class="pb-3 text-center">Annonces</th>
                     <th class="pb-3 text-right pr-2">Inscription</th>
+                    <th class="pb-3 text-right pr-2">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="table-all-users" class="divide-y divide-gray-100 text-sm text-gray-700">
-                  <tr><td colspan="5" class="py-8 text-center text-gray-400">Chargement des données...</td></tr>
+                  <tr><td colspan="6" class="py-8 text-center text-gray-400">Chargement des données...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -398,10 +403,11 @@
                     <th class="pb-3">Prix</th>
                     <th class="pb-3">Statut</th>
                     <th class="pb-3 text-right pr-2">Date</th>
+                    <th class="pb-3 text-right pr-2">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="table-all-annonces" class="divide-y divide-gray-100 text-sm text-gray-700">
-                  <tr><td colspan="6" class="py-8 text-center text-gray-400">Chargement des données...</td></tr>
+                  <tr><td colspan="7" class="py-8 text-center text-gray-400">Chargement des données...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -470,6 +476,46 @@
               </table>
             </div>
           </section>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- =================== PAGE : SIGNALEMENTS ==================== -->
+        <!-- ============================================================ -->
+        <div id="page-signalements" class="page hidden space-y-6">
+          <div class="glass-card border border-gray-200 rounded-2xl p-6">
+            <!-- Toolbar -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+              <div>
+                <h3 class="text-sm font-bold uppercase tracking-wider text-gray-500">Signalements reçus</h3>
+                <p class="text-xs text-gray-400 mt-0.5"><span id="signalements-count">0</span> signalement(s) actif(s)</p>
+              </div>
+              <div class="flex items-center gap-3">
+                <select id="signalements-filter" class="bg-white border border-gray-300 focus:border-emerald-500 rounded-xl py-2.5 px-4 text-sm text-gray-700 outline-none cursor-pointer transition-all">
+                  <option value="all">Tous les signalements</option>
+                  <option value="annonce">Annonces</option>
+                  <option value="vendeur">Vendeurs</option>
+                </select>
+              </div>
+            </div>
+            <!-- Table -->
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-gray-200 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    <th class="pb-3 pl-2">Type</th>
+                    <th class="pb-3">Cible (Annonce / Vendeur)</th>
+                    <th class="pb-3">Motif</th>
+                    <th class="pb-3">Détails</th>
+                    <th class="pb-3 text-right pr-2">Date</th>
+                    <th class="pb-3 text-right pr-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="table-all-signalements" class="divide-y divide-gray-100 text-sm text-gray-700">
+                  <tr><td colspan="6" class="py-8 text-center text-gray-400">Chargement des données...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
       </div>
