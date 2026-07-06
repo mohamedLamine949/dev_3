@@ -37,10 +37,10 @@
   }
 
   /* Orbes/halo animés en fond */
-  .orb { position: absolute; border-radius: 50%; filter: blur(48px); opacity: .55; z-index: 0; }
-  .orb.a { width: 55%; aspect-ratio: 1; background: #22c55e; top: -10%; left: -18%; animation: drift1 9s ease-in-out infinite; }
-  .orb.b { width: 50%; aspect-ratio: 1; background: #0891b2; bottom: -14%; right: -16%; animation: drift2 11s ease-in-out infinite; }
-  .orb.c { width: 40%; aspect-ratio: 1; background: #eab308; top: 40%; left: 30%; opacity: .28; animation: drift1 13s ease-in-out infinite reverse; }
+  .orb { position: absolute; border-radius: 50%; filter: blur(30px); opacity: .5; z-index: 0; will-change: transform; }
+  .orb.a { width: 50%; aspect-ratio: 1; background: #22c55e; top: -10%; left: -18%; animation: drift1 9s ease-in-out infinite; }
+  .orb.b { width: 46%; aspect-ratio: 1; background: #0891b2; bottom: -14%; right: -16%; animation: drift2 11s ease-in-out infinite; }
+  .orb.c { width: 36%; aspect-ratio: 1; background: #eab308; top: 42%; left: 32%; opacity: .24; animation: drift1 13s ease-in-out infinite reverse; }
   @keyframes drift1 { 0%,100%{ transform: translate(0,0) scale(1);} 50%{ transform: translate(8%, 6%) scale(1.12);} }
   @keyframes drift2 { 0%,100%{ transform: translate(0,0) scale(1);} 50%{ transform: translate(-7%, -5%) scale(1.1);} }
   .grid {
@@ -81,12 +81,15 @@
   }
   @keyframes float { 0%,100%{ transform: translateY(0) rotate(-.4deg);} 50%{ transform: translateY(-12px) rotate(.4deg);} }
   .phone-screen { position: relative; width: 100%; height: 100%; border-radius: 27px; overflow: hidden; background: #fff; }
+  /* Toutes les images restent opaques et empilées ; l'active passe au-dessus.
+     Aucune transition d'opacité -> le cadre n'est JAMAIS vide, même si l'onglet
+     est en arrière-plan (les transitions CSS s'y figent). */
   .screen-img {
     position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
-    opacity: 0; transform: scale(1.06);
-    transition: opacity .7s ease, transform 1.4s ease;
+    opacity: 1; z-index: 1;
   }
-  .screen-img.active { opacity: 1; transform: scale(1); }
+  .screen-img.active { z-index: 2; animation: screenIn .9s ease both; }
+  @keyframes screenIn { from { transform: scale(1.05); } to { transform: scale(1); } }
 
   /* Reflet vitre */
   .phone-screen::after {
@@ -255,6 +258,9 @@
   const progress = document.getElementById('progress');
   const imgs = {};
   document.querySelectorAll('.screen-img').forEach(el => imgs[el.dataset.screen] = el);
+  // Écran par défaut affiché d'emblée : le cadre du téléphone n'est jamais vide,
+  // même pendant l'intro ou une transition.
+  imgs.home.classList.add('active');
 
   // Segments de progression
   progress.innerHTML = '';
