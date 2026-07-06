@@ -177,6 +177,7 @@ export const SUBCATEGORIES: Record<string, SousCategorie[]> = {
     { id: 'tv_audio', label: 'TV & Audio', keywords: ['tv', 'television', 'télévision', 'ecran', 'écran', 'enceinte', 'baffle', 'casque', 'radio'] },
     { id: 'consoles_jeux_video', label: 'Consoles & Jeux vidéo', keywords: ['playstation', 'ps2', 'ps3', 'ps4', 'ps5', 'xbox', 'nintendo', 'manette', 'console', 'jeu', 'jeux'] },
     { id: 'accessoires_electronique', label: 'Accessoires', keywords: ['chargeur', 'cable', 'câble', 'coque', 'ecouteurs', 'écouteurs', 'batterie', 'powerbank'] },
+    { id: 'autre_telephonie_electronique', label: 'Autre' },
   ],
   mode_beaute: [
     { id: 'vetements_homme', label: 'Vêtements homme', keywords: ['chemise', 'pantalon', 'boubou', 'costume', 'tshirt', 'polo'] },
@@ -185,6 +186,7 @@ export const SUBCATEGORIES: Record<string, SousCategorie[]> = {
     { id: 'sacs_accessoires', label: 'Sacs & Accessoires', keywords: ['sac', 'sacoche', 'ceinture', 'lunettes', 'casquette'] },
     { id: 'beaute_cosmetiques', label: 'Beauté & Cosmétiques', keywords: ['parfum', 'maquillage', 'creme', 'crème', 'meches', 'mèches', 'perruque'] },
     { id: 'montres_bijoux', label: 'Montres & Bijoux', keywords: ['montre', 'bijou', 'collier', 'bague', 'chaine', 'chaîne', 'or', 'argent'] },
+    { id: 'autre_mode_beaute', label: 'Autre' },
   ],
   maison_electromenager: [
     { id: 'meubles', label: 'Meubles', keywords: ['canape', 'canapé', 'salon', 'lit', 'matelas', 'armoire', 'table', 'chaise'] },
@@ -192,24 +194,29 @@ export const SUBCATEGORIES: Record<string, SousCategorie[]> = {
     { id: 'decoration', label: 'Décoration', keywords: ['deco', 'déco', 'rideau', 'tapis', 'miroir', 'tableau'] },
     { id: 'materiaux_construction', label: 'Matériaux de construction', keywords: ['ciment', 'fer', 'tole', 'tôle', 'carreaux', 'peinture', 'porte', 'fenetre', 'fenêtre'] },
     { id: 'jardin', label: 'Jardin', keywords: ['jardin', 'plante', 'arrosage', 'fleurs'] },
+    { id: 'autre_maison_electromenager', label: 'Autre' },
   ],
   voitures: [
     { id: 'voitures_vente', label: 'Voitures', keywords: ['toyota', 'mercedes', 'bmw', 'hyundai', 'kia', 'corolla', 'rav4', '4x4', 'berline', 'suv'] },
     { id: 'pieces_auto', label: 'Pièces & Accessoires auto', keywords: ['moteur', 'pneu', 'jante', 'batterie', 'phare', 'piece', 'pièce', 'pieces', 'pièces', 'amortisseur', 'pare-choc'] },
+    { id: 'autre_voitures', label: 'Autre' },
   ],
   motos: [
     { id: 'motos_scooters', label: 'Motos & Scooters', keywords: ['djakarta', 'jakarta', 'scooter', 'tvs', 'apsonic', 'haojue'] },
     { id: 'pieces_moto', label: 'Pièces & Accessoires moto', keywords: ['casque', 'pneu', 'piece', 'pièce', 'pieces', 'pièces', 'pot', 'guidon', 'selle'] },
+    { id: 'autre_motos', label: 'Autre' },
   ],
   immobilier: [
     { id: 'location_residentiel', label: 'Location maisons & appartements', keywords: ['louer', 'location', 'appartement', 'studio', 'chambre', 'villa'] },
     { id: 'vente_maisons', label: 'Vente de maisons', keywords: ['vente', 'vendre', 'maison', 'villa', 'duplex'] },
     { id: 'vente_terrains', label: 'Vente de terrains', keywords: ['terrain', 'parcelle', 'titre foncier', 'hectare', 'lot'] },
     { id: 'bureaux_commerces', label: 'Bureaux & Commerces', keywords: ['bureau', 'boutique', 'magasin', 'local', 'entrepot', 'entrepôt'] },
+    { id: 'autre_immobilier', label: 'Autre' },
   ],
   alimentation: [
     { id: 'restaurants', label: 'Restaurants & Plats préparés', keywords: ['restaurant', 'plat', 'repas', 'traiteur', 'grillade', 'fast food'] },
     { id: 'supermarches', label: 'Supermarchés & Épicerie', keywords: ['supermarche', 'supermarché', 'epicerie', 'épicerie', 'riz', 'huile', 'sucre'] },
+    { id: 'autre_alimentation', label: 'Autre' },
   ],
   services: [
     { id: 'reparation_electronique', label: 'Réparation téléphones & électronique', keywords: ['reparation', 'réparation', 'reparateur', 'réparateur', 'flash', 'decodage', 'décodage'] },

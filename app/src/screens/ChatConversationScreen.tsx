@@ -46,6 +46,12 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   headerInfo: {
     flex: 1,
   },
+  headerContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
   headerAvatar: {
     width: 40,
     height: 40,
@@ -328,28 +334,39 @@ export default function ChatConversationScreen({ route, navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={theme.textPrimary} />
         </TouchableOpacity>
-        {otherUser?.avatar_url ? (
-          <Image source={{ uri: otherUser.avatar_url }} style={styles.headerAvatar} />
-        ) : (
-          <View style={styles.headerAvatarPlaceholder}>
-            {otherUserName ? (
-              <Text style={styles.headerAvatarInitial}>{otherUserName[0].toUpperCase()}</Text>
-            ) : (
-              <Ionicons name="person" size={20} color={theme.textMuted} />
-            )}
+        <TouchableOpacity
+          style={styles.headerContent}
+          activeOpacity={otherUser?.id ? 0.7 : 1}
+          disabled={!otherUser?.id}
+          onPress={() => {
+            if (otherUser?.id) {
+              navigation.navigate('VendeurProfile', { vendeurId: otherUser.id });
+            }
+          }}
+        >
+          {otherUser?.avatar_url ? (
+            <Image source={{ uri: otherUser.avatar_url }} style={styles.headerAvatar} />
+          ) : (
+            <View style={styles.headerAvatarPlaceholder}>
+              {otherUserName ? (
+                <Text style={styles.headerAvatarInitial}>{otherUserName[0].toUpperCase()}</Text>
+              ) : (
+                <Ionicons name="person" size={20} color={theme.textMuted} />
+              )}
+            </View>
+          )}
+          <View style={styles.headerInfo}>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {otherUserName || titreAnnonce || 'Conversation'}
+            </Text>
+            <Text
+              style={[styles.headerSubtitle, otherOnline && styles.headerSubtitleOnline]}
+              numberOfLines={1}
+            >
+              {otherOnline ? 'En ligne' : !activeConversationId ? 'Nouveau' : titreAnnonce || ''}
+            </Text>
           </View>
-        )}
-        <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {otherUserName || titreAnnonce || 'Conversation'}
-          </Text>
-          <Text
-            style={[styles.headerSubtitle, otherOnline && styles.headerSubtitleOnline]}
-            numberOfLines={1}
-          >
-            {otherOnline ? 'En ligne' : !activeConversationId ? 'Nouveau' : titreAnnonce || ''}
-          </Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
       <FlatList

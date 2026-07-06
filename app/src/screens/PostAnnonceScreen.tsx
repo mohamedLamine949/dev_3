@@ -202,8 +202,8 @@ export default function PostAnnonceScreen({ navigation }: any) {
       return;
     }
 
-    if (!titre || !prix || !selectedCategory || images.length === 0) {
-      Alert.alert('Champs manquants', 'Titre, prix, catégorie et au moins une photo sont requis.');
+    if (!titre || !prix || !selectedCategory || !selectedSousCategorie || images.length === 0) {
+      Alert.alert('Champs manquants', 'Titre, prix, catégorie, sous-catégorie et au moins une photo sont requis.');
       return;
     }
     isProcessingRef.current = false;
@@ -339,7 +339,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
     }
   };
 
-  const isFormValid = titre && prix && selectedCategory && images.length > 0;
+  const isFormValid = titre && prix && selectedCategory && selectedSousCategorie && images.length > 0;
 
   return (
     <View style={styles.container}>
@@ -415,10 +415,10 @@ export default function PostAnnonceScreen({ navigation }: any) {
             ))}
           </View>
 
-          {/* Sous-catégorie (optionnel, dépend de la catégorie choisie) */}
+          {/* Sous-catégorie (obligatoire, dépend de la catégorie choisie) */}
           {selectedCategory && SUBCATEGORIES[selectedCategory]?.length > 0 && (
             <>
-              <Text style={styles.sectionTitle}>Sous-catégorie <Text style={styles.optionalLabel}>(facultatif, aide les acheteurs à vous trouver)</Text></Text>
+              <Text style={styles.sectionTitle}>Sous-catégorie *</Text>
               <View style={styles.chipsContainer}>
                 {SUBCATEGORIES[selectedCategory].map((sub) => (
                   <TouchableOpacity
