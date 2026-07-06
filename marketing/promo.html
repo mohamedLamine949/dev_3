@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flash Market — Promo animée (9:16)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --green: #16a34a;
+    --green-d: #14532d;
+    --green-l: #22c55e;
+  }
+  html, body {
+    background: #0b0f0d;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    color: #fff;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 18px;
+    min-height: 100vh; padding: 24px 0;
+  }
+
+  /* ---- Scène 9:16 (recadre ici pour le screen-record) ---- */
+  .stage {
+    position: relative;
+    height: min(88vh, 900px);
+    aspect-ratio: 9 / 16;
+    border-radius: 26px;
+    overflow: hidden;
+    background:
+      radial-gradient(120% 90% at 50% -10%, #1f7a43 0%, #0d4423 45%, #06210f 100%);
+    box-shadow: 0 30px 80px rgba(0,0,0,.55);
+    isolation: isolate;
+  }
+
+  /* Orbes/halo animés en fond */
+  .orb { position: absolute; border-radius: 50%; filter: blur(48px); opacity: .55; z-index: 0; }
+  .orb.a { width: 55%; aspect-ratio: 1; background: #22c55e; top: -10%; left: -18%; animation: drift1 9s ease-in-out infinite; }
+  .orb.b { width: 50%; aspect-ratio: 1; background: #0891b2; bottom: -14%; right: -16%; animation: drift2 11s ease-in-out infinite; }
+  .orb.c { width: 40%; aspect-ratio: 1; background: #eab308; top: 40%; left: 30%; opacity: .28; animation: drift1 13s ease-in-out infinite reverse; }
+  @keyframes drift1 { 0%,100%{ transform: translate(0,0) scale(1);} 50%{ transform: translate(8%, 6%) scale(1.12);} }
+  @keyframes drift2 { 0%,100%{ transform: translate(0,0) scale(1);} 50%{ transform: translate(-7%, -5%) scale(1.1);} }
+  .grid {
+    position: absolute; inset: 0; z-index: 0; opacity: .12;
+    background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: radial-gradient(70% 60% at 50% 40%, #000 30%, transparent 75%);
+  }
+
+  /* ---- Barre de progression type "stories" ---- */
+  .progress { position: absolute; top: 16px; left: 16px; right: 16px; display: flex; gap: 6px; z-index: 6; }
+  .progress .seg { flex: 1; height: 4px; border-radius: 4px; background: rgba(255,255,255,.28); overflow: hidden; }
+  .progress .seg > i { display: block; height: 100%; width: 0; background: #fff; border-radius: 4px; }
+
+  /* ---- Lockup de marque en haut ---- */
+  .brand { position: absolute; top: 34px; left: 0; right: 0; z-index: 5;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    opacity: 0; transform: translateY(-8px); transition: opacity .6s, transform .6s; }
+  .brand.show { opacity: 1; transform: translateY(0); }
+  .brand .logo {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(160deg, #22b558, #128a3e);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 14px rgba(0,0,0,.3);
+  }
+  .brand .logo svg { width: 20px; height: 20px; }
+  .brand b { font-size: 20px; font-weight: 800; letter-spacing: -.3px; }
+
+  /* ---- Téléphone ---- */
+  .phone-wrap { position: absolute; inset: 0; z-index: 3;
+    display: flex; align-items: center; justify-content: center; padding-bottom: 210px;
+    transition: transform .8s cubic-bezier(.2,.8,.2,1), opacity .8s; }
+  .phone {
+    position: relative; height: 58%; aspect-ratio: 1170 / 2532;
+    background: #0a0a0a; border-radius: 34px; padding: 7px;
+    box-shadow: 0 26px 60px rgba(0,0,0,.5), 0 0 0 2px rgba(255,255,255,.06) inset;
+    animation: float 5s ease-in-out infinite;
+  }
+  @keyframes float { 0%,100%{ transform: translateY(0) rotate(-.4deg);} 50%{ transform: translateY(-12px) rotate(.4deg);} }
+  .phone-screen { position: relative; width: 100%; height: 100%; border-radius: 27px; overflow: hidden; background: #fff; }
+  .screen-img {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    opacity: 0; transform: scale(1.06);
+    transition: opacity .7s ease, transform 1.4s ease;
+  }
+  .screen-img.active { opacity: 1; transform: scale(1); }
+
+  /* Reflet vitre */
+  .phone-screen::after {
+    content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+    background: linear-gradient(115deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,0) 32%);
+  }
+
+  /* Voile dégradé pour la lisibilité des légendes */
+  .scrim { position: absolute; left: 0; right: 0; bottom: 0; height: 42%; z-index: 4; pointer-events: none;
+    background: linear-gradient(0deg, rgba(6,33,15,.94) 10%, rgba(6,33,15,.5) 52%, transparent 100%);
+    opacity: 0; transition: opacity .5s; }
+  .scrim.show { opacity: 1; }
+
+  /* ---- Légendes cinétiques ---- */
+  .caption { position: absolute; left: 26px; right: 26px; bottom: 74px; z-index: 5; text-align: center; }
+  .cap-top { font-size: 34px; font-weight: 800; line-height: 1.12; letter-spacing: -.5px;
+    text-shadow: 0 3px 18px rgba(0,0,0,.45); }
+  .cap-sub { margin-top: 10px; font-size: 17px; font-weight: 600; color: #d9f7e4;
+    text-shadow: 0 2px 10px rgba(0,0,0,.4); }
+  .accent { color: #7cf0a8; }
+  .caption .line { display: block; opacity: 0; transform: translateY(16px); }
+  .caption.show .line { animation: rise .55s cubic-bezier(.2,.8,.2,1) forwards; }
+  .caption.show .cap-sub { animation-delay: .12s; }
+  @keyframes rise { to { opacity: 1; transform: translateY(0);} }
+
+  /* ---- Intro plein cadre ---- */
+  .intro { position: absolute; inset: 0; z-index: 8;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+    background: radial-gradient(90% 70% at 50% 45%, #0d4423 0%, #06210f 100%);
+    transition: opacity .7s; }
+  .intro.hide { opacity: 0; pointer-events: none; }
+  .intro .big-logo {
+    width: 120px; height: 120px; border-radius: 30px;
+    background: linear-gradient(160deg, #22b558, #128a3e);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    box-shadow: 0 20px 50px rgba(22,163,74,.5);
+    animation: pop .7s cubic-bezier(.2,1.4,.4,1) both;
+  }
+  .intro .big-logo svg { width: 62px; height: 62px; }
+  .intro .big-logo small { font-size: 18px; font-weight: 800; color: #fff; margin-top: 2px; }
+  @keyframes pop { 0%{ transform: scale(.4); opacity: 0;} 100%{ transform: scale(1); opacity: 1;} }
+  .intro h1 { font-size: 40px; font-weight: 800; letter-spacing: -.5px; opacity: 0; animation: rise .6s ease .25s forwards; }
+  .intro p { font-size: 20px; font-weight: 600; color: #a7f3c9; opacity: 0; animation: rise .6s ease .45s forwards; }
+
+  /* ---- CTA final ---- */
+  .cta { position: absolute; left: 0; right: 0; bottom: 0; z-index: 7;
+    padding: 40px 26px 46px; text-align: center;
+    background: linear-gradient(0deg, #06210f 55%, rgba(6,33,15,.85) 80%, transparent 100%);
+    transform: translateY(100%); transition: transform .7s cubic-bezier(.2,.8,.2,1); }
+  .cta.show { transform: translateY(0); }
+  .cta h2 { font-size: 34px; font-weight: 800; line-height: 1.15; letter-spacing: -.4px; }
+  .cta .badges { display: flex; flex-direction: column; gap: 12px; margin-top: 22px; align-items: center; }
+  .store-badge { display: inline-flex; align-items: center; gap: 12px;
+    background: #000; border: 1.5px solid rgba(255,255,255,.25); border-radius: 14px;
+    padding: 12px 24px; min-width: 240px; justify-content: center; }
+  .store-badge svg { width: 26px; height: 26px; fill: #fff; }
+  .store-badge span { text-align: left; line-height: 1.2; }
+  .store-badge span small { display: block; font-size: 11px; opacity: .85; }
+  .store-badge span b { font-size: 17px; font-weight: 700; }
+  .store-badge.soon { opacity: .82; }
+  .cta .url { margin-top: 20px; font-size: 16px; font-weight: 700; color: #7cf0a8; }
+
+  /* ---- Contrôles (hors cadre, non filmés) ---- */
+  .controls { display: flex; gap: 12px; align-items: center; }
+  .controls button {
+    font: inherit; font-weight: 700; font-size: 14px; color: #0b0f0d;
+    background: #7cf0a8; border: none; border-radius: 10px; padding: 10px 18px; cursor: pointer;
+  }
+  .controls .hint { font-size: 12.5px; color: #7b8a80; max-width: 340px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+  <div class="stage" id="stage">
+    <div class="orb a"></div><div class="orb b"></div><div class="orb c"></div>
+    <div class="grid"></div>
+    <div class="scrim" id="scrim"></div>
+
+    <div class="progress" id="progress"></div>
+
+    <div class="brand" id="brand">
+      <span class="logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 7h12l1 13H5L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/>
+          <path d="m12.6 10-2.1 3.4h1.7l-.7 3.2 2.9-4h-1.7l.9-2.6Z" fill="#fff" stroke="none"/>
+        </svg>
+      </span>
+      <b>Flash Market</b>
+    </div>
+
+    <div class="phone-wrap" id="phoneWrap">
+      <div class="phone">
+        <div class="phone-screen">
+          <img class="screen-img" data-screen="home"   src="screens/home.png"   alt="">
+          <img class="screen-img" data-screen="search" src="screens/search.png" alt="">
+          <img class="screen-img" data-screen="chat"   src="screens/chat.png"   alt="">
+        </div>
+      </div>
+    </div>
+
+    <div class="caption" id="caption">
+      <span class="line cap-top" id="capTop"></span>
+      <span class="line cap-sub" id="capSub"></span>
+    </div>
+
+    <!-- Intro -->
+    <div class="intro" id="intro">
+      <div class="big-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 7h12l1 13H5L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/>
+          <path d="m12.6 10-2.1 3.4h1.7l-.7 3.2 2.9-4h-1.7l.9-2.6Z" fill="#fff" stroke="none"/>
+        </svg>
+        <small>Flash</small>
+      </div>
+      <h1>Flash Market</h1>
+      <p>La marketplace #1 au Mali 🇲🇱</p>
+    </div>
+
+    <!-- CTA final -->
+    <div class="cta" id="cta">
+      <h2>Télécharge <span class="accent">Flash&nbsp;Market</span><br>et commence à vendre</h2>
+      <div class="badges">
+        <span class="store-badge">
+          <svg viewBox="0 0 24 24"><path d="M16.4 1.4c0 1.1-.5 2.3-1.2 3.1-.7.9-2 1.6-3 1.5-.1-1.1.5-2.3 1.2-3 .8-.9 2.1-1.6 3-1.6Zm4.5 15.7c-.5 1.2-1 1.9-1.7 2.9-1 1.4-2.4 3.2-4 3.2-1.5 0-1.9-.9-3.6-.9s-2.3.9-3.7.9c-1.6 0-2.8-1.6-3.8-3-2.1-3-3.4-7.5-1.4-10.6 1-1.5 2.7-2.5 4.3-2.5 1.5 0 2.5 1 3.6 1 1.1 0 1.9-1 3.7-1 1.4 0 2.9.8 3.9 2.1-3.4 1.9-2.9 6.8.7 7.9Z"/></svg>
+          <span><small>Disponible sur</small><b>l'App Store</b></span>
+        </span>
+        <span class="store-badge soon">
+          <svg viewBox="0 0 24 24"><path d="M3.6 2.3 13 12 3.6 21.7c-.4-.2-.6-.6-.6-1.1V3.4c0-.5.2-.9.6-1.1Zm10.9 8.9 2.9 2.9-3.4 1.9-2.4-2.4 2.9-2.4Zm-2.9-.2L8.7 8.1l6.1-3.5 1.9 1.1-4.2 5.3Zm0 2.4 1.8 2.3-6.2 3.5-1.8-1 6.2-4.8Z"/></svg>
+          <span><small>Bientôt sur</small><b>Google Play</b></span>
+        </span>
+      </div>
+      <div class="url">app-flashmarket.com</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="replay">▶ Rejouer</button>
+    <span class="hint">Format 9:16 prêt pour Reels / TikTok / Shorts. Enregistre la zone du cadre (screen-record), ou ouvre en plein écran. La séquence tourne en boucle.</span>
+  </div>
+
+<script>
+  // Timeline pilotée en JS : chaque scène applique ses classes + change la légende.
+  const scenes = [
+    { type: 'intro', dur: 2600 },
+    { type: 'screen', screen: 'home',   dur: 3400,
+      top: 'Tout s’achète,<br>tout se <span class="accent">vend</span>',
+      sub: 'Près de chez toi, partout au Mali' },
+    { type: 'screen', screen: 'search', dur: 3400,
+      top: '<span class="accent">8 catégories</span>,<br>des milliers d’annonces',
+      sub: 'Téléphones · Voitures · Mode · Immobilier…' },
+    { type: 'screen', screen: 'chat',   dur: 3400,
+      top: 'Négocie <span class="accent">en direct</span>',
+      sub: 'Discute avec le vendeur, sans intermédiaire' },
+    { type: 'cta', dur: 3800 },
+  ];
+
+  const stage = document.getElementById('stage');
+  const intro = document.getElementById('intro');
+  const brand = document.getElementById('brand');
+  const phoneWrap = document.getElementById('phoneWrap');
+  const caption = document.getElementById('caption');
+  const capTop = document.getElementById('capTop');
+  const capSub = document.getElementById('capSub');
+  const cta = document.getElementById('cta');
+  const scrim = document.getElementById('scrim');
+  const progress = document.getElementById('progress');
+  const imgs = {};
+  document.querySelectorAll('.screen-img').forEach(el => imgs[el.dataset.screen] = el);
+
+  // Segments de progression
+  progress.innerHTML = '';
+  const bars = scenes.map(() => {
+    const seg = document.createElement('div'); seg.className = 'seg';
+    const i = document.createElement('i'); seg.appendChild(i); progress.appendChild(seg);
+    return i;
+  });
+
+  let timers = [];
+  function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+
+  function setScreen(name) {
+    Object.values(imgs).forEach(el => el.classList.remove('active'));
+    if (imgs[name]) imgs[name].classList.add('active');
+  }
+
+  function showCaption(top, sub) {
+    caption.classList.remove('show');
+    capTop.innerHTML = top; capSub.innerHTML = sub;
+    void caption.offsetWidth;      // relance l'animation
+    caption.classList.add('show');
+  }
+
+  function runScene(idx) {
+    const s = scenes[idx];
+    // barre de progression
+    bars.forEach((b, i) => { b.style.transition = 'none'; b.style.width = i < idx ? '100%' : '0%'; });
+    void progress.offsetWidth;
+    bars[idx].style.transition = `width ${s.dur}ms linear`;
+    bars[idx].style.width = '100%';
+
+    const isIntro = s.type === 'intro';
+    const isCta = s.type === 'cta';
+    intro.classList.toggle('hide', !isIntro);
+    brand.classList.toggle('show', !isIntro);
+    cta.classList.toggle('show', isCta);
+    phoneWrap.style.opacity = isIntro ? '0' : '1';
+    // léger recul du téléphone quand le CTA monte
+    phoneWrap.style.transform = isCta ? 'translateY(-6%) scale(.92)' : 'translateY(0) scale(1)';
+
+    scrim.classList.toggle('show', s.type === 'screen');
+    if (s.type === 'screen') {
+      setScreen(s.screen);
+      caption.style.opacity = '1';
+      showCaption(s.top, s.sub);
+    } else {
+      caption.classList.remove('show');
+      caption.style.opacity = '0';
+    }
+
+    timers.push(setTimeout(() => {
+      const next = (idx + 1) % scenes.length;
+      runScene(next);
+    }, s.dur));
+  }
+
+  function start() { clearTimers(); runScene(0); }
+  document.getElementById('replay').addEventListener('click', start);
+  window.addEventListener('load', start);
+  start();
+</script>
+</body>
+</html>
