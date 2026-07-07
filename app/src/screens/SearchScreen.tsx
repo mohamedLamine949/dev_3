@@ -39,6 +39,7 @@ const CAT_COLORS: Record<string, string> = {
   motos:                   '#ea580c',
   immobilier:              '#0891b2',
   alimentation:            '#dc2626',
+  animaux:                 '#854d0e',
   services:                '#15803d',
 };
 
@@ -50,6 +51,7 @@ const CAT_EMOJIS: Record<string, string> = {
   motos:                   '🏍️',
   immobilier:              '🏠',
   alimentation:            '🍽️',
+  animaux:                 '🐾',
   services:                '🔧',
 };
 

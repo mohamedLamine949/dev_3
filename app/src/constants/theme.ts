@@ -156,6 +156,7 @@ export const CATEGORIES = [
   { id: 'motos', label: 'Motos', icon: 'bicycle-outline' },
   { id: 'immobilier', label: 'Immobilier', icon: 'business-outline' },
   { id: 'alimentation', label: 'Alimentation', icon: 'cafe-outline' },
+  { id: 'animaux', label: 'Animaux', icon: 'paw-outline' },
   { id: 'services', label: 'Services', icon: 'build-outline' },
 ];
 
@@ -218,6 +219,14 @@ export const SUBCATEGORIES: Record<string, SousCategorie[]> = {
     { id: 'supermarches', label: 'Supermarchés & Épicerie', keywords: ['supermarche', 'supermarché', 'epicerie', 'épicerie', 'riz', 'huile', 'sucre'] },
     { id: 'autre_alimentation', label: 'Autre' },
   ],
+  animaux: [
+    { id: 'boeufs_vaches', label: 'Bœufs & Vaches', keywords: ['boeuf', 'bœuf', 'vache', 'taureau', 'veau', 'betail', 'bétail'] },
+    { id: 'moutons', label: 'Moutons', keywords: ['mouton', 'belier', 'bélier', 'brebis', 'agneau', 'tabaski'] },
+    { id: 'chevres', label: 'Chèvres', keywords: ['chevre', 'chèvre', 'bouc', 'cabri'] },
+    { id: 'volailles', label: 'Volailles & Poules', keywords: ['poule', 'coq', 'poulet', 'poussin', 'dinde', 'canard', 'pintade', 'oie'] },
+    { id: 'pigeons', label: 'Pigeons & Oiseaux', keywords: ['pigeon', 'oiseau', 'perroquet', 'colombe'] },
+    { id: 'autre_animaux', label: 'Autre', keywords: ['chien', 'chat', 'cheval', 'ane', 'âne', 'autruche'] },
+  ],
   services: [
     { id: 'reparation_electronique', label: 'Réparation téléphones & électronique', keywords: ['reparation', 'réparation', 'reparateur', 'réparateur', 'flash', 'decodage', 'décodage'] },
     { id: 'mecanique', label: 'Mécanique auto & moto', keywords: ['mecanicien', 'mécanicien', 'garage', 'vidange'] },
@@ -264,6 +273,7 @@ export const CATEGORY_PRICES: Record<string, number> = {
   immobilier:              2500,
   alimentation:            500,
   services:                500,
+  animaux:                 250,
 };
 
 export const ETAT_ARTICLE = [

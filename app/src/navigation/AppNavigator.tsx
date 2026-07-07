@@ -6,6 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { COLORS, FONTS, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
@@ -199,6 +200,41 @@ function MainTabs() {
 // Root Navigator
 export default function AppNavigator() {
   const { isDark } = useTheme();
+  const { session, isLoading } = useAuth();
+
+  React.useEffect(() => {
+    if (isLoading) return;
+    
+    // Si l'utilisateur est déjà connecté, pas besoin d'afficher l'écran de connexion
+    if (session) return;
+
+    const checkFirstLaunch = async () => {
+      try {
+        const hasLaunched = await AsyncStorage.getItem('has_launched_before');
+        if (!hasLaunched) {
+          // Premier lancement : on enregistre le flag et on redirige vers l'écran Login
+          await AsyncStorage.setItem('has_launched_before', 'true');
+          
+          if (navigationRef.isReady()) {
+            navigationRef.navigate('Login');
+          } else {
+            const interval = setInterval(() => {
+              if (navigationRef.isReady()) {
+                navigationRef.navigate('Login');
+                clearInterval(interval);
+              }
+            }, 100);
+            // Sécurité : arrêt automatique après 2 secondes si navigationRef ne devient jamais prêt
+            setTimeout(() => clearInterval(interval), 2000);
+          }
+        }
+      } catch (err) {
+        console.error('[FirstLaunch] Error checking launch status:', err);
+      }
+    };
+
+    checkFirstLaunch();
+  }, [isLoading, session]);
   
   const MyDarkTheme = {
     ...DarkTheme,

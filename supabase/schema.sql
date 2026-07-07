@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS annonces (
   titre TEXT NOT NULL,
   description TEXT,
   prix INTEGER NOT NULL,
-  categorie TEXT NOT NULL, -- telephonie_electronique, mode_beaute, maison_electromenager, voitures, motos, immobilier, alimentation, services
+  categorie TEXT NOT NULL, -- telephonie_electronique, mode_beaute, maison_electromenager, voitures, motos, immobilier, alimentation, animaux, services
   sous_categorie TEXT, -- facultatif, voir SUBCATEGORIES dans app/src/constants/theme.ts
   etat_article TEXT NOT NULL,
   statut TEXT DEFAULT 'en_attente', -- en_attente, active, vendu, expire

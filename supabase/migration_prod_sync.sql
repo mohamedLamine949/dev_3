@@ -30,6 +30,7 @@ UPDATE public.annonces SET montant_depot = CASE categorie
   WHEN 'motos'                   THEN 1000
   WHEN 'alimentation'            THEN 500
   WHEN 'services'                THEN 500
+  WHEN 'animaux'                 THEN 250
   WHEN 'telephonie_electronique' THEN 250
   WHEN 'mode_beaute'             THEN 250
   WHEN 'maison_electromenager'   THEN 250
