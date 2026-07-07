@@ -318,6 +318,12 @@
     }, s.dur));
   }
 
+  // Mode "clean" (promo.html?clean) : masque les légendes intégrées pour pouvoir
+  // ajouter ses propres sous-titres au montage (CapCut) sans doubler le texte.
+  if (new URLSearchParams(location.search).has('clean')) {
+    caption.style.display = 'none';
+  }
+
   function start() { clearTimers(); runScene(0); }
   document.getElementById('replay').addEventListener('click', start);
   window.addEventListener('load', start);
