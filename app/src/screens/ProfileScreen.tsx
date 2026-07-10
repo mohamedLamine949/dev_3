@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase, Annonce } from '../lib/supabase';
 import { useSellerAvis, Avis } from '../hooks/useAvis';
+import { useParrainage } from '../hooks/useParrainage';
 import { pickImages } from '../lib/imagePicker';
 import { decode } from 'base64-arraybuffer';
 
@@ -60,6 +61,8 @@ export default function ProfileScreen({ navigation }: Props) {
   const { session, user, signOut, refreshUser } = useAuth();
   const { theme, isDark } = useTheme();
   const { avis, avgNote, loading: loadingAvis } = useSellerAvis(session?.user?.id);
+  // Programme de parrainage : détermine quelles entrées afficher dans la vitrine
+  const { campagne, parrain: parrainRow, monParrainage } = useParrainage(session?.user?.id);
 
   // Tabs state
   const [activeTab, setActiveTab] = useState<'vitrine' | 'annonces' | 'avis'>('vitrine');
@@ -640,6 +643,50 @@ export default function ProfileScreen({ navigation }: Props) {
                     </TouchableOpacity>
                   )}
                 </View>
+
+                {/* Programme partenaire : visible uniquement pour les invités (whitelist admin) */}
+                {campagne?.active && parrainRow && (
+                  <>
+                    <Text style={styles.sectionLabel}>Programme partenaire</Text>
+                    <View style={[styles.card, { padding: 0 }]}>
+                      <TouchableOpacity
+                        style={styles.contactRow}
+                        onPress={() => navigation.navigate('DevenirPartenaire')}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[styles.contactIconBox, { backgroundColor: '#15803d15' }]}>
+                          <Ionicons name="gift-outline" size={18} color={theme.primary} />
+                        </View>
+                        <Text style={styles.contactText}>
+                          {parrainRow.code
+                            ? `Mon code ${parrainRow.code} — suivre mes gains`
+                            : 'Vous êtes invité ! Devenir partenaire'}
+                        </Text>
+                        <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
+
+                {/* Saisie du code de parrainage : tant que ce compte n'a pas de parrain */}
+                {campagne?.active && !parrainRow && !monParrainage && (
+                  <>
+                    <Text style={styles.sectionLabel}>Parrainage</Text>
+                    <View style={[styles.card, { padding: 0 }]}>
+                      <TouchableOpacity
+                        style={styles.contactRow}
+                        onPress={() => navigation.navigate('SaisirCodeParrainage')}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[styles.contactIconBox, { backgroundColor: '#15803d15' }]}>
+                          <Ionicons name="ticket-outline" size={18} color={theme.primary} />
+                        </View>
+                        <Text style={styles.contactText}>J'ai un code de parrainage</Text>
+                        <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
               </View>
             )}
 

@@ -32,6 +32,8 @@ import FavorisScreen from '../screens/FavorisScreen';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
 import VendeurProfileScreen from '../screens/VendeurProfileScreen';
 import LegalScreen from '../screens/LegalScreen';
+import DevenirPartenaireScreen from '../screens/DevenirPartenaireScreen';
+import SaisirCodeParrainageScreen from '../screens/SaisirCodeParrainageScreen';
 import TermsModal from '../components/TermsModal';
 import NotificationManager from '../components/NotificationManager';
 
@@ -307,6 +309,16 @@ export default function AppNavigator() {
           name="HistoriquePaiements"
           component={HistoriquePaiementsScreen}
           options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="DevenirPartenaire"
+          component={DevenirPartenaireScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="SaisirCodeParrainage"
+          component={SaisirCodeParrainageScreen}
+          options={{ animation: 'slide_from_bottom' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

@@ -61,10 +61,38 @@ export default function CompleteProfileScreen({ navigation, route }: Props) {
       );
       if (error) throw error;
       await refreshUser();
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Main', params: { screen: 'Profil' } }],
-      });
+
+      // Programme de parrainage : si une campagne est active et que ce compte
+      // n'a pas encore de parrain, on propose la saisie du code (skippable).
+      // En cas d'échec de lecture (table absente, réseau), parcours normal.
+      let proposerCode = false;
+      try {
+        const { data: camp } = await supabase
+          .from('campagnes_parrainage')
+          .select('id')
+          .eq('active', true)
+          .maybeSingle();
+        if (camp) {
+          const { data: dejaParraine } = await supabase
+            .from('parrainages')
+            .select('id')
+            .eq('filleul_id', session.user.id)
+            .maybeSingle();
+          proposerCode = !dejaParraine;
+        }
+      } catch {}
+
+      if (proposerCode) {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'SaisirCodeParrainage', params: { fromSignup: true } }],
+        });
+      } else {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Main', params: { screen: 'Profil' } }],
+        });
+      }
     } catch (err: any) {
       console.error(err);
       Alert.alert('Erreur', err.message || "Impossible d'enregistrer votre profil.");
