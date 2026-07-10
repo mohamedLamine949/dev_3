@@ -62,6 +62,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           );
         } else {
           setUser(data as User);
+          // Trace la dernière ouverture de l'app (cible les relances push
+          // des inactifs — voir migration_notifications_v2.sql). Silencieux :
+          // la colonne peut ne pas exister tant que la migration n'est pas passée.
+          supabase
+            .from('users')
+            .update({ derniere_connexion: new Date().toISOString() })
+            .eq('id', userId)
+            .then(() => {});
         }
       } else {
         if (error && error.code === 'PGRST116') {
