@@ -16,8 +16,8 @@
     {
       "name": "marketing",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8767", "--directory", "marketing"],
-      "port": 8767
+      "runtimeArgs": ["-m", "http.server", "8971", "--directory", "marketing"],
+      "port": 8971
     }
   ]
 }
