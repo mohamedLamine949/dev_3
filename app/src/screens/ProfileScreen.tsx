@@ -674,6 +674,22 @@ export default function ProfileScreen({ navigation }: Props) {
                   )}
                 </View>
 
+                {/* Mes commandes (client) : suivi des commandes passées en boutique */}
+                <Text style={styles.sectionLabel}>Mes achats</Text>
+                <View style={[styles.card, { padding: 0 }]}>
+                  <TouchableOpacity
+                    style={styles.contactRow}
+                    onPress={() => navigation.navigate('Commandes', { mode: 'client' })}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.contactIconBox, { backgroundColor: '#15803d15' }]}>
+                      <Ionicons name="receipt-outline" size={18} color={theme.primary} />
+                    </View>
+                    <Text style={styles.contactText}>Mes commandes en boutique</Text>
+                    <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
+                  </TouchableOpacity>
+                </View>
+
                 {/* Programme partenaire : visible uniquement pour les invités (whitelist admin) */}
                 {campagne?.active && parrainRow && (
                   <>

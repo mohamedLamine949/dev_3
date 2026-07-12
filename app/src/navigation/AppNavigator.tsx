@@ -36,6 +36,8 @@ import DevenirPartenaireScreen from '../screens/DevenirPartenaireScreen';
 import SaisirCodeParrainageScreen from '../screens/SaisirCodeParrainageScreen';
 import MaBoutiqueScreen from '../screens/MaBoutiqueScreen';
 import BoutiqueScreen from '../screens/BoutiqueScreen';
+import AjouterProduitScreen from '../screens/AjouterProduitScreen';
+import CommandesScreen from '../screens/CommandesScreen';
 import TermsModal from '../components/TermsModal';
 import NotificationManager from '../components/NotificationManager';
 
@@ -121,7 +123,7 @@ function ProfileStack() {
 
 // Barre de navigation principale (Tabs)
 function MainTabs() {
-  const { session } = useAuth();
+  const { session, user } = useAuth();
   const unreadCount = useUnreadCount(session?.user?.id);
   const { theme } = useTheme();
   // Zone occupée par la barre système Android (boutons de navigation ou barre de gestes).
@@ -172,6 +174,16 @@ function MainTabs() {
       <Tab.Screen
         name="Publier"
         component={PostAnnonceScreen}
+        // Un compte PRO ne publie plus d'annonces simples : le bouton +
+        // ouvre directement l'ajout d'un produit de boutique.
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            if (user?.type_compte === 'professionnel') {
+              e.preventDefault();
+              navigation.navigate('AjouterProduit');
+            }
+          },
+        })}
         options={{
           tabBarIcon: ({ focused }) => (
             <View style={[styles.publishButton, { backgroundColor: theme.primary }]}>
@@ -330,6 +342,16 @@ export default function AppNavigator() {
         <Stack.Screen
           name="Boutique"
           component={BoutiqueScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="AjouterProduit"
+          component={AjouterProduitScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="Commandes"
+          component={CommandesScreen}
           options={{ animation: 'slide_from_right' }}
         />
       </Stack.Navigator>

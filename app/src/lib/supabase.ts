@@ -66,9 +66,42 @@ export interface Annonce {
   // Boutique PRO (migration_boutiques.sql) : stock NULL = non géré
   stock?: number | null;
   visible?: boolean;
+  catalogue_id?: string | null;
   // Joined
   images?: ImageAnnonce[];
   user?: User;
+}
+
+// Boutique PRO v2 (migration_boutiques_v2.sql)
+export interface Catalogue {
+  id: string;
+  user_id: string;
+  nom: string;
+  categorie: string;
+  ordre: number;
+  date_creation: string;
+}
+
+export type CommandeStatut = 'nouvelle' | 'confirmee' | 'livree' | 'refusee' | 'annulee';
+
+export interface Commande {
+  id: string;
+  vendeur_id: string;
+  client_id: string;
+  produit_id?: string | null;
+  catalogue_id?: string | null;
+  produit_titre: string;
+  prix: number;
+  quantite: number;
+  note_client?: string | null;
+  statut: CommandeStatut;
+  reponse_vendeur?: string | null;
+  date_creation: string;
+  date_maj: string;
+  // Joined
+  client?: User;
+  vendeur?: User;
+  produit?: Annonce;
 }
 
 export interface ImageAnnonce {

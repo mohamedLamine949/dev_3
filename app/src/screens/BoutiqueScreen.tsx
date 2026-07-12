@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
-import { supabase, Annonce, User } from '../lib/supabase';
+import { supabase, Annonce, User, Catalogue } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSellerAvis } from '../hooks/useAvis';
@@ -37,7 +37,9 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
 
   const [vendeur, setVendeur] = useState<User | null>(null);
   const [produits, setProduits] = useState<Annonce[]>([]);
+  const [catalogues, setCatalogues] = useState<Catalogue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [commandeEnCours, setCommandeEnCours] = useState<string | null>(null);
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const isOwner = session?.user?.id === vendeurId;
@@ -52,13 +54,22 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
         .eq('user_id', vendeurId)
         .eq('statut', 'active')
         .order('date_creation', { ascending: false }),
-    ]).then(([{ data: u }, { data: a }]) => {
+      supabase
+        .from('catalogues')
+        .select('*')
+        .eq('user_id', vendeurId)
+        .order('ordre', { ascending: true })
+        .order('date_creation', { ascending: true }),
+    ]).then(([{ data: u }, { data: a }, { data: c }]) => {
       setVendeur((u as User) || null);
       setProduits((a as Annonce[]) || []);
+      setCatalogues((c as Catalogue[]) || []);
       setLoading(false);
     });
   }, [vendeurId]);
 
+  // Commander = créer une VRAIE commande (pas un message) : le vendeur la
+  // gère depuis « Commandes reçues », le client la suit depuis « Mes commandes ».
   function commander(p: Annonce) {
     if (!session) {
       Alert.alert('Connexion requise', 'Créez un compte pour commander auprès de cette boutique.', [
@@ -67,14 +78,38 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
       ]);
       return;
     }
-    if (isOwner) return;
-    navigation.navigate('ChatConversation', {
-      annonceId: p.id,
-      vendeurId: vendeurId,
-      titreAnnonce: p.titre,
-      interlocuteur: vendeur,
-      prefill: `Bonjour 👋 Je veux commander : ${p.titre} — ${Number(p.prix).toLocaleString('fr-FR')} FCFA.`,
-    });
+    if (isOwner || commandeEnCours) return;
+    Alert.alert(
+      'Commander ce produit ?',
+      `${p.titre} — ${Number(p.prix).toLocaleString('fr-FR')} FCFA\nLa boutique sera notifiée et vous répondra.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Commander',
+          onPress: async () => {
+            setCommandeEnCours(p.id);
+            const { error } = await supabase.from('commandes').insert({
+              vendeur_id: vendeurId,
+              client_id: session.user.id,
+              produit_id: p.id,
+              catalogue_id: p.catalogue_id || null,
+              produit_titre: p.titre,
+              prix: p.prix,
+              quantite: 1,
+            });
+            setCommandeEnCours(null);
+            if (error) {
+              Alert.alert('Erreur', error.message);
+            } else {
+              Alert.alert('Commande envoyée ✅', 'La boutique vient d\'être notifiée. Suivez votre commande dans « Mes commandes ».', [
+                { text: 'OK' },
+                { text: 'Mes commandes', onPress: () => navigation.navigate('Commandes', { mode: 'client' }) },
+              ]);
+            }
+          },
+        },
+      ]
+    );
   }
 
   async function partager() {
@@ -193,16 +228,18 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        {/* ---- Catalogue ---- */}
-        <Text style={styles.sectionLabel}>Catalogue ({produits.length})</Text>
+        {/* ---- Catalogue par rayons ---- */}
         {produits.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Ionicons name="cube-outline" size={40} color={theme.borderLight} />
-            <Text style={styles.emptyText}>Cette boutique n'a pas encore de produits en ligne.</Text>
-          </View>
+          <>
+            <Text style={styles.sectionLabel}>Catalogue</Text>
+            <View style={styles.emptyBox}>
+              <Ionicons name="cube-outline" size={40} color={theme.borderLight} />
+              <Text style={styles.emptyText}>Cette boutique n'a pas encore de produits en ligne.</Text>
+            </View>
+          </>
         ) : (
-          <View style={styles.grid}>
-            {produits.map(p => {
+          (() => {
+            const renderCard = (p: Annonce) => {
               const img = p.images && p.images.length > 0
                 ? [...p.images].sort((a, b) => (a.ordre || 0) - (b.ordre || 0))[0].image_url
                 : null;
@@ -237,20 +274,44 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
                       <TouchableOpacity
                         style={[styles.commanderBtn, enRupture && styles.commanderBtnOff]}
                         onPress={() => commander(p)}
-                        disabled={enRupture}
+                        disabled={enRupture || commandeEnCours === p.id}
                         activeOpacity={0.85}
                       >
-                        <Ionicons name="bag-check-outline" size={13} color={enRupture ? theme.textMuted : '#fff'} />
-                        <Text style={[styles.commanderText, enRupture && { color: theme.textMuted }]}>
-                          {enRupture ? 'Épuisé' : 'Commander'}
-                        </Text>
+                        {commandeEnCours === p.id ? (
+                          <ActivityIndicator color="#fff" size="small" />
+                        ) : (
+                          <>
+                            <Ionicons name="bag-check-outline" size={13} color={enRupture ? theme.textMuted : '#fff'} />
+                            <Text style={[styles.commanderText, enRupture && { color: theme.textMuted }]}>
+                              {enRupture ? 'Épuisé' : 'Commander'}
+                            </Text>
+                          </>
+                        )}
                       </TouchableOpacity>
                     )}
                   </View>
                 </TouchableOpacity>
               );
-            })}
-          </View>
+            };
+
+            // Regroupe par rayon (catalogue) ; les produits non rangés vont dans « Autres »
+            const groupes = [
+              ...catalogues
+                .map(c => ({ nom: c.nom, items: produits.filter(p => p.catalogue_id === c.id) }))
+                .filter(g => g.items.length > 0),
+              {
+                nom: catalogues.length > 0 ? 'Autres' : 'Catalogue',
+                items: produits.filter(p => !p.catalogue_id || !catalogues.some(c => c.id === p.catalogue_id)),
+              },
+            ].filter(g => g.items.length > 0);
+
+            return groupes.map(g => (
+              <View key={g.nom}>
+                <Text style={styles.sectionLabel}>{g.nom} ({g.items.length})</Text>
+                <View style={styles.grid}>{g.items.map(renderCard)}</View>
+              </View>
+            ));
+          })()
         )}
       </ScrollView>
     </View>

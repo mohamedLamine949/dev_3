@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
-import { supabase, Annonce } from '../lib/supabase';
+import { supabase, Annonce, Catalogue } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -41,6 +41,9 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
   const { session, user, refreshUser } = useAuth();
 
   const [produits, setProduits] = useState<Annonce[]>([]);
+  const [catalogues, setCatalogues] = useState<Catalogue[]>([]);
+  const [filtreCat, setFiltreCat] = useState<string>('all');
+  const [nbNouvellesCommandes, setNbNouvellesCommandes] = useState(0);
   const [loading, setLoading] = useState(true);
   const [editVisible, setEditVisible] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -68,6 +71,19 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
         if (data) setProduits(data as Annonce[]);
         setLoading(false);
       });
+    supabase
+      .from('catalogues')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .order('ordre', { ascending: true })
+      .order('date_creation', { ascending: true })
+      .then(({ data }) => setCatalogues((data as Catalogue[]) || []));
+    supabase
+      .from('commandes')
+      .select('id', { count: 'exact', head: true })
+      .eq('vendeur_id', session.user.id)
+      .eq('statut', 'nouvelle')
+      .then(({ count }) => setNbNouvellesCommandes(count || 0));
   }, [session]);
 
   useEffect(() => {
@@ -284,6 +300,31 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
           </View>
         )}
 
+        {/* ---- Commandes reçues ---- */}
+        <TouchableOpacity
+          style={styles.commandesCard}
+          onPress={() => navigation.navigate('Commandes', { mode: 'vendeur' })}
+          activeOpacity={0.85}
+        >
+          <View style={styles.commandesIcon}>
+            <Ionicons name="receipt-outline" size={20} color="#fff" />
+            {nbNouvellesCommandes > 0 && (
+              <View style={styles.commandesBadge}>
+                <Text style={styles.commandesBadgeText}>{nbNouvellesCommandes}</Text>
+              </View>
+            )}
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.commandesTitle}>Commandes reçues</Text>
+            <Text style={styles.commandesSub}>
+              {nbNouvellesCommandes > 0
+                ? `${nbNouvellesCommandes} nouvelle${nbNouvellesCommandes > 1 ? 's' : ''} commande${nbNouvellesCommandes > 1 ? 's' : ''} à traiter`
+                : 'Aucune commande en attente'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#fff" />
+        </TouchableOpacity>
+
         {/* ---- Aperçu client ---- */}
         <TouchableOpacity
           style={styles.previewBtn}
@@ -297,10 +338,35 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
         {/* ---- Catalogue ---- */}
         <View style={styles.catalogueHead}>
           <Text style={styles.sectionLabel}>Catalogue ({produits.length})</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Main', { screen: 'Publier' })} activeOpacity={0.8}>
+          <TouchableOpacity onPress={() => navigation.navigate('AjouterProduit')} activeOpacity={0.8}>
             <Text style={styles.addLink}>+ Ajouter</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Filtre par rayon */}
+        {catalogues.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: SPACING.sm }}>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity
+                style={[styles.catChip, filtreCat === 'all' && styles.catChipActive]}
+                onPress={() => setFiltreCat('all')}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.catChipText, filtreCat === 'all' && styles.catChipTextActive]}>Tous</Text>
+              </TouchableOpacity>
+              {catalogues.map(c => (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[styles.catChip, filtreCat === c.id && styles.catChipActive]}
+                  onPress={() => setFiltreCat(c.id)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.catChipText, filtreCat === c.id && styles.catChipTextActive]}>{c.nom}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+        )}
 
         {loading ? (
           <ActivityIndicator color={theme.primary} style={{ marginVertical: 32 }} />
@@ -308,12 +374,12 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
           <View style={styles.emptyBox}>
             <Ionicons name="cube-outline" size={40} color={theme.borderLight} />
             <Text style={styles.emptyText}>Votre catalogue est vide.</Text>
-            <TouchableOpacity style={styles.ctaBtn} onPress={() => navigation.navigate('Main', { screen: 'Publier' })} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.ctaBtn} onPress={() => navigation.navigate('AjouterProduit')} activeOpacity={0.85}>
               <Text style={styles.ctaText}>Ajouter mon premier produit</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          produits.map(p => {
+          produits.filter(p => filtreCat === 'all' || p.catalogue_id === filtreCat).map(p => {
             const img = p.images && p.images.length > 0
               ? [...p.images].sort((a, b) => (a.ordre || 0) - (b.ordre || 0))[0].image_url
               : null;
@@ -526,6 +592,32 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     paddingHorizontal: SPACING.lg, paddingVertical: 12, marginTop: SPACING.sm, ...SHADOWS.sm,
   },
   livraisonText: { flex: 1, fontSize: FONTS.sm, color: theme.textPrimary, fontWeight: FONTS.medium },
+
+  commandesCard: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
+    backgroundColor: theme.primary, borderRadius: RADIUS.lg,
+    padding: SPACING.lg, marginTop: SPACING.md, ...SHADOWS.colored,
+  },
+  commandesIcon: {
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  commandesBadge: {
+    position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9,
+    backgroundColor: '#dc2626', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4,
+  },
+  commandesBadgeText: { fontSize: 10, fontWeight: FONTS.bold, color: '#fff' },
+  commandesTitle: { fontSize: FONTS.md, fontWeight: FONTS.extrabold, color: '#fff' },
+  commandesSub: { fontSize: FONTS.xs, color: 'rgba(255,255,255,0.85)', marginTop: 1 },
+
+  catChip: {
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: RADIUS.full,
+    backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.borderLight,
+  },
+  catChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
+  catChipText: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textSecondary },
+  catChipTextActive: { color: '#fff' },
 
   previewBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
