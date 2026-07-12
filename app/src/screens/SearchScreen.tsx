@@ -126,10 +126,11 @@ export default function SearchScreen({ navigation }: Props) {
     orderBy: orderBy,
   });
 
-  // Fetch les utilisateurs en parallèle quand une requête texte est présente
+  // Fetch les utilisateurs en parallèle quand une requête texte ou une
+  // catégorie est présente (profils dans les résultats + carrousel boutiques)
   useEffect(() => {
     const cleanSearch = debouncedSearch.trim();
-    if (cleanSearch.length > 0) {
+    if (cleanSearch.length > 0 || selectedCategory) {
       setLoadingUsers(true);
       const fetchUsers = async () => {
         try {
@@ -149,7 +150,7 @@ export default function SearchScreen({ navigation }: Props) {
     } else {
       setUsers([]);
     }
-  }, [debouncedSearch]);
+  }, [debouncedSearch, selectedCategory]);
 
   // Calcul de la pertinence et entrelacement (Ratio 3/4 posts, 1/4 profils)
   useEffect(() => {
@@ -159,11 +160,17 @@ export default function SearchScreen({ navigation }: Props) {
       return;
     }
 
-    // 1. Noter les posts
+    // 1. Noter les posts — bonus modéré (+12 %) pour les produits de
+    //    boutiques PRO : un départage, jamais une domination (spec refonte PRO)
+    const proIds = new Set(users.filter(u => u.type_compte === 'professionnel').map(u => u.id));
     const scoredAnnonces = annonces
       .map(annonce => {
         const score = scoreAnnonce(query, annonce);
-        return { ...annonce, isUserProfile: false, searchScore: score };
+        return {
+          ...annonce,
+          isUserProfile: false,
+          searchScore: score * (proIds.has(annonce.user_id) ? 1.12 : 1),
+        };
       })
       .filter(a => a.searchScore > 0);
 
@@ -185,6 +192,21 @@ export default function SearchScreen({ navigation }: Props) {
   }, [annonces, users, debouncedSearch]);
 
   const loading = loadingAnnonces || loadingUsers;
+
+  // Boutiques PRO présentes dans les résultats (carrousel « Boutiques ») :
+  // triées par nombre de produits correspondants, 8 max.
+  const boutiquesMatch = React.useMemo(() => {
+    if (users.length === 0) return [] as (User & { nbProduits: number })[];
+    const counts: Record<string, number> = {};
+    searchResults.forEach((r: any) => {
+      if (!r.isUserProfile && r.user_id) counts[r.user_id] = (counts[r.user_id] || 0) + 1;
+    });
+    return users
+      .filter(u => u.type_compte === 'professionnel' && counts[u.id])
+      .map(u => ({ ...u, nbProduits: counts[u.id] }))
+      .sort((a, b) => b.nbProduits - a.nbProduits)
+      .slice(0, 8);
+  }, [users, searchResults]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -456,10 +478,69 @@ export default function SearchScreen({ navigation }: Props) {
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={
               searchResults.length > 0 ? (
-                <Text style={styles.resultCount}>
-                  {searchResults.length} résultat{searchResults.length !== 1 ? 's' : ''}
-                  {activeCatLabel ? ` · ${activeCatLabel}` : ''}
-                </Text>
+                <View>
+                  {/* Carrousel Boutiques : la visibilité PRO, sans polluer la liste */}
+                  {boutiquesMatch.length > 0 && (
+                    <View style={{ marginBottom: SPACING.md }}>
+                      <Text style={{
+                        fontSize: FONTS.xs, fontWeight: FONTS.bold, color: theme.textSecondary,
+                        textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: SPACING.sm,
+                      }}>
+                        🏪 Boutiques
+                      </Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+                          {boutiquesMatch.map(b => (
+                            <TouchableOpacity
+                              key={b.id}
+                              style={{
+                                width: 128, alignItems: 'center',
+                                backgroundColor: theme.surface, borderRadius: RADIUS.lg,
+                                paddingVertical: SPACING.md, paddingHorizontal: SPACING.sm,
+                                borderWidth: 1, borderColor: theme.borderLight,
+                              }}
+                              onPress={() => navigation.navigate('Boutique', { vendeurId: b.id })}
+                              activeOpacity={0.85}
+                            >
+                              {b.avatar_url ? (
+                                <Image source={{ uri: b.avatar_url }} style={{ width: 48, height: 48, borderRadius: 24 }} />
+                              ) : (
+                                <View style={{
+                                  width: 48, height: 48, borderRadius: 24,
+                                  backgroundColor: theme.primaryFaded,
+                                  justifyContent: 'center', alignItems: 'center',
+                                }}>
+                                  <Text style={{ fontSize: FONTS.lg, fontWeight: FONTS.extrabold, color: theme.primary }}>
+                                    {(b.nom_boutique || b.prenom || '?').charAt(0).toUpperCase()}
+                                  </Text>
+                                </View>
+                              )}
+                              <Text
+                                numberOfLines={1}
+                                style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.textPrimary, marginTop: 6, maxWidth: 112 }}
+                              >
+                                {b.nom_boutique || `${b.prenom || ''} ${b.nom || ''}`.trim()}
+                              </Text>
+                              <View style={{
+                                backgroundColor: theme.primary, paddingHorizontal: 6, paddingVertical: 1,
+                                borderRadius: RADIUS.xs, marginTop: 3,
+                              }}>
+                                <Text style={{ fontSize: 9, fontWeight: FONTS.bold, color: '#fff' }}>PRO</Text>
+                              </View>
+                              <Text style={{ fontSize: FONTS.xs, color: theme.textMuted, marginTop: 3 }}>
+                                {b.nbProduits} produit{b.nbProduits > 1 ? 's' : ''}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </ScrollView>
+                    </View>
+                  )}
+                  <Text style={styles.resultCount}>
+                    {searchResults.length} résultat{searchResults.length !== 1 ? 's' : ''}
+                    {activeCatLabel ? ` · ${activeCatLabel}` : ''}
+                  </Text>
+                </View>
               ) : null
             }
             ListEmptyComponent={
