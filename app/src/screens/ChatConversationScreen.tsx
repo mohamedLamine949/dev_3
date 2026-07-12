@@ -214,7 +214,8 @@ export default function ChatConversationScreen({ route, navigation }: any) {
   
   const { messages, loading, sendMessage } = useChat(activeConversationId, currentUserId);
   const otherOnline = useConversationPresence(activeConversationId, currentUserId);
-  const [inputText, setInputText] = useState('');
+  // prefill : message pré-rempli (ex. bouton « Commander » d'une boutique)
+  const [inputText, setInputText] = useState(route.params?.prefill || '');
   const flatListRef = useRef<FlatList>(null);
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);

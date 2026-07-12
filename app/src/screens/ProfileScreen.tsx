@@ -538,7 +538,37 @@ export default function ProfileScreen({ navigation }: Props) {
             {/* Contenu de l'onglet actif */}
             {activeTab === 'vitrine' && (
               <View style={styles.tabContent}>
-                
+
+                {/* Accès boutique PRO : la porte d'entrée de la gestion catalogue */}
+                {user?.type_compte === 'professionnel' && (
+                  <TouchableOpacity
+                    style={{
+                      flexDirection: 'row', alignItems: 'center',
+                      backgroundColor: theme.primary, borderRadius: RADIUS.lg,
+                      padding: SPACING.lg, marginBottom: SPACING.md, ...SHADOWS.colored,
+                    }}
+                    onPress={() => navigation.navigate('MaBoutique')}
+                    activeOpacity={0.85}
+                  >
+                    <View style={{
+                      width: 42, height: 42, borderRadius: 21,
+                      backgroundColor: 'rgba(255,255,255,0.2)',
+                      justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md,
+                    }}>
+                      <Ionicons name="storefront" size={20} color="#fff" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.extrabold, color: '#fff' }}>
+                        {user?.nom_boutique || 'Ma boutique'}
+                      </Text>
+                      <Text style={{ fontSize: FONTS.xs, color: 'rgba(255,255,255,0.85)', marginTop: 1 }}>
+                        Catalogue, stock, horaires, lien à partager
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="#fff" />
+                  </TouchableOpacity>
+                )}
+
                 {/* Section Biographie / Description de la boutique */}
                 <Text style={styles.sectionLabel}>À propos / Biographie</Text>
                 <View style={[styles.card, styles.bioCard]}>

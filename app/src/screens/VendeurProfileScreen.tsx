@@ -229,6 +229,28 @@ export default function VendeurProfileScreen({ route, navigation }: any) {
           {/* === PROFIL PROFESSIONNEL === */}
           {seller?.type_compte === 'professionnel' && (
             <>
+              {/* Accès à la page boutique (catalogue, horaires, commander) */}
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row', alignItems: 'center',
+                  backgroundColor: theme.primary, borderRadius: RADIUS.lg,
+                  padding: SPACING.lg, marginBottom: SPACING.lg, ...SHADOWS.colored,
+                }}
+                onPress={() => navigation.navigate('Boutique', { vendeurId: seller.id })}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="storefront" size={20} color="#fff" style={{ marginRight: SPACING.md }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.extrabold, color: '#fff' }}>
+                    Voir la boutique
+                  </Text>
+                  <Text style={{ fontSize: FONTS.xs, color: 'rgba(255,255,255,0.85)', marginTop: 1 }}>
+                    Catalogue, horaires, livraison et commande
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#fff" />
+              </TouchableOpacity>
+
               {/* Section Vitrine Photos */}
               {seller.images_business && seller.images_business.length > 0 && (
                 <View style={styles.vitrineSection}>

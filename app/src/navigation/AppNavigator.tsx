@@ -34,6 +34,8 @@ import VendeurProfileScreen from '../screens/VendeurProfileScreen';
 import LegalScreen from '../screens/LegalScreen';
 import DevenirPartenaireScreen from '../screens/DevenirPartenaireScreen';
 import SaisirCodeParrainageScreen from '../screens/SaisirCodeParrainageScreen';
+import MaBoutiqueScreen from '../screens/MaBoutiqueScreen';
+import BoutiqueScreen from '../screens/BoutiqueScreen';
 import TermsModal from '../components/TermsModal';
 import NotificationManager from '../components/NotificationManager';
 
@@ -319,6 +321,16 @@ export default function AppNavigator() {
           name="SaisirCodeParrainage"
           component={SaisirCodeParrainageScreen}
           options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="MaBoutique"
+          component={MaBoutiqueScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="Boutique"
+          component={BoutiqueScreen}
+          options={{ animation: 'slide_from_right' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

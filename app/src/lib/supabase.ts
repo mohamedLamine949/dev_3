@@ -34,6 +34,14 @@ export interface User {
   banniere_url?: string;
   images_business?: string[];
   date_creation?: string;
+  // Boutique PRO (migration_boutiques.sql)
+  nom_boutique?: string | null;
+  boutique_slug?: string | null;
+  quartier_boutique?: string | null;
+  adresse_boutique?: string | null;
+  horaires?: string | null;
+  livraison?: 'disponible' | 'a_discuter' | 'retrait' | null;
+  frais_livraison?: string | null;
 }
 
 export interface Annonce {
@@ -55,6 +63,9 @@ export interface Annonce {
   longitude?: number;
   date_creation: string;
   nombre_vues?: number;
+  // Boutique PRO (migration_boutiques.sql) : stock NULL = non géré
+  stock?: number | null;
+  visible?: boolean;
   // Joined
   images?: ImageAnnonce[];
   user?: User;
