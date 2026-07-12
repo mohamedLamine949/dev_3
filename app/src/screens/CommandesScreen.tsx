@@ -205,6 +205,9 @@ export default function CommandesScreen({ navigation, route }: Props) {
                 vendeurId: c.vendeur_id,
                 titreAnnonce: c.produit_titre,
                 interlocuteur: c.vendeur,
+                // Contexte pour le vendeur : il sait immédiatement de quelle
+                // commande parle ce message
+                prefill: `🛒 Au sujet de ma commande « ${c.produit_titre} » : `,
               })}
               activeOpacity={0.85}
             >

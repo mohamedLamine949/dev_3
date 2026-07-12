@@ -43,8 +43,13 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
   const [produits, setProduits] = useState<Annonce[]>([]);
   const [catalogues, setCatalogues] = useState<Catalogue[]>([]);
   const [filtreCat, setFiltreCat] = useState<string>('all');
-  const [nbNouvellesCommandes, setNbNouvellesCommandes] = useState(0);
+  const [commandes, setCommandes] = useState<{ statut: string; prix: number; quantite: number; produit_titre: string; date_creation: string }[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Gestion d'un rayon (renommer / supprimer)
+  const [catEditTarget, setCatEditTarget] = useState<Catalogue | null>(null);
+  const [catEditNom, setCatEditNom] = useState('');
+  const [catEditBusy, setCatEditBusy] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -80,10 +85,11 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
       .then(({ data }) => setCatalogues((data as Catalogue[]) || []));
     supabase
       .from('commandes')
-      .select('id', { count: 'exact', head: true })
+      .select('statut, prix, quantite, produit_titre, date_creation')
       .eq('vendeur_id', session.user.id)
-      .eq('statut', 'nouvelle')
-      .then(({ count }) => setNbNouvellesCommandes(count || 0));
+      .order('date_creation', { ascending: false })
+      .limit(400)
+      .then(({ data }) => setCommandes((data as any[]) || []));
   }, [session]);
 
   useEffect(() => {
@@ -154,6 +160,50 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
     }
   }
 
+  async function renommerRayon() {
+    if (!catEditTarget || catEditNom.trim().length < 2) return;
+    setCatEditBusy(true);
+    const { error } = await supabase
+      .from('catalogues')
+      .update({ nom: catEditNom.trim() })
+      .eq('id', catEditTarget.id);
+    setCatEditBusy(false);
+    if (error) {
+      Alert.alert('Erreur', error.code === '23505'
+        ? 'Vous avez déjà un rayon avec ce nom.'
+        : error.message);
+    } else {
+      setCatEditTarget(null);
+      fetchProduits();
+    }
+  }
+
+  function supprimerRayon() {
+    if (!catEditTarget) return;
+    const nb = produits.filter(p => p.catalogue_id === catEditTarget.id).length;
+    Alert.alert(
+      'Supprimer ce rayon ?',
+      nb > 0
+        ? `Les ${nb} produit(s) du rayon « ${catEditTarget.nom} » ne seront pas supprimés : ils iront dans « Autres ».`
+        : `Le rayon « ${catEditTarget.nom} » sera supprimé.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer', style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase.from('catalogues').delete().eq('id', catEditTarget.id);
+            if (error) Alert.alert('Erreur', error.message);
+            else {
+              setCatEditTarget(null);
+              setFiltreCat('all');
+              fetchProduits();
+            }
+          },
+        },
+      ]
+    );
+  }
+
   async function shareBoutique() {
     const lien = user?.boutique_slug
       ? `https://app-flashmarket.com/b/${user.boutique_slug}`
@@ -164,6 +214,21 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
       });
     } catch {}
   }
+
+  // Stats visuelles du mois en cours (règle : tout doit être visuel)
+  const nbNouvellesCommandes = commandes.filter(c => c.statut === 'nouvelle').length;
+  const debutMois = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const commandesMois = commandes.filter(c =>
+    new Date(c.date_creation) >= debutMois && c.statut !== 'annulee' && c.statut !== 'refusee'
+  );
+  const livreesMois = commandesMois.filter(c => c.statut === 'livree');
+  const recettesMois = livreesMois.reduce((s, c) => s + c.prix * c.quantite, 0);
+  const topProduit = (() => {
+    const compte: Record<string, number> = {};
+    commandesMois.forEach(c => { compte[c.produit_titre] = (compte[c.produit_titre] || 0) + 1; });
+    const top = Object.entries(compte).sort((a, b) => b[1] - a[1])[0];
+    return top && top[1] >= 2 ? top[0] : null;
+  })();
 
   // Complétude : chaque info remplie donne envie de finir
   const completude = [
@@ -325,15 +390,30 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
           <Ionicons name="chevron-forward" size={18} color="#fff" />
         </TouchableOpacity>
 
-        {/* ---- Aperçu client ---- */}
-        <TouchableOpacity
-          style={styles.previewBtn}
-          onPress={() => navigation.navigate('Boutique', { vendeurId: session?.user.id })}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="eye-outline" size={17} color={theme.primary} style={{ marginRight: 8 }} />
-          <Text style={styles.previewBtnText}>Voir ma boutique comme un client</Text>
-        </TouchableOpacity>
+        {/* ---- Ce mois-ci : le tableau de bord visuel du vendeur ---- */}
+        <Text style={[styles.sectionLabel, { marginTop: SPACING.xl }]}>Ce mois-ci</Text>
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <Text style={styles.statEmoji}>🛒</Text>
+            <Text style={styles.statValue}>{commandesMois.length}</Text>
+            <Text style={styles.statLabel}>Commandes</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statEmoji}>📦</Text>
+            <Text style={styles.statValue}>{livreesMois.length}</Text>
+            <Text style={styles.statLabel}>Livrées</Text>
+          </View>
+          <View style={[styles.statCard, styles.statCardMoney]}>
+            <Text style={styles.statEmoji}>💰</Text>
+            <Text style={[styles.statValue, { color: theme.primary }]}>{recettesMois.toLocaleString('fr-FR')} F</Text>
+            <Text style={styles.statLabel}>Recettes</Text>
+          </View>
+        </View>
+        {topProduit && (
+          <View style={styles.topProduitRow}>
+            <Text style={styles.topProduitText} numberOfLines={1}>⭐ Produit star : {topProduit}</Text>
+          </View>
+        )}
 
         {/* ---- Catalogue ---- */}
         <View style={styles.catalogueHead}>
@@ -358,10 +438,21 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
                 <TouchableOpacity
                   key={c.id}
                   style={[styles.catChip, filtreCat === c.id && styles.catChipActive]}
-                  onPress={() => setFiltreCat(c.id)}
+                  onPress={() => {
+                    if (filtreCat === c.id) {
+                      // 2e appui sur le rayon actif : ouvre la gestion (renommer/supprimer)
+                      setCatEditTarget(c);
+                      setCatEditNom(c.nom);
+                    } else {
+                      setFiltreCat(c.id);
+                    }
+                  }}
                   activeOpacity={0.8}
                 >
                   <Text style={[styles.catChipText, filtreCat === c.id && styles.catChipTextActive]}>{c.nom}</Text>
+                  {filtreCat === c.id && (
+                    <Ionicons name="create-outline" size={13} color="#fff" style={{ marginLeft: 5 }} />
+                  )}
                 </TouchableOpacity>
               ))}
             </View>
@@ -404,7 +495,7 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
                     {masque && <View style={[styles.badge, styles.badgeGris]}><Text style={styles.badgeText}>Masqué</Text></View>}
                   </View>
 
-                  {/* Stock : − x + */}
+                  {/* Stock : saisie directe + ajustement rapide − / + */}
                   <View style={styles.stockRow}>
                     <Text style={styles.stockLabel}>Stock</Text>
                     <TouchableOpacity
@@ -414,7 +505,20 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
                     >
                       <Ionicons name="remove" size={16} color={theme.textPrimary} />
                     </TouchableOpacity>
-                    <Text style={styles.stockValue}>{p.stock ?? '—'}</Text>
+                    <TextInput
+                      key={`stock-${p.id}-${p.stock ?? 'n'}`}
+                      style={styles.stockInput}
+                      defaultValue={p.stock != null ? String(p.stock) : ''}
+                      placeholder="—"
+                      placeholderTextColor={theme.textMuted}
+                      keyboardType="number-pad"
+                      maxLength={4}
+                      selectTextOnFocus
+                      onEndEditing={(e) => {
+                        const v = parseInt(e.nativeEvent.text.replace(/[^0-9]/g, ''), 10);
+                        if (!isNaN(v) && v !== p.stock) updateProduit(p.id, { stock: v });
+                      }}
+                    />
                     <TouchableOpacity
                       style={styles.stockBtn}
                       onPress={() => updateProduit(p.id, { stock: (p.stock ?? 0) + 1 })}
@@ -423,6 +527,13 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
                       <Ionicons name="add" size={16} color={theme.textPrimary} />
                     </TouchableOpacity>
                     <View style={{ flex: 1 }} />
+                    <TouchableOpacity
+                      style={styles.editProduitBtn}
+                      onPress={() => navigation.navigate('EditAnnonce', { annonce: p })}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="create-outline" size={15} color={theme.primary} />
+                    </TouchableOpacity>
                     <Ionicons name={masque ? 'eye-off-outline' : 'eye-outline'} size={15} color={theme.textMuted} />
                     <Switch
                       value={!masque}
@@ -438,6 +549,41 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
           })
         )}
       </ScrollView>
+
+      {/* ---- Modal gestion d'un rayon (renommer / supprimer) ---- */}
+      <Modal visible={!!catEditTarget} animationType="fade" transparent onRequestClose={() => setCatEditTarget(null)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { borderRadius: 24, maxHeight: undefined }]}>
+            <View style={styles.modalHead}>
+              <Text style={styles.modalTitle}>Rayon « {catEditTarget?.nom} »</Text>
+              <TouchableOpacity onPress={() => setCatEditTarget(null)}>
+                <Ionicons name="close" size={24} color={theme.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.fieldLabel}>Nom du rayon</Text>
+            <TextInput
+              style={styles.fieldInput}
+              value={catEditNom}
+              onChangeText={setCatEditNom}
+              maxLength={40}
+              autoFocus
+              selectTextOnFocus
+            />
+            <TouchableOpacity
+              style={[styles.ctaBtn, { marginTop: SPACING.lg }, (catEditNom.trim().length < 2 || catEditBusy) && { opacity: 0.5 }]}
+              onPress={renommerRayon}
+              disabled={catEditNom.trim().length < 2 || catEditBusy}
+              activeOpacity={0.85}
+            >
+              {catEditBusy ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Renommer</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.deleteRayonBtn} onPress={supprimerRayon} activeOpacity={0.8}>
+              <Ionicons name="trash-outline" size={15} color="#dc2626" style={{ marginRight: 6 }} />
+              <Text style={styles.deleteRayonText}>Supprimer ce rayon</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* ---- Modal édition infos boutique ---- */}
       <Modal visible={editVisible} animationType="slide" transparent onRequestClose={() => setEditVisible(false)}>
@@ -619,12 +765,20 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   catChipText: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textSecondary },
   catChipTextActive: { color: '#fff' },
 
-  previewBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1.5, borderColor: theme.primary, borderRadius: RADIUS.md,
-    paddingVertical: 12, marginTop: SPACING.md,
+  statsRow: { flexDirection: 'row', gap: SPACING.sm },
+  statCard: {
+    flex: 1, backgroundColor: theme.surface, borderRadius: RADIUS.lg,
+    paddingVertical: SPACING.lg, alignItems: 'center', ...SHADOWS.sm,
   },
-  previewBtnText: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.primary },
+  statCardMoney: { borderWidth: 1.5, borderColor: theme.primary },
+  statEmoji: { fontSize: 20, marginBottom: 2 },
+  statValue: { fontSize: FONTS.lg, fontWeight: FONTS.extrabold, color: theme.textPrimary },
+  statLabel: { fontSize: FONTS.xs, color: theme.textMuted, marginTop: 1 },
+  topProduitRow: {
+    backgroundColor: theme.primaryFaded, borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.lg, paddingVertical: 10, marginTop: SPACING.sm,
+  },
+  topProduitText: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.primary },
 
   catalogueHead: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -662,7 +816,21 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     width: 26, height: 26, borderRadius: 13,
     backgroundColor: theme.surfaceMuted, justifyContent: 'center', alignItems: 'center',
   },
-  stockValue: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.textPrimary, minWidth: 22, textAlign: 'center' },
+  stockInput: {
+    fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.textPrimary,
+    minWidth: 44, textAlign: 'center', paddingVertical: 4, paddingHorizontal: 6,
+    backgroundColor: theme.surfaceMuted, borderRadius: RADIUS.sm,
+    borderWidth: 1, borderColor: theme.borderLight,
+  },
+  editProduitBtn: {
+    width: 28, height: 28, borderRadius: 14, marginRight: 2,
+    backgroundColor: theme.primaryFaded, justifyContent: 'center', alignItems: 'center',
+  },
+  deleteRayonBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 12, marginTop: SPACING.sm,
+  },
+  deleteRayonText: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: '#dc2626' },
 
   ctaBtn: {
     height: 50, backgroundColor: theme.primary, borderRadius: RADIUS.lg,
