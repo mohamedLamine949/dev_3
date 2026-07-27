@@ -19,12 +19,13 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, ETAT_ARTICLE } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, getSousCategorieLabel, ETAT_ARTICLE } from '../constants/theme';
 import { Annonce } from '../lib/supabase';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { submitAvis } from '../hooks/useAvis';
 import { toggleFavori } from '../hooks/useFavoris';
+import ReportModal from '../components/ReportModal';
 
 import { useTheme } from '../contexts/ThemeContext';
 import { addToRecent } from '../lib/recentStorage';
@@ -53,6 +54,20 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
   const [reviewNote, setReviewNote] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+
+  // Visionneuse d'images plein écran (comme la vitrine du profil)
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const viewerScrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (viewerVisible) {
+      setTimeout(() => {
+        viewerScrollRef.current?.scrollTo({ x: viewerIndex * SCREEN_WIDTH, animated: false });
+      }, 100);
+    }
+  }, [viewerVisible]);
 
   useEffect(() => {
     if (!seller && annonce.user_id) {
@@ -97,8 +112,10 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
     ? annonce.images.map((img) => img.image_url)
     : [];
 
+  const sousCategorieLabel = getSousCategorieLabel(annonce.sous_categorie);
   const categoryLabel =
-    CATEGORIES.find((c) => c.id === annonce.categorie)?.label || annonce.categorie;
+    (CATEGORIES.find((c) => c.id === annonce.categorie)?.label || annonce.categorie) +
+    (sousCategorieLabel ? ` · ${sousCategorieLabel}` : '');
   const etatLabel =
     ETAT_ARTICLE.find((e) => e.id === annonce.etat_article)?.label || annonce.etat_article;
 
@@ -150,7 +167,10 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
     navigation.navigate('ChatConversation', {
       annonceId: annonce.id,
       vendeurId: annonce.user_id,
-      titrAnnonce: annonce.titre,
+      titreAnnonce: annonce.titre,
+      interlocuteur: seller
+        ? { id: seller.id, prenom: seller.prenom, nom: seller.nom, avatar_url: seller.avatar_url }
+        : undefined,
     });
   };
 
@@ -182,8 +202,16 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
               const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
               setCurrentImageIndex(index);
             }}
-            renderItem={({ item }) => (
-              <Image source={{ uri: item }} style={styles.carouselImage} />
+            renderItem={({ item, index }) => (
+              <TouchableOpacity
+                activeOpacity={0.95}
+                onPress={() => {
+                  setViewerIndex(index);
+                  setViewerVisible(true);
+                }}
+              >
+                <Image source={{ uri: item }} style={styles.carouselImage} />
+              </TouchableOpacity>
             )}
             keyExtractor={(_, i) => String(i)}
           />
@@ -392,6 +420,16 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
             </View>
           </View>
 
+          {/* Signaler l'annonce */}
+          <TouchableOpacity
+            style={styles.reportBtn}
+            onPress={() => setShowReportModal(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="flag-outline" size={16} color={theme.textMuted} />
+            <Text style={styles.reportBtnText}>Signaler cette annonce</Text>
+          </TouchableOpacity>
+
           {/* Espacement pour le CTA */}
           <View style={{ height: 100 }} />
         </View>
@@ -461,6 +499,34 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* Visionneuse d'images plein écran */}
+      <Modal visible={viewerVisible} transparent animationType="fade" onRequestClose={() => setViewerVisible(false)}>
+        <View style={styles.viewerContainer}>
+          <StatusBar barStyle="light-content" backgroundColor="#000" />
+          <View style={styles.viewerHeader}>
+            <Text style={styles.viewerIndexText}>{viewerIndex + 1} / {images.length}</Text>
+            <TouchableOpacity style={styles.viewerCloseBtn} onPress={() => setViewerVisible(false)}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            ref={viewerScrollRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) => {
+              setViewerIndex(Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH));
+            }}
+          >
+            {images.map((imgUrl, idx) => (
+              <View key={idx} style={styles.viewerImageWrapper}>
+                <Image source={{ uri: imgUrl }} style={styles.viewerImage} resizeMode="contain" />
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
+
       {/* CTA fixe en bas */}
       <View style={styles.ctaContainer}>
         <TouchableOpacity
@@ -487,11 +553,38 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
           <Text style={styles.ctaMessageText}>Contacter le vendeur</Text>
         </TouchableOpacity>
       </View>
+
+      <ReportModal
+        isVisible={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        annonceId={annonce.id}
+        targetName={annonce.titre}
+      />
     </View>
   );
 }
 
 const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
+  // Visionneuse d'images plein écran
+  viewerContainer: { flex: 1, backgroundColor: '#000' },
+  viewerHeader: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 54 : 30,
+    left: 0, right: 0, zIndex: 10,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+  },
+  viewerIndexText: { color: '#fff', fontSize: FONTS.md, fontWeight: FONTS.bold },
+  viewerCloseBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  viewerImageWrapper: {
+    width: SCREEN_WIDTH, height: '100%',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  viewerImage: { width: SCREEN_WIDTH, height: '100%' },
   container: {
     flex: 1,
     backgroundColor: theme.background,
@@ -731,6 +824,19 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   reviewBtnText: {
     flex: 1, fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.secondary,
+  },
+  reportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    marginTop: SPACING.xl,
+    paddingVertical: SPACING.sm,
+  },
+  reportBtnText: {
+    fontSize: FONTS.sm,
+    color: theme.textMuted,
+    fontWeight: FONTS.semibold,
   },
 
   // Modal avis

@@ -40,7 +40,13 @@ export default function NotificationsScreen({ navigation }: any) {
       await markAsRead(item.id);
     }
 
-    if (item.type === 'chat' && item.donnees?.conversationId) {
+    if (item.type === 'expiration_bientot' || item.type === 'annonce_expiree') {
+      // Diriger vers "Mes annonces" où se trouve le bouton de renouvellement
+      navigation.navigate('MesAnnonces');
+    } else if (item.type === 'avis') {
+      // L'avis reçu est visible dans l'onglet Avis du profil
+      navigation.navigate('ProfileMain');
+    } else if (item.type === 'chat' && item.donnees?.conversationId) {
       navigation.navigate('ChatConversation', {
         conversationId: item.donnees.conversationId,
         titreAnnonce: item.donnees.titreAnnonce || 'Message'
@@ -113,11 +119,29 @@ export default function NotificationsScreen({ navigation }: any) {
           color: '#eab308',
           bg: isDark ? 'rgba(234, 179, 8, 0.15)' : 'rgba(234, 179, 8, 0.08)'
         };
+      case 'avis':
+        return {
+          name: 'star-half',
+          color: '#f59e0b',
+          bg: isDark ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.08)'
+        };
       case 'compte_pro_active':
         return {
           name: 'briefcase',
           color: '#7c3aed',
           bg: isDark ? 'rgba(124, 58, 237, 0.15)' : 'rgba(124, 58, 237, 0.08)'
+        };
+      case 'expiration_bientot':
+        return {
+          name: 'time',
+          color: '#d97706',
+          bg: isDark ? 'rgba(217, 119, 6, 0.15)' : 'rgba(217, 119, 6, 0.08)'
+        };
+      case 'annonce_expiree':
+        return {
+          name: 'archive',
+          color: '#e74c3c',
+          bg: isDark ? 'rgba(231, 76, 60, 0.15)' : 'rgba(231, 76, 60, 0.08)'
         };
       case 'bienvenue':
         return {

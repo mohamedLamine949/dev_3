@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flash Market — « L'argent qui dort » (9:16)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --green: #16a34a;
+    --green-l: #22c55e;
+    --mint: #7cf0a8;
+    --gold: #fbbf24;
+    --gold-d: #b45309;
+  }
+  html, body {
+    background: #0b0f0d;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    color: #fff;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 18px;
+    min-height: 100vh; padding: 24px 0;
+  }
+
+  /* ---- Scène 9:16 (recadre ici pour le screen-record) ---- */
+  .stage {
+    position: relative;
+    height: min(88vh, 900px);
+    aspect-ratio: 9 / 16;
+    border-radius: 26px;
+    overflow: hidden;
+    background: radial-gradient(120% 90% at 50% -10%, #1f7a43 0%, #0d4423 45%, #06210f 100%);
+    box-shadow: 0 30px 80px rgba(0,0,0,.55);
+    isolation: isolate;
+  }
+  .orb { position: absolute; border-radius: 50%; filter: blur(30px); opacity: .5; z-index: 0; will-change: transform; }
+  .orb.a { width: 50%; aspect-ratio: 1; background: #22c55e; top: -10%; left: -18%; animation: drift1 9s ease-in-out infinite; }
+  .orb.b { width: 46%; aspect-ratio: 1; background: #0891b2; bottom: -14%; right: -16%; animation: drift2 11s ease-in-out infinite; }
+  .orb.c { width: 36%; aspect-ratio: 1; background: #eab308; top: 42%; left: 32%; opacity: .22; animation: drift1 13s ease-in-out infinite reverse; }
+  @keyframes drift1 { 0%,100%{ transform: translate(0,0) scale(1);} 50%{ transform: translate(8%, 6%) scale(1.12);} }
+  @keyframes drift2 { 0%,100%{ transform: translate(0,0) scale(1);} 50%{ transform: translate(-7%, -5%) scale(1.1);} }
+  .grid {
+    position: absolute; inset: 0; z-index: 0; opacity: .12;
+    background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: radial-gradient(70% 60% at 50% 40%, #000 30%, transparent 75%);
+  }
+
+  /* ---- Barre de progression type "stories" ---- */
+  .progress { position: absolute; top: 16px; left: 16px; right: 16px; display: flex; gap: 6px; z-index: 9; }
+  .progress .seg { flex: 1; height: 4px; border-radius: 4px; background: rgba(255,255,255,.28); overflow: hidden; }
+  .progress .seg > i { display: block; height: 100%; width: 0; background: #fff; border-radius: 4px; }
+
+  /* ---- Lockup marque ---- */
+  .brand { position: absolute; top: 34px; left: 0; right: 0; z-index: 8;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    opacity: 0; transform: translateY(-8px); transition: opacity .6s, transform .6s; }
+  .brand.show { opacity: 1; transform: translateY(0); }
+  .brand .logo {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(160deg, #22b558, #128a3e);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 14px rgba(0,0,0,.3);
+  }
+  .brand .logo svg { width: 20px; height: 20px; }
+  .brand b { font-size: 20px; font-weight: 800; letter-spacing: -.3px; }
+
+  /* ---- Scènes plein cadre ---- */
+  .scene { position: absolute; inset: 0; z-index: 3;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 40px 30px; text-align: center; gap: 26px;
+    opacity: 0; pointer-events: none; }
+  .scene.on { opacity: 1; pointer-events: auto; }
+
+  /* Hook : typographie cinétique */
+  .hook .word { display: block; font-size: 52px; font-weight: 800; line-height: 1.08; letter-spacing: -1px;
+    opacity: 0; transform: translateY(30px) scale(.96); }
+  .scene.on .hook .word { animation: punch .5s cubic-bezier(.2,1.1,.3,1) forwards; }
+  .scene.on .hook .word:nth-child(2) { animation-delay: .35s; }
+  .scene.on .hook .word:nth-child(3) { animation-delay: .7s; }
+  @keyframes punch { to { opacity: 1; transform: translateY(0) scale(1); } }
+  .hook .money { color: var(--gold); }
+  .hook .zzz { font-size: 46px; display: block; margin-top: 14px; opacity: 0; }
+  .scene.on .hook .zzz { animation: punch .5s ease 1.05s forwards; }
+
+  /* Objets : carte + étiquette prix */
+  .obj-emoji { font-size: 130px; line-height: 1; filter: drop-shadow(0 18px 30px rgba(0,0,0,.4));
+    opacity: 0; transform: scale(.5) rotate(-8deg); }
+  .scene.on .obj-emoji { animation: objIn .55s cubic-bezier(.2,1.4,.4,1) forwards; }
+  @keyframes objIn { to { opacity: 1; transform: scale(1) rotate(0deg); } }
+  .obj-q { font-size: 33px; font-weight: 800; line-height: 1.15; letter-spacing: -.5px;
+    text-shadow: 0 3px 18px rgba(0,0,0,.45); opacity: 0; transform: translateY(16px); }
+  .scene.on .obj-q { animation: punch .45s ease .15s forwards; }
+  .price-tag { display: inline-flex; align-items: baseline; gap: 8px;
+    background: linear-gradient(160deg, var(--gold), #d97706);
+    color: #1c1102; border-radius: 16px; padding: 14px 26px;
+    box-shadow: 0 14px 34px rgba(251,191,36,.35);
+    opacity: 0; transform: scale(.6) rotate(4deg); }
+  .scene.on .price-tag { animation: stamp .45s cubic-bezier(.2,1.5,.4,1) .5s forwards; }
+  @keyframes stamp { to { opacity: 1; transform: scale(1) rotate(-2deg); } }
+  .price-tag b { font-size: 44px; font-weight: 800; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+  .price-tag span { font-size: 20px; font-weight: 800; }
+
+  /* Total */
+  .total-row { display: flex; gap: 14px; justify-content: center; }
+  .mini { width: 86px; height: 86px; border-radius: 20px; background: rgba(255,255,255,.1);
+    border: 1.5px solid rgba(255,255,255,.18);
+    display: flex; align-items: center; justify-content: center; font-size: 44px;
+    opacity: 0; transform: translateY(18px); }
+  .scene.on .mini { animation: punch .4s ease forwards; }
+  .scene.on .mini:nth-child(2) { animation-delay: .12s; }
+  .scene.on .mini:nth-child(3) { animation-delay: .24s; }
+  .total-label { font-size: 26px; font-weight: 700; color: #d9f7e4; opacity: 0; }
+  .scene.on .total-label { animation: punch .4s ease .4s forwards; }
+  .total-amount { font-size: 62px; font-weight: 800; letter-spacing: -1.5px; color: var(--gold);
+    font-variant-numeric: tabular-nums; text-shadow: 0 6px 30px rgba(251,191,36,.35);
+    opacity: 0; }
+  .scene.on .total-amount { animation: punch .4s ease .55s forwards; }
+  .total-sub { font-size: 22px; font-weight: 700; opacity: 0; }
+  .scene.on .total-sub { animation: punch .4s ease .8s forwards; }
+
+  /* Étapes */
+  .steps { display: flex; flex-direction: column; gap: 20px; }
+  .step { display: flex; align-items: center; gap: 18px; text-align: left;
+    background: rgba(255,255,255,.09); border: 1.5px solid rgba(255,255,255,.16);
+    border-radius: 20px; padding: 18px 24px; min-width: 300px;
+    opacity: 0; transform: translateX(-26px); }
+  .scene.on .step { animation: slide .45s cubic-bezier(.2,1,.3,1) forwards; }
+  .scene.on .step:nth-child(2) { animation-delay: .3s; }
+  .scene.on .step:nth-child(3) { animation-delay: .6s; }
+  @keyframes slide { to { opacity: 1; transform: translateX(0); } }
+  .step .ico { font-size: 40px; }
+  .step b { font-size: 25px; font-weight: 800; letter-spacing: -.3px; display: block; }
+  .step small { font-size: 15px; font-weight: 600; color: #b9edcd; }
+
+  /* ---- CTA final (même style que promo.html) ---- */
+  .cta { position: absolute; inset: 0; z-index: 6;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
+    background: radial-gradient(90% 70% at 50% 45%, #0d4423 0%, #06210f 100%);
+    padding: 40px 26px; text-align: center;
+    opacity: 0; pointer-events: none; transition: opacity .5s; }
+  .cta.on { opacity: 1; }
+  .cta .big-logo {
+    width: 110px; height: 110px; border-radius: 28px;
+    background: linear-gradient(160deg, #22b558, #128a3e);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 20px 50px rgba(22,163,74,.5);
+    animation: none; opacity: 0; transform: scale(.4); }
+  .cta.on .big-logo { animation: pop .6s cubic-bezier(.2,1.4,.4,1) forwards; }
+  @keyframes pop { to { transform: scale(1); opacity: 1; } }
+  .cta .big-logo svg { width: 58px; height: 58px; }
+  .cta h2 { font-size: 36px; font-weight: 800; line-height: 1.15; letter-spacing: -.5px; opacity: 0; }
+  .cta.on h2 { animation: punch .5s ease .2s forwards; }
+  .cta .accent { color: var(--mint); }
+  .badges { display: flex; flex-direction: column; gap: 12px; align-items: center; opacity: 0; }
+  .cta.on .badges { animation: punch .5s ease .4s forwards; }
+  .store-badge { display: inline-flex; align-items: center; gap: 12px;
+    background: #000; border: 1.5px solid rgba(255,255,255,.25); border-radius: 14px;
+    padding: 12px 24px; min-width: 240px; justify-content: center; }
+  .store-badge svg { width: 26px; height: 26px; fill: #fff; }
+  .store-badge span { text-align: left; line-height: 1.2; }
+  .store-badge span small { display: block; font-size: 11px; opacity: .85; }
+  .store-badge span b { font-size: 17px; font-weight: 700; }
+  .cta .url { font-size: 16px; font-weight: 700; color: var(--mint); opacity: 0; }
+  .cta.on .url { animation: punch .5s ease .55s forwards; }
+
+  /* ---- Contrôles (hors cadre, non filmés) ---- */
+  .controls { display: flex; gap: 12px; align-items: center; }
+  .controls button {
+    font: inherit; font-weight: 700; font-size: 14px; color: #0b0f0d;
+    background: #7cf0a8; border: none; border-radius: 10px; padding: 10px 18px; cursor: pointer;
+  }
+  .controls .hint { font-size: 12.5px; color: #7b8a80; max-width: 380px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+  <div class="stage" id="stage">
+    <div class="orb a"></div><div class="orb b"></div><div class="orb c"></div>
+    <div class="grid"></div>
+
+    <div class="progress" id="progress"></div>
+
+    <div class="brand" id="brand">
+      <span class="logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 7h12l1 13H5L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/>
+          <path d="m12.6 10-2.1 3.4h1.7l-.7 3.2 2.9-4h-1.7l.9-2.6Z" fill="#fff" stroke="none"/>
+        </svg>
+      </span>
+      <b>Flash Market</b>
+    </div>
+
+    <!-- Scène 1 : hook -->
+    <div class="scene" id="s-hook">
+      <div class="hook">
+        <span class="word">CHEZ TOI,</span>
+        <span class="word">IL Y A DE <span class="money">L'ARGENT</span></span>
+        <span class="word">QUI DORT.</span>
+        <span class="zzz">💤</span>
+      </div>
+    </div>
+
+    <!-- Scènes 2-4 : objets (remplies par JS) -->
+    <div class="scene" id="s-obj">
+      <div class="obj-q" id="objQ"></div>
+      <div class="obj-emoji" id="objEmoji"></div>
+      <div class="price-tag"><b id="objPrice">0</b><span>FCFA</span></div>
+    </div>
+
+    <!-- Scène 5 : total -->
+    <div class="scene" id="s-total">
+      <div class="total-row"><div class="mini">📱</div><div class="mini">🌀</div><div class="mini">👟</div></div>
+      <div class="total-label">Rien que ces trois-là, c'est déjà</div>
+      <div class="total-amount"><span id="totalAmount">0</span> F</div>
+      <div class="total-sub">…qui dorment dans ta maison. 💤</div>
+    </div>
+
+    <!-- Scène 6 : étapes -->
+    <div class="scene" id="s-steps">
+      <div class="steps">
+        <div class="step"><span class="ico">📸</span><span><b>Prends une photo</b><small>même avec un petit téléphone</small></span></div>
+        <div class="step"><span class="ico">⚡</span><span><b>Publie en 2 minutes</b><small>ton annonce est en ligne à Bamako</small></span></div>
+        <div class="step"><span class="ico">💰</span><span><b>Encaisse</b><small>les acheteurs te contactent direct</small></span></div>
+      </div>
+    </div>
+
+    <!-- CTA final -->
+    <div class="cta" id="cta">
+      <div class="big-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 7h12l1 13H5L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/>
+          <path d="m12.6 10-2.1 3.4h1.7l-.7 3.2 2.9-4h-1.7l.9-2.6Z" fill="#fff" stroke="none"/>
+        </svg>
+      </div>
+      <h2>Réveille ton argent<br>avec <span class="accent">Flash&nbsp;Market</span></h2>
+      <div class="badges">
+        <span class="store-badge">
+          <svg viewBox="0 0 24 24"><path d="M16.4 1.4c0 1.1-.5 2.3-1.2 3.1-.7.9-2 1.6-3 1.5-.1-1.1.5-2.3 1.2-3 .8-.9 2.1-1.6 3-1.6Zm4.5 15.7c-.5 1.2-1 1.9-1.7 2.9-1 1.4-2.4 3.2-4 3.2-1.5 0-1.9-.9-3.6-.9s-2.3.9-3.7.9c-1.6 0-2.8-1.6-3.8-3-2.1-3-3.4-7.5-1.4-10.6 1-1.5 2.7-2.5 4.3-2.5 1.5 0 2.5 1 3.6 1 1.1 0 1.9-1 3.7-1 1.4 0 2.9.8 3.9 2.1-3.4 1.9-2.9 6.8.7 7.9Z"/></svg>
+          <span><small>Disponible sur</small><b>l'App Store</b></span>
+        </span>
+        <span class="store-badge" id="playBadge">
+          <svg viewBox="0 0 24 24"><path d="M3.6 2.3 13 12 3.6 21.7c-.4-.2-.6-.6-.6-1.1V3.4c0-.5.2-.9.6-1.1Zm10.9 8.9 2.9 2.9-3.4 1.9-2.4-2.4 2.9-2.4Zm-2.9-.2L8.7 8.1l6.1-3.5 1.9 1.1-4.2 5.3Zm0 2.4 1.8 2.3-6.2 3.5-1.8-1 6.2-4.8Z"/></svg>
+          <span><small id="playSmall">Disponible sur</small><b>Google Play</b></span>
+        </span>
+      </div>
+      <div class="url">app-flashmarket.com</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="replay">▶ Rejouer</button>
+    <span class="hint">« L'argent qui dort » — 9:16 pour TikTok / Reels / Shorts (~20 s, boucle).
+      <code>?clean</code> masque les textes (sous-titres au montage) · <code>?soon</code> affiche « Bientôt sur Google Play ».</span>
+  </div>
+
+<script>
+  // Timeline : hook → 3 objets (prix compté) → total → 3 étapes → CTA
+  const objets = [
+    { emoji: '📱', q: 'Ce vieux téléphone ?',        prix: 25000 },
+    { emoji: '🌀', q: 'Ce ventilo en trop ?',        prix: 10000 },
+    { emoji: '👟', q: 'Ces baskets jamais portées ?', prix: 7500 },
+  ];
+  const TOTAL = objets.reduce((s, o) => s + o.prix, 0);
+
+  const scenes = [
+    { id: 's-hook',  dur: 2900 },
+    { id: 's-obj',   dur: 2700, obj: 0 },
+    { id: 's-obj',   dur: 2700, obj: 1 },
+    { id: 's-obj',   dur: 2700, obj: 2 },
+    { id: 's-total', dur: 3000 },
+    { id: 's-steps', dur: 3200 },
+    { id: 'cta',     dur: 3800 },
+  ];
+
+  const els = {};
+  ['s-hook','s-obj','s-total','s-steps','cta','brand','progress'].forEach(id => els[id] = document.getElementById(id));
+  const objQ = document.getElementById('objQ');
+  const objEmoji = document.getElementById('objEmoji');
+  const objPrice = document.getElementById('objPrice');
+  const totalAmount = document.getElementById('totalAmount');
+
+  // Barre de progression
+  els.progress.innerHTML = '';
+  const bars = scenes.map(() => {
+    const seg = document.createElement('div'); seg.className = 'seg';
+    const i = document.createElement('i'); seg.appendChild(i); els.progress.appendChild(seg);
+    return i;
+  });
+
+  let timers = [];
+  function clearTimers() { timers.forEach(t => (cancelAnimationFrame(t.raf), clearTimeout(t.to))); timers = []; }
+  function later(fn, ms) { const to = setTimeout(fn, ms); timers.push({ to }); return to; }
+
+  // Compteur animé (compte de 0 au prix, formaté fr-FR)
+  function countUp(el, target, dur) {
+    const t0 = performance.now();
+    function tick(t) {
+      const p = Math.min(1, (t - t0) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(target * eased).toLocaleString('fr-FR');
+      if (p < 1) { const raf = requestAnimationFrame(tick); timers.push({ raf }); }
+    }
+    const raf = requestAnimationFrame(tick); timers.push({ raf });
+  }
+
+  function runScene(idx) {
+    const s = scenes[idx];
+
+    bars.forEach((b, i) => { b.style.transition = 'none'; b.style.width = i < idx ? '100%' : '0%'; });
+    void els.progress.offsetWidth;
+    bars[idx].style.transition = `width ${s.dur}ms linear`;
+    bars[idx].style.width = '100%';
+
+    // Toutes les scènes off, puis la bonne on (redéclenche les animations CSS)
+    document.querySelectorAll('.scene').forEach(el => el.classList.remove('on'));
+    els.cta.classList.remove('on');
+    els.brand.classList.toggle('show', s.id !== 's-hook' && s.id !== 'cta');
+
+    const target = document.getElementById(s.id);
+    void target.offsetWidth; // reflow : relance les @keyframes
+    target.classList.add('on');
+
+    if (s.id === 's-obj') {
+      const o = objets[s.obj];
+      objQ.textContent = o.q;
+      objEmoji.textContent = o.emoji;
+      objPrice.textContent = '0';
+      later(() => countUp(objPrice, o.prix, 900), 520); // démarre avec le stamp de l'étiquette
+    }
+    if (s.id === 's-total') {
+      totalAmount.textContent = '0';
+      later(() => countUp(totalAmount, TOTAL, 1100), 560);
+    }
+
+    later(() => runScene((idx + 1) % scenes.length), s.dur);
+  }
+
+  // ?clean : masque tous les textes (sous-titres ajoutés au montage)
+  const params = new URLSearchParams(location.search);
+  if (params.has('clean')) {
+    document.querySelectorAll('.obj-q, .total-label, .total-sub, .hook .word, .hook .zzz, .step b, .step small, .cta h2')
+      .forEach(el => el.style.visibility = 'hidden');
+  }
+  // ?soon : Google Play encore en « Bientôt » (avant la sortie production)
+  if (params.has('soon')) {
+    document.getElementById('playSmall').textContent = 'Bientôt sur';
+    document.getElementById('playBadge').style.opacity = '.82';
+  }
+
+  function start() { clearTimers(); runScene(0); }
+  document.getElementById('replay').addEventListener('click', start);
+  start();
+</script>
+</body>
+</html>

@@ -16,13 +16,14 @@ import {
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { pickImages } from '../lib/imagePicker';
-import { PLANS_CONFIG, COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, ETAT_ARTICLE, CATEGORY_PRICES } from '../constants/theme';
+import { PLANS_CONFIG, COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, SUBCATEGORIES, ETAT_ARTICLE, CATEGORY_PRICES } from '../constants/theme';
 import { WebView } from 'react-native-webview';
 import { createAnnonce } from '../hooks/useAnnonces';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation } from '../hooks/useLocation';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../lib/supabase';
+import { useAppConfig } from '../hooks/useAppConfig';
 
 const MAX_IMAGES = 10;
 
@@ -34,12 +35,14 @@ export default function PostAnnonceScreen({ navigation }: any) {
   const { session, user, refreshUser } = useAuth();
   const { location } = useLocation();
   const { theme, isDark } = useTheme();
+  const { paymentsEnabled } = useAppConfig();
 
   const [images, setImages] = useState<string[]>([]);
   const [titre, setTitre] = useState('');
   const [prix, setPrix] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedSousCategorie, setSelectedSousCategorie] = useState<string | null>(null);
   const [selectedEtat, setSelectedEtat] = useState<string | null>(null);
   const [quartier, setQuartier] = useState('');
 
@@ -58,6 +61,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
   const [paymentStep, setPaymentStep] = useState<'quota_choice' | 'init_payment' | 'webview' | 'processing' | 'success' | 'error'>('quota_choice');
   const [transactionId, setTransactionId] = useState('');
   const [paymentError, setPaymentError] = useState('');
+  const [isFreePublish, setIsFreePublish] = useState(false); // publication gratuite (paiement désactivé)
   const isProcessingRef = React.useRef(false);
 
   // User current plan definition
@@ -157,6 +161,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
     setPrix('');
     setDescription('');
     setSelectedCategory(null);
+    setSelectedSousCategorie(null);
     setSelectedEtat(null);
     setQuartier('');
   };
@@ -299,11 +304,10 @@ export default function PostAnnonceScreen({ navigation }: any) {
       return;
     }
 
-    if (!titre || !prix || !selectedCategory || images.length === 0) {
-      Alert.alert('Champs manquants', 'Titre, prix, catégorie et au moins une photo sont requis.');
+    if (!titre || !prix || !selectedCategory || !selectedSousCategorie || images.length === 0) {
+      Alert.alert('Champs manquants', 'Titre, prix, catégorie, sous-catégorie et au moins une photo sont requis.');
       return;
     }
-
     // Determine eligibility based on Business Model rules
     const isPro = currentPlanKey === 'professionnel';
     const isWithinQuota = monthlyCount < currentPlan.quotaMensuel;
@@ -318,6 +322,48 @@ export default function PostAnnonceScreen({ navigation }: any) {
       setPaymentStep('quota_choice');
       setPaymentModalVisible(true);
     }
+  };
+
+  // Publication gratuite : crée l'annonce sans passer par le paiement.
+  const publishFree = async () => {
+    setIsFreePublish(true);
+    setPaymentError('');
+    setPaymentStep('processing');
+    setPaymentModalVisible(true);
+
+    const annonceData = {
+      titre,
+      description: description || null,
+      prix: parseInt(prix, 10),
+      categorie: selectedCategory!,
+      sous_categorie: selectedSousCategorie,
+      etat_article: selectedEtat || 'non_specifie',
+      ville: location?.ville || 'Mali',
+      quartier: quartier || null,
+      latitude: location?.latitude || null,
+      longitude: location?.longitude || null,
+      est_payee: true,
+      statut: 'active',
+      id_transaction_paiement: null,
+      montant_depot: 0,
+      user_id: session?.user?.id,
+    };
+
+    const { error } = await createAnnonce(annonceData as any, images);
+
+    if (error) {
+      console.error(error);
+      setPaymentError('La publication a échoué. ' + error);
+      setPaymentStep('error');
+      return;
+    }
+
+    setPaymentStep('success');
+    setTimeout(() => {
+      setPaymentModalVisible(false);
+      resetForm();
+      navigation.navigate('Accueil');
+    }, 3000);
   };
 
   const handlePaymentSuccess = async () => {
@@ -345,6 +391,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
       description: description || null,
       prix: parseInt(prix, 10),
       categorie: selectedCategory!,
+      sous_categorie: selectedSousCategorie,
       etat_article: selectedEtat || 'non_specifie',
       ville: location?.ville || 'Mali',
       quartier: quartier || null,
@@ -410,7 +457,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
     }
   };
 
-  const isFormValid = titre && prix && selectedCategory && images.length > 0;
+  const isFormValid = titre && prix && selectedCategory && selectedSousCategorie && images.length > 0;
 
 
   return (
@@ -474,7 +521,10 @@ export default function PostAnnonceScreen({ navigation }: any) {
               <TouchableOpacity
                 key={cat.id}
                 style={[styles.chip, selectedCategory === cat.id && styles.chipSelected]}
-                onPress={() => setSelectedCategory(cat.id)}
+                onPress={() => {
+                  if (selectedCategory !== cat.id) setSelectedSousCategorie(null);
+                  setSelectedCategory(cat.id);
+                }}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.chipText, selectedCategory === cat.id && styles.chipTextSelected]}>
@@ -483,6 +533,27 @@ export default function PostAnnonceScreen({ navigation }: any) {
               </TouchableOpacity>
             ))}
           </View>
+
+          {/* Sous-catégorie (obligatoire, dépend de la catégorie choisie) */}
+          {selectedCategory && SUBCATEGORIES[selectedCategory]?.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>Sous-catégorie *</Text>
+              <View style={styles.chipsContainer}>
+                {SUBCATEGORIES[selectedCategory].map((sub) => (
+                  <TouchableOpacity
+                    key={sub.id}
+                    style={[styles.chip, selectedSousCategorie === sub.id && styles.chipSelected]}
+                    onPress={() => setSelectedSousCategorie(selectedSousCategorie === sub.id ? null : sub.id)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.chipText, selectedSousCategorie === sub.id && styles.chipTextSelected]}>
+                      {sub.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
 
           {/* État (optionnel) */}
           <Text style={styles.sectionTitle}>État de l'article <Text style={styles.optionalLabel}>(facultatif)</Text></Text>

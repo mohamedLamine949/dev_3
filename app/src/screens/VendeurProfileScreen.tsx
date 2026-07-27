@@ -8,6 +8,8 @@ import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { supabase, Annonce } from '../lib/supabase';
 import { useSellerAvis, Avis } from '../hooks/useAvis';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
+import ReportModal from '../components/ReportModal';
 
 const { width: W } = Dimensions.get('window');
 const CARD_W = (W - SPACING.lg * 2 - SPACING.md) / 2;
@@ -28,11 +30,13 @@ function timeAgo(dateStr: string): string {
 export default function VendeurProfileScreen({ route, navigation }: any) {
   const { vendeurId } = route.params as { vendeurId: string };
   const { theme, isDark } = useTheme();
+  const { session } = useAuth();
   const [seller, setSeller] = useState<any>(null);
   const [annonces, setAnnonces] = useState<Annonce[]>([]);
   const [loadingSeller, setLoadingSeller] = useState(true);
   const [loadingAnnonces, setLoadingAnnonces] = useState(true);
   const { avis, avgNote, loading: loadingAvis } = useSellerAvis(vendeurId);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // Full-screen image viewer states
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -148,6 +152,12 @@ export default function VendeurProfileScreen({ route, navigation }: any) {
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
 
+          {vendeurId !== session?.user?.id && (
+            <TouchableOpacity style={styles.reportBtn} onPress={() => setShowReportModal(true)} activeOpacity={0.7}>
+              <Ionicons name="flag" size={18} color="#fff" />
+            </TouchableOpacity>
+          )}
+
           {/* Photo de profil */}
           <View style={styles.avatarWrapper}>
             {seller?.avatar_url ? (
@@ -219,6 +229,28 @@ export default function VendeurProfileScreen({ route, navigation }: any) {
           {/* === PROFIL PROFESSIONNEL === */}
           {seller?.type_compte === 'professionnel' && (
             <>
+              {/* Accès à la page boutique (catalogue, horaires, commander) */}
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row', alignItems: 'center',
+                  backgroundColor: theme.primary, borderRadius: RADIUS.lg,
+                  padding: SPACING.lg, marginBottom: SPACING.lg, ...SHADOWS.colored,
+                }}
+                onPress={() => navigation.navigate('Boutique', { vendeurId: seller.id })}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="storefront" size={20} color="#fff" style={{ marginRight: SPACING.md }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.extrabold, color: '#fff' }}>
+                    Voir la boutique
+                  </Text>
+                  <Text style={{ fontSize: FONTS.xs, color: 'rgba(255,255,255,0.85)', marginTop: 1 }}>
+                    Catalogue, horaires, livraison et commande
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#fff" />
+              </TouchableOpacity>
+
               {/* Section Vitrine Photos */}
               {seller.images_business && seller.images_business.length > 0 && (
                 <View style={styles.vitrineSection}>
@@ -394,6 +426,13 @@ export default function VendeurProfileScreen({ route, navigation }: any) {
           </ScrollView>
         </View>
       </Modal>
+
+      <ReportModal
+        isVisible={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        cibleUserId={vendeurId}
+        targetName={seller ? `${seller.prenom || ''} ${seller.nom || ''}`.trim() : 'Vendeur'}
+      />
     </View>
   );
 }
@@ -590,6 +629,18 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     position: 'absolute',
     top: Platform.OS === 'ios' ? 50 : 20,
     left: SPACING.lg,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 5,
+  },
+  reportBtn: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : 20,
+    right: SPACING.lg,
     width: 36,
     height: 36,
     borderRadius: 18,

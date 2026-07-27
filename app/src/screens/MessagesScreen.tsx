@@ -91,6 +91,11 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     fontSize: FONTS.xs,
     color: theme.textMuted,
   },
+  conversationAnnonce: {
+    fontSize: FONTS.xs,
+    color: theme.textSecondary,
+    marginBottom: 2,
+  },
   conversationBottom: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -151,6 +156,8 @@ export default function MessagesScreen({ navigation }: any) {
   const renderConversation = ({ item }: { item: any }) => {
     const imageUrl = item.annonce?.images?.[0]?.image_url || null;
     const hasUnread = (item.unread_count || 0) > 0;
+    const interlocuteur = item.acheteur_id === userId ? item.vendeur : item.acheteur;
+    const interlocuteurNom = [interlocuteur?.prenom, interlocuteur?.nom].filter(Boolean).join(' ').trim();
 
     return (
       <TouchableOpacity
@@ -160,6 +167,7 @@ export default function MessagesScreen({ navigation }: any) {
           navigation.navigate('ChatConversation', {
             conversationId: item.id,
             titreAnnonce: item.annonce?.titre,
+            interlocuteur: interlocuteur || undefined,
           })
         }
       >
@@ -173,12 +181,17 @@ export default function MessagesScreen({ navigation }: any) {
         <View style={styles.conversationContent}>
           <View style={styles.conversationTop}>
             <Text style={[styles.conversationTitle, hasUnread && styles.textBold]} numberOfLines={1}>
-              {item.annonce?.titre || 'Annonce supprimée'}
+              {interlocuteurNom || item.annonce?.titre || 'Annonce supprimée'}
             </Text>
             <Text style={[styles.conversationTime, hasUnread && { color: theme.primary }]}>
               {timeAgo(item.date_dernier_message)}
             </Text>
           </View>
+          {interlocuteurNom ? (
+            <Text style={styles.conversationAnnonce} numberOfLines={1}>
+              {item.annonce?.titre || 'Annonce supprimée'}
+            </Text>
+          ) : null}
           <View style={styles.conversationBottom}>
             <Text
               style={[styles.conversationMessage, hasUnread && styles.textBold]}

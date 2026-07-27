@@ -156,8 +156,113 @@ export const CATEGORIES = [
   { id: 'motos', label: 'Motos', icon: 'bicycle-outline' },
   { id: 'immobilier', label: 'Immobilier', icon: 'business-outline' },
   { id: 'alimentation', label: 'Alimentation', icon: 'cafe-outline' },
+  { id: 'animaux', label: 'Animaux', icon: 'paw-outline' },
   { id: 'services', label: 'Services', icon: 'build-outline' },
 ];
+
+// Sous-catégories par catégorie principale. Même prix de publication que la
+// catégorie parente — purement un niveau de navigation/filtrage supplémentaire.
+// `keywords` : termes fréquents utilisés par le scoring de recherche textuelle
+// pour faire remonter les annonces de la sous-catégorie (ex: "playstation").
+export interface SousCategorie {
+  id: string;
+  label: string;
+  keywords?: string[];
+}
+
+export const SUBCATEGORIES: Record<string, SousCategorie[]> = {
+  telephonie_electronique: [
+    { id: 'telephones', label: 'Téléphones', keywords: ['iphone', 'samsung', 'tecno', 'infinix', 'itel', 'redmi', 'smartphone', 'portable'] },
+    { id: 'tablettes', label: 'Tablettes', keywords: ['ipad', 'tablette', 'tab'] },
+    { id: 'ordinateurs', label: 'Ordinateurs', keywords: ['pc', 'laptop', 'macbook', 'hp', 'dell', 'lenovo', 'ordinateur'] },
+    { id: 'tv_audio', label: 'TV & Audio', keywords: ['tv', 'television', 'télévision', 'ecran', 'écran', 'enceinte', 'baffle', 'casque', 'radio'] },
+    { id: 'consoles_jeux_video', label: 'Consoles & Jeux vidéo', keywords: ['playstation', 'ps2', 'ps3', 'ps4', 'ps5', 'xbox', 'nintendo', 'manette', 'console', 'jeu', 'jeux'] },
+    { id: 'accessoires_electronique', label: 'Accessoires', keywords: ['chargeur', 'cable', 'câble', 'coque', 'ecouteurs', 'écouteurs', 'batterie', 'powerbank'] },
+    { id: 'autre_telephonie_electronique', label: 'Autre' },
+  ],
+  mode_beaute: [
+    { id: 'vetements_homme', label: 'Vêtements homme', keywords: ['chemise', 'pantalon', 'boubou', 'costume', 'tshirt', 'polo'] },
+    { id: 'vetements_femme', label: 'Vêtements femme', keywords: ['robe', 'pagne', 'wax', 'ensemble', 'jupe', 'voile'] },
+    { id: 'chaussures', label: 'Chaussures', keywords: ['baskets', 'sneakers', 'sandales', 'talons', 'nike', 'adidas', 'chaussure'] },
+    { id: 'sacs_accessoires', label: 'Sacs & Accessoires', keywords: ['sac', 'sacoche', 'ceinture', 'lunettes', 'casquette'] },
+    { id: 'beaute_cosmetiques', label: 'Beauté & Cosmétiques', keywords: ['parfum', 'maquillage', 'creme', 'crème', 'meches', 'mèches', 'perruque'] },
+    { id: 'montres_bijoux', label: 'Montres & Bijoux', keywords: ['montre', 'bijou', 'collier', 'bague', 'chaine', 'chaîne', 'or', 'argent'] },
+    { id: 'autre_mode_beaute', label: 'Autre' },
+  ],
+  maison_electromenager: [
+    { id: 'meubles', label: 'Meubles', keywords: ['canape', 'canapé', 'salon', 'lit', 'matelas', 'armoire', 'table', 'chaise'] },
+    { id: 'electromenager', label: 'Électroménager', keywords: ['frigo', 'refrigerateur', 'réfrigérateur', 'congelateur', 'congélateur', 'climatiseur', 'clim', 'ventilateur', 'machine', 'cuisiniere', 'cuisinière'] },
+    { id: 'decoration', label: 'Décoration', keywords: ['deco', 'déco', 'rideau', 'tapis', 'miroir', 'tableau'] },
+    { id: 'materiaux_construction', label: 'Matériaux de construction', keywords: ['ciment', 'fer', 'tole', 'tôle', 'carreaux', 'peinture', 'porte', 'fenetre', 'fenêtre'] },
+    { id: 'jardin', label: 'Jardin', keywords: ['jardin', 'plante', 'arrosage', 'fleurs'] },
+    { id: 'autre_maison_electromenager', label: 'Autre' },
+  ],
+  voitures: [
+    { id: 'voitures_vente', label: 'Voitures', keywords: ['toyota', 'mercedes', 'bmw', 'hyundai', 'kia', 'corolla', 'rav4', '4x4', 'berline', 'suv'] },
+    { id: 'pieces_auto', label: 'Pièces & Accessoires auto', keywords: ['moteur', 'pneu', 'jante', 'batterie', 'phare', 'piece', 'pièce', 'pieces', 'pièces', 'amortisseur', 'pare-choc'] },
+    { id: 'autre_voitures', label: 'Autre' },
+  ],
+  motos: [
+    { id: 'motos_scooters', label: 'Motos & Scooters', keywords: ['djakarta', 'jakarta', 'scooter', 'tvs', 'apsonic', 'haojue'] },
+    { id: 'pieces_moto', label: 'Pièces & Accessoires moto', keywords: ['casque', 'pneu', 'piece', 'pièce', 'pieces', 'pièces', 'pot', 'guidon', 'selle'] },
+    { id: 'autre_motos', label: 'Autre' },
+  ],
+  immobilier: [
+    { id: 'location_residentiel', label: 'Location maisons & appartements', keywords: ['louer', 'location', 'appartement', 'studio', 'chambre', 'villa'] },
+    { id: 'vente_maisons', label: 'Vente de maisons', keywords: ['vente', 'vendre', 'maison', 'villa', 'duplex'] },
+    { id: 'vente_terrains', label: 'Vente de terrains', keywords: ['terrain', 'parcelle', 'titre foncier', 'hectare', 'lot'] },
+    { id: 'bureaux_commerces', label: 'Bureaux & Commerces', keywords: ['bureau', 'boutique', 'magasin', 'local', 'entrepot', 'entrepôt'] },
+    { id: 'autre_immobilier', label: 'Autre' },
+  ],
+  alimentation: [
+    { id: 'restaurants', label: 'Restaurants & Plats préparés', keywords: ['restaurant', 'plat', 'repas', 'traiteur', 'grillade', 'fast food'] },
+    { id: 'supermarches', label: 'Supermarchés & Épicerie', keywords: ['supermarche', 'supermarché', 'epicerie', 'épicerie', 'riz', 'huile', 'sucre'] },
+    { id: 'autre_alimentation', label: 'Autre' },
+  ],
+  animaux: [
+    { id: 'boeufs_vaches', label: 'Bœufs & Vaches', keywords: ['boeuf', 'bœuf', 'vache', 'taureau', 'veau', 'betail', 'bétail'] },
+    { id: 'moutons', label: 'Moutons', keywords: ['mouton', 'belier', 'bélier', 'brebis', 'agneau', 'tabaski'] },
+    { id: 'chevres', label: 'Chèvres', keywords: ['chevre', 'chèvre', 'bouc', 'cabri'] },
+    { id: 'volailles', label: 'Volailles & Poules', keywords: ['poule', 'coq', 'poulet', 'poussin', 'dinde', 'canard', 'pintade', 'oie'] },
+    { id: 'pigeons', label: 'Pigeons & Oiseaux', keywords: ['pigeon', 'oiseau', 'perroquet', 'colombe'] },
+    { id: 'autre_animaux', label: 'Autre', keywords: ['chien', 'chat', 'cheval', 'ane', 'âne', 'autruche'] },
+  ],
+  services: [
+    { id: 'reparation_electronique', label: 'Réparation téléphones & électronique', keywords: ['reparation', 'réparation', 'reparateur', 'réparateur', 'flash', 'decodage', 'décodage'] },
+    { id: 'mecanique', label: 'Mécanique auto & moto', keywords: ['mecanicien', 'mécanicien', 'garage', 'vidange'] },
+    { id: 'construction_btp', label: 'Construction & BTP', keywords: ['macon', 'maçon', 'plombier', 'electricien', 'électricien', 'peintre', 'carreleur'] },
+    { id: 'menuiserie_soudure', label: 'Menuiserie & Soudure', keywords: ['menuisier', 'soudeur', 'ferronnerie', 'bois'] },
+    { id: 'couture_tailleur', label: 'Couture & Tailleur', keywords: ['couturier', 'couture', 'tailleur', 'broderie'] },
+    { id: 'coiffure_esthetique', label: 'Coiffure & Esthétique', keywords: ['coiffeur', 'coiffure', 'salon', 'tresses', 'onglerie'] },
+    { id: 'menage_nettoyage', label: 'Ménage & Nettoyage', keywords: ['menage', 'ménage', 'nettoyage', 'lessive'] },
+    { id: 'cours_formation', label: 'Cours & Formation', keywords: ['cours', 'formation', 'professeur', 'soutien', 'langue'] },
+    { id: 'evenementiel', label: 'Événementiel', keywords: ['mariage', 'bapteme', 'baptême', 'sonorisation', 'bache', 'bâche', 'chaises'] },
+    { id: 'transport_demenagement', label: 'Transport & Déménagement', keywords: ['transport', 'demenagement', 'déménagement', 'livraison', 'location voiture'] },
+    { id: 'photo_video', label: 'Photographie & Vidéo', keywords: ['photographe', 'video', 'vidéo', 'cameraman', 'shooting', 'drone'] },
+    { id: 'informatique_design', label: 'Informatique & Design', keywords: ['site web', 'graphiste', 'logo', 'flyer', 'design', 'developpeur', 'développeur', 'reseaux sociaux', 'réseaux sociaux'] },
+    { id: 'autres_services', label: 'Autres services' },
+  ],
+};
+
+export function getSousCategorieLabel(id?: string | null): string | null {
+  if (!id) return null;
+  for (const subs of Object.values(SUBCATEGORIES)) {
+    const found = subs.find((s) => s.id === id);
+    if (found) return found.label;
+  }
+  return null;
+}
+
+// Texte de recherche (label + mots-clés, en minuscules) d'une sous-catégorie,
+// utilisé par le scoring de pertinence des annonces.
+export function getSousCategorieSearchText(id?: string | null): string {
+  if (!id) return '';
+  for (const subs of Object.values(SUBCATEGORIES)) {
+    const found = subs.find((s) => s.id === id);
+    if (found) return `${found.label} ${(found.keywords || []).join(' ')}`.toLowerCase();
+  }
+  return '';
+}
 
 export const CATEGORY_PRICES: Record<string, number> = {
   telephonie_electronique: 250,
@@ -168,6 +273,7 @@ export const CATEGORY_PRICES: Record<string, number> = {
   immobilier:              2500,
   alimentation:            500,
   services:                500,
+  animaux:                 250,
 };
 
 export const ETAT_ARTICLE = [

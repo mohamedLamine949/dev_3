@@ -115,7 +115,7 @@ export interface NotificationData {
   user_id: string;
   titre: string;
   contenu: string;
-  type: string; // 'chat' | 'annonce_validee' | 'paiement_requis' | 'annonce_vendue' | 'favori' | 'compte_pro_active' | 'bienvenue'
+  type: string; // 'chat' | 'annonce_validee' | 'paiement_requis' | 'annonce_vendue' | 'favori' | 'avis' | 'compte_pro_active' | 'bienvenue'
   donnees: any;
   lu: boolean;
   date_creation: string;

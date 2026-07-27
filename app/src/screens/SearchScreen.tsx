@@ -14,7 +14,8 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, RADIUS, CATEGORIES, SHADOWS, ETAT_ARTICLE } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, CATEGORIES, SUBCATEGORIES, getSousCategorieLabel, SHADOWS, ETAT_ARTICLE } from '../constants/theme';
+import { scoreAnnonce, scoreUser } from '../lib/relevance';
 import { supabase, Annonce, User } from '../lib/supabase';
 import { useAnnonces } from '../hooks/useAnnonces';
 import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
@@ -38,6 +39,7 @@ const CAT_COLORS: Record<string, string> = {
   motos:                   '#ea580c',
   immobilier:              '#0891b2',
   alimentation:            '#dc2626',
+  animaux:                 '#854d0e',
   services:                '#15803d',
 };
 
@@ -49,114 +51,12 @@ const CAT_EMOJIS: Record<string, string> = {
   motos:                   '🏍️',
   immobilier:              '🏠',
   alimentation:            '🍽️',
+  animaux:                 '🐾',
   services:                '🔧',
 };
 
-function calculateRelevanceScore(query: string, item: any, isUser: boolean): number {
-  if (!query) return 0;
-  
-  const cleanQuery = query.toLowerCase().trim();
-  const queryWords = cleanQuery.split(/[\s,.-]+/).filter(w => w.length > 0);
-  if (queryWords.length === 0) return 0;
-  
-  let score = 0;
-  
-  if (!isUser) {
-    const title = (item.titre || '').toLowerCase();
-    const desc = (item.description || '').toLowerCase();
-    const category = (item.categorie || '').toLowerCase();
-    const location = `${item.ville || ''} ${item.quartier || ''}`.toLowerCase();
-    
-    // Check if full exact query matches title/description
-    if (title.includes(cleanQuery)) {
-      score += 20;
-    } else if (desc.includes(cleanQuery)) {
-      score += 10;
-    }
-    
-    // Check word matches
-    let matchingWordsCount = 0;
-    queryWords.forEach(word => {
-      let wordMatched = false;
-      if (title.includes(word)) {
-        score += 8;
-        wordMatched = true;
-        // Exact word match bonus (e.g. not just substring)
-        if (title.split(/[\s,.-]+/).includes(word)) {
-          score += 4;
-        }
-      }
-      if (desc.includes(word)) {
-        score += 3;
-        wordMatched = true;
-        if (desc.split(/[\s,.-]+/).includes(word)) {
-          score += 1.5;
-        }
-      }
-      if (category.includes(word)) {
-        score += 4;
-        wordMatched = true;
-      }
-      if (location.includes(word)) {
-        score += 2;
-        wordMatched = true;
-      }
-      
-      // Fuzzy prefix/suffix/closeness match (character matching)
-      if (!wordMatched && word.length > 2) {
-        const titleWords = title.split(/[\s,.-]+/);
-        const partialMatch = titleWords.some((tw: string) => tw.includes(word) || word.includes(tw));
-        if (partialMatch) {
-          score += 2.5;
-        }
-      }
-      
-      if (wordMatched) {
-        matchingWordsCount++;
-      }
-    });
-    
-    // Bonus for matching multiple query words
-    if (queryWords.length > 1 && matchingWordsCount > 0) {
-      score += (matchingWordsCount / queryWords.length) * 10;
-    }
-  } else {
-    const prenom = (item.prenom || '').toLowerCase();
-    const nom = (item.nom || '').toLowerCase();
-    const fullName = `${prenom} ${nom}`;
-    const bio = (item.bio || '').toLowerCase();
-    
-    if (fullName.includes(cleanQuery)) {
-      score += 20;
-    }
-    
-    let matchingWordsCount = 0;
-    queryWords.forEach(word => {
-      let wordMatched = false;
-      if (prenom.includes(word) || nom.includes(word)) {
-        score += 8;
-        wordMatched = true;
-        if (prenom === word || nom === word) {
-          score += 4;
-        }
-      }
-      if (bio.includes(word)) {
-        score += 3;
-        wordMatched = true;
-      }
-      
-      if (wordMatched) {
-        matchingWordsCount++;
-      }
-    });
-    
-    if (queryWords.length > 1 && matchingWordsCount > 0) {
-      score += (matchingWordsCount / queryWords.length) * 8;
-    }
-  }
-  
-  return score;
-}
+// Scoring de pertinence : voir src/lib/relevance.ts (scoreAnnonce / scoreUser),
+// partagé avec l'écran d'accueil. Score 0 = résultat exclu (filtre strict).
 
 function mergeResults(posts: any[], users: any[]): any[] {
   const merged: any[] = [];
@@ -191,6 +91,9 @@ export default function SearchScreen({ navigation }: Props) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedSousCategorie, setSelectedSousCategorie] = useState<string | null>(null);
+  // Catégorie dont le panneau de sous-catégories (entonnoir) est ouvert
+  const [subcatPickerCat, setSubcatPickerCat] = useState<string | null>(null);
 
   // Filtres avancés
   const [showFilters, setShowFilters] = useState(false);
@@ -215,6 +118,7 @@ export default function SearchScreen({ navigation }: Props) {
   // Fetch les annonces correspondant aux critères
   const { annonces, loading: loadingAnnonces } = useAnnonces({
     categorie: selectedCategory,
+    sousCategorie: selectedSousCategorie,
     search: debouncedSearch || undefined,
     minPrice: minPrice ? parseInt(minPrice) : null,
     maxPrice: maxPrice ? parseInt(maxPrice) : null,
@@ -222,10 +126,11 @@ export default function SearchScreen({ navigation }: Props) {
     orderBy: orderBy,
   });
 
-  // Fetch les utilisateurs en parallèle quand une requête texte est présente
+  // Fetch les utilisateurs en parallèle quand une requête texte ou une
+  // catégorie est présente (profils dans les résultats + carrousel boutiques)
   useEffect(() => {
     const cleanSearch = debouncedSearch.trim();
-    if (cleanSearch.length > 0) {
+    if (cleanSearch.length > 0 || selectedCategory) {
       setLoadingUsers(true);
       const fetchUsers = async () => {
         try {
@@ -245,7 +150,7 @@ export default function SearchScreen({ navigation }: Props) {
     } else {
       setUsers([]);
     }
-  }, [debouncedSearch]);
+  }, [debouncedSearch, selectedCategory]);
 
   // Calcul de la pertinence et entrelacement (Ratio 3/4 posts, 1/4 profils)
   useEffect(() => {
@@ -255,18 +160,24 @@ export default function SearchScreen({ navigation }: Props) {
       return;
     }
 
-    // 1. Noter les posts
+    // 1. Noter les posts — bonus modéré (+12 %) pour les produits de
+    //    boutiques PRO : un départage, jamais une domination (spec refonte PRO)
+    const proIds = new Set(users.filter(u => u.type_compte === 'professionnel').map(u => u.id));
     const scoredAnnonces = annonces
       .map(annonce => {
-        const score = calculateRelevanceScore(query, annonce, false);
-        return { ...annonce, isUserProfile: false, searchScore: score };
+        const score = scoreAnnonce(query, annonce);
+        return {
+          ...annonce,
+          isUserProfile: false,
+          searchScore: score * (proIds.has(annonce.user_id) ? 1.12 : 1),
+        };
       })
       .filter(a => a.searchScore > 0);
 
     // 2. Noter les utilisateurs
     const scoredUsers = users
       .map(user => {
-        const score = calculateRelevanceScore(query, user, true);
+        const score = scoreUser(query, user);
         return { ...user, isUserProfile: true, searchScore: score };
       })
       .filter(u => u.searchScore > 0);
@@ -282,9 +193,25 @@ export default function SearchScreen({ navigation }: Props) {
 
   const loading = loadingAnnonces || loadingUsers;
 
+  // Boutiques PRO présentes dans les résultats (carrousel « Boutiques ») :
+  // triées par nombre de produits correspondants, 8 max.
+  const boutiquesMatch = React.useMemo(() => {
+    if (users.length === 0) return [] as (User & { nbProduits: number })[];
+    const counts: Record<string, number> = {};
+    searchResults.forEach((r: any) => {
+      if (!r.isUserProfile && r.user_id) counts[r.user_id] = (counts[r.user_id] || 0) + 1;
+    });
+    return users
+      .filter(u => u.type_compte === 'professionnel' && counts[u.id])
+      .map(u => ({ ...u, nbProduits: counts[u.id] }))
+      .sort((a, b) => b.nbProduits - a.nbProduits)
+      .slice(0, 8);
+  }, [users, searchResults]);
+
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedCategory(null);
+    setSelectedSousCategorie(null);
   };
 
   // ---- Rendu carte résultat ----
@@ -381,7 +308,16 @@ export default function SearchScreen({ navigation }: Props) {
         key={cat.id}
         style={[styles.tile, { backgroundColor: color }]}
         activeOpacity={0.8}
-        onPress={() => setSelectedCategory(cat.id)}
+        onPress={() => {
+          // Entonnoir : si la catégorie a des sous-catégories, on propose
+          // d'abord de préciser ; sinon on filtre directement.
+          if (SUBCATEGORIES[cat.id]?.length > 0) {
+            setSubcatPickerCat(cat.id);
+          } else {
+            setSelectedSousCategorie(null);
+            setSelectedCategory(cat.id);
+          }
+        }}
       >
         <Text style={styles.tileEmoji}>{emoji}</Text>
         <Text style={styles.tileLabel}>{cat.label}</Text>
@@ -389,9 +325,16 @@ export default function SearchScreen({ navigation }: Props) {
     );
   };
 
+  const selectFromPicker = (categoryId: string, sousCategorieId: string | null) => {
+    setSelectedCategory(categoryId);
+    setSelectedSousCategorie(sousCategorieId);
+    setSubcatPickerCat(null);
+  };
+
   const activeCatLabel = selectedCategory
     ? CATEGORIES.find(c => c.id === selectedCategory)?.label
     : null;
+  const activeSousCatLabel = getSousCategorieLabel(selectedSousCategorie);
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
@@ -446,9 +389,9 @@ export default function SearchScreen({ navigation }: Props) {
           <View style={styles.activeFilter}>
             <View style={[styles.activeCatChip, { backgroundColor: CAT_COLORS[selectedCategory] + '22', borderColor: CAT_COLORS[selectedCategory] }]}>
               <Text style={[styles.activeCatText, { color: CAT_COLORS[selectedCategory] }]}>
-                {CAT_EMOJIS[selectedCategory]} {activeCatLabel}
+                {CAT_EMOJIS[selectedCategory]} {activeCatLabel}{activeSousCatLabel ? ` · ${activeSousCatLabel}` : ''}
               </Text>
-              <TouchableOpacity onPress={() => setSelectedCategory(null)}>
+              <TouchableOpacity onPress={() => { setSelectedCategory(null); setSelectedSousCategorie(null); }}>
                 <Ionicons name="close" size={15} color={CAT_COLORS[selectedCategory]} />
               </TouchableOpacity>
             </View>
@@ -458,6 +401,31 @@ export default function SearchScreen({ navigation }: Props) {
               </Text>
             )}
           </View>
+        )}
+
+        {/* Chips de sous-catégories pour affiner dans les résultats */}
+        {selectedCategory && SUBCATEGORIES[selectedCategory]?.length > 0 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subcatRow}>
+            <TouchableOpacity
+              style={[styles.subcatChip, !selectedSousCategorie && styles.subcatChipSelected]}
+              onPress={() => setSelectedSousCategorie(null)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.subcatChipText, !selectedSousCategorie && styles.subcatChipTextSelected]}>Tout</Text>
+            </TouchableOpacity>
+            {SUBCATEGORIES[selectedCategory].map((sub) => (
+              <TouchableOpacity
+                key={sub.id}
+                style={[styles.subcatChip, selectedSousCategorie === sub.id && styles.subcatChipSelected]}
+                onPress={() => setSelectedSousCategorie(selectedSousCategorie === sub.id ? null : sub.id)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.subcatChipText, selectedSousCategorie === sub.id && styles.subcatChipTextSelected]}>
+                  {sub.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         )}
       </View>
 
@@ -510,10 +478,69 @@ export default function SearchScreen({ navigation }: Props) {
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={
               searchResults.length > 0 ? (
-                <Text style={styles.resultCount}>
-                  {searchResults.length} résultat{searchResults.length !== 1 ? 's' : ''}
-                  {activeCatLabel ? ` · ${activeCatLabel}` : ''}
-                </Text>
+                <View>
+                  {/* Carrousel Boutiques : la visibilité PRO, sans polluer la liste */}
+                  {boutiquesMatch.length > 0 && (
+                    <View style={{ marginBottom: SPACING.md }}>
+                      <Text style={{
+                        fontSize: FONTS.xs, fontWeight: FONTS.bold, color: theme.textSecondary,
+                        textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: SPACING.sm,
+                      }}>
+                        🏪 Boutiques
+                      </Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
+                          {boutiquesMatch.map(b => (
+                            <TouchableOpacity
+                              key={b.id}
+                              style={{
+                                width: 128, alignItems: 'center',
+                                backgroundColor: theme.surface, borderRadius: RADIUS.lg,
+                                paddingVertical: SPACING.md, paddingHorizontal: SPACING.sm,
+                                borderWidth: 1, borderColor: theme.borderLight,
+                              }}
+                              onPress={() => navigation.navigate('Boutique', { vendeurId: b.id })}
+                              activeOpacity={0.85}
+                            >
+                              {b.avatar_url ? (
+                                <Image source={{ uri: b.avatar_url }} style={{ width: 48, height: 48, borderRadius: 24 }} />
+                              ) : (
+                                <View style={{
+                                  width: 48, height: 48, borderRadius: 24,
+                                  backgroundColor: theme.primaryFaded,
+                                  justifyContent: 'center', alignItems: 'center',
+                                }}>
+                                  <Text style={{ fontSize: FONTS.lg, fontWeight: FONTS.extrabold, color: theme.primary }}>
+                                    {(b.nom_boutique || b.prenom || '?').charAt(0).toUpperCase()}
+                                  </Text>
+                                </View>
+                              )}
+                              <Text
+                                numberOfLines={1}
+                                style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.textPrimary, marginTop: 6, maxWidth: 112 }}
+                              >
+                                {b.nom_boutique || `${b.prenom || ''} ${b.nom || ''}`.trim()}
+                              </Text>
+                              <View style={{
+                                backgroundColor: theme.primary, paddingHorizontal: 6, paddingVertical: 1,
+                                borderRadius: RADIUS.xs, marginTop: 3,
+                              }}>
+                                <Text style={{ fontSize: 9, fontWeight: FONTS.bold, color: '#fff' }}>PRO</Text>
+                              </View>
+                              <Text style={{ fontSize: FONTS.xs, color: theme.textMuted, marginTop: 3 }}>
+                                {b.nbProduits} produit{b.nbProduits > 1 ? 's' : ''}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </ScrollView>
+                    </View>
+                  )}
+                  <Text style={styles.resultCount}>
+                    {searchResults.length} résultat{searchResults.length !== 1 ? 's' : ''}
+                    {activeCatLabel ? ` · ${activeCatLabel}` : ''}
+                  </Text>
+                </View>
               ) : null
             }
             ListEmptyComponent={
@@ -626,6 +653,55 @@ export default function SearchScreen({ navigation }: Props) {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Bottom sheet entonnoir : sous-catégories de la catégorie tapée */}
+      <Modal
+        visible={subcatPickerCat !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSubcatPickerCat(null)}
+      >
+        <View style={styles.sheetContainer}>
+          <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={() => setSubcatPickerCat(null)} />
+          {subcatPickerCat && (
+            <View style={styles.sheetContent}>
+              <View style={styles.sheetHandle} />
+              <View style={styles.sheetHeader}>
+                <Text style={styles.sheetTitle}>
+                  {CAT_EMOJIS[subcatPickerCat]} {CATEGORIES.find(c => c.id === subcatPickerCat)?.label}
+                </Text>
+                <TouchableOpacity onPress={() => setSubcatPickerCat(null)}>
+                  <Ionicons name="close-circle" size={26} color={theme.textMuted} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <TouchableOpacity
+                  style={styles.sheetRow}
+                  activeOpacity={0.7}
+                  onPress={() => selectFromPicker(subcatPickerCat, null)}
+                >
+                  <Text style={[styles.sheetRowText, { fontWeight: FONTS.bold, color: theme.primary }]}>
+                    Tout voir dans cette catégorie
+                  </Text>
+                  <Ionicons name="chevron-forward" size={18} color={theme.primary} />
+                </TouchableOpacity>
+                {SUBCATEGORIES[subcatPickerCat]?.map((sub) => (
+                  <TouchableOpacity
+                    key={sub.id}
+                    style={styles.sheetRow}
+                    activeOpacity={0.7}
+                    onPress={() => selectFromPicker(subcatPickerCat, sub.id)}
+                  >
+                    <Text style={styles.sheetRowText}>{sub.label}</Text>
+                    <Ionicons name="chevron-forward" size={18} color={theme.borderLight} />
+                  </TouchableOpacity>
+                ))}
+                <View style={{ height: 30 }} />
+              </ScrollView>
+            </View>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -714,6 +790,83 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     fontSize: FONTS.sm,
     color: theme.textMuted,
     fontWeight: FONTS.medium,
+  },
+
+  // Chips de sous-catégories (affinage dans les résultats)
+  subcatRow: {
+    gap: SPACING.sm,
+    paddingVertical: 2,
+  },
+  subcatChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 7,
+    borderRadius: RADIUS.full,
+    backgroundColor: theme.surfaceMuted,
+    borderWidth: 1,
+    borderColor: theme.borderLight,
+  },
+  subcatChipSelected: {
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
+  },
+  subcatChipText: {
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.medium,
+    color: theme.textSecondary,
+  },
+  subcatChipTextSelected: {
+    color: '#fff',
+  },
+
+  // Bottom sheet sous-catégories (entonnoir)
+  sheetContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  sheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  sheetContent: {
+    backgroundColor: theme.background,
+    borderTopLeftRadius: RADIUS.xxl,
+    borderTopRightRadius: RADIUS.xxl,
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.md,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    maxHeight: '75%',
+    ...SHADOWS.md,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: theme.borderLight,
+    marginBottom: SPACING.md,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.sm,
+  },
+  sheetTitle: {
+    fontSize: FONTS.lg,
+    fontWeight: FONTS.bold,
+    color: theme.textPrimary,
+  },
+  sheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.borderLight,
+  },
+  sheetRowText: {
+    fontSize: FONTS.md,
+    color: theme.textPrimary,
   },
 
   // Grille catégories

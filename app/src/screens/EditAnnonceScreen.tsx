@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
-import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, ETAT_ARTICLE } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, SUBCATEGORIES, ETAT_ARTICLE } from '../constants/theme';
 import { supabase, Annonce } from '../lib/supabase';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -37,6 +37,7 @@ export default function EditAnnonceScreen({ route, navigation }: Props) {
   const [prix, setPrix] = useState(annonce.prix ? annonce.prix.toString() : '');
   const [description, setDescription] = useState(annonce.description || '');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(annonce.categorie || null);
+  const [selectedSousCategorie, setSelectedSousCategorie] = useState<string | null>(annonce.sous_categorie || null);
   const [selectedEtat, setSelectedEtat] = useState<string | null>(annonce.etat_article || null);
   const [quartier, setQuartier] = useState(annonce.quartier || '');
   const [isSaving, setIsSaving] = useState(false);
@@ -93,6 +94,7 @@ export default function EditAnnonceScreen({ route, navigation }: Props) {
           prix: parseInt(prix, 10),
           description: description || null,
           categorie: selectedCategory,
+          sous_categorie: selectedSousCategorie,
           etat_article: selectedEtat || 'non_specifie',
           quartier: quartier || null,
         })
@@ -231,7 +233,10 @@ export default function EditAnnonceScreen({ route, navigation }: Props) {
               <TouchableOpacity
                 key={cat.id}
                 style={[styles.chip, selectedCategory === cat.id && styles.chipSelected]}
-                onPress={() => setSelectedCategory(cat.id)}
+                onPress={() => {
+                  if (selectedCategory !== cat.id) setSelectedSousCategorie(null);
+                  setSelectedCategory(cat.id);
+                }}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.chipText, selectedCategory === cat.id && styles.chipTextSelected]}>
@@ -240,6 +245,27 @@ export default function EditAnnonceScreen({ route, navigation }: Props) {
               </TouchableOpacity>
             ))}
           </View>
+
+          {/* Sous-catégorie (optionnel, dépend de la catégorie choisie) */}
+          {selectedCategory && SUBCATEGORIES[selectedCategory]?.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>Sous-catégorie <Text style={styles.optionalLabel}>(facultatif)</Text></Text>
+              <View style={styles.chipsContainer}>
+                {SUBCATEGORIES[selectedCategory].map((sub) => (
+                  <TouchableOpacity
+                    key={sub.id}
+                    style={[styles.chip, selectedSousCategorie === sub.id && styles.chipSelected]}
+                    onPress={() => setSelectedSousCategorie(selectedSousCategorie === sub.id ? null : sub.id)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.chipText, selectedSousCategorie === sub.id && styles.chipTextSelected]}>
+                      {sub.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
 
           {/* État (optionnel) */}
           <Text style={styles.sectionTitle}>État de l'article <Text style={styles.optionalLabel}>(facultatif)</Text></Text>

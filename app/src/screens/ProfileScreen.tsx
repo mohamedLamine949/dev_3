@@ -10,6 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase, Annonce } from '../lib/supabase';
 import { useSellerAvis, Avis } from '../hooks/useAvis';
+import { useParrainage } from '../hooks/useParrainage';
 import { pickImages } from '../lib/imagePicker';
 import { decode } from 'base64-arraybuffer';
 
@@ -60,6 +61,8 @@ export default function ProfileScreen({ navigation }: Props) {
   const { session, user, signOut, refreshUser } = useAuth();
   const { theme, isDark } = useTheme();
   const { avis, avgNote, loading: loadingAvis } = useSellerAvis(session?.user?.id);
+  // Programme de parrainage : détermine quelles entrées afficher dans la vitrine
+  const { campagne, parrain: parrainRow, monParrainage } = useParrainage(session?.user?.id);
 
   // Tabs state
   const [activeTab, setActiveTab] = useState<'vitrine' | 'annonces' | 'avis'>('vitrine');
@@ -423,11 +426,7 @@ export default function ProfileScreen({ navigation }: Props) {
                   </TouchableOpacity>
                 </>
               )}
-              {session && (
-                <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('HistoriquePaiements')} activeOpacity={0.8}>
-                  <Ionicons name="receipt-outline" size={20} color="#fff" />
-                </TouchableOpacity>
-              )}
+              {/* Bouton historique des paiements masqué pendant la phase gratuite */}
               <TouchableOpacity style={styles.settingsBtn} onPress={() => navigation.navigate('Settings')} activeOpacity={0.8}>
                 <Ionicons name="settings-outline" size={20} color="#fff" />
               </TouchableOpacity>
@@ -506,24 +505,24 @@ export default function ProfileScreen({ navigation }: Props) {
           <View style={styles.body}>
 
             {session && (!user?.email || user.email.endsWith('@phone.market')) && (
-              <View style={styles.emailBanner}>
-                <View style={styles.emailBannerContent}>
-                  <View style={styles.emailBannerIcon}>
+              <View style={{ backgroundColor: theme.surface, borderRadius: RADIUS.lg, padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: theme.borderLight, ...SHADOWS.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.md, marginBottom: SPACING.md }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: theme.primaryFaded, justifyContent: 'center', alignItems: 'center' }}>
                     <Ionicons name="shield-half-outline" size={20} color={theme.primary} />
                   </View>
-                  <View style={styles.emailBannerTextContainer}>
-                    <Text style={styles.emailBannerTitle}>Sécurisez votre compte</Text>
-                    <Text style={styles.emailBannerDesc}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.textPrimary, marginBottom: 4 }}>Sécurisez votre compte</Text>
+                    <Text style={{ fontSize: FONTS.xs, color: theme.textSecondary, lineHeight: 18 }}>
                       Associez une adresse e-mail pour certifier votre numéro de téléphone et récupérer votre compte en cas d'oubli de mot de passe.
                     </Text>
                   </View>
                 </View>
                 <TouchableOpacity 
-                  style={styles.emailBannerBtn}
+                  style={{ backgroundColor: theme.primaryFaded, paddingVertical: 10, borderRadius: RADIUS.md, alignItems: 'center' }}
                   onPress={() => navigation.navigate('LinkEmail')}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.emailBannerBtnText}>Lier mon adresse e-mail</Text>
+                  <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.primary }}>Lier mon adresse e-mail</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -581,7 +580,6 @@ export default function ProfileScreen({ navigation }: Props) {
                 </View>
               )}
             </View>
-
             {/* Barre d'onglets (Vitrine, Annonces, Avis) */}
             <View style={styles.tabsContainer}>
               <TouchableOpacity 
@@ -616,7 +614,37 @@ export default function ProfileScreen({ navigation }: Props) {
             {/* Contenu de l'onglet actif */}
             {activeTab === 'vitrine' && (
               <View style={styles.tabContent}>
-                
+
+                {/* Accès boutique PRO : la porte d'entrée de la gestion catalogue */}
+                {user?.type_compte === 'professionnel' && (
+                  <TouchableOpacity
+                    style={{
+                      flexDirection: 'row', alignItems: 'center',
+                      backgroundColor: theme.primary, borderRadius: RADIUS.lg,
+                      padding: SPACING.lg, marginBottom: SPACING.md, ...SHADOWS.colored,
+                    }}
+                    onPress={() => navigation.navigate('MaBoutique')}
+                    activeOpacity={0.85}
+                  >
+                    <View style={{
+                      width: 42, height: 42, borderRadius: 21,
+                      backgroundColor: 'rgba(255,255,255,0.2)',
+                      justifyContent: 'center', alignItems: 'center', marginRight: SPACING.md,
+                    }}>
+                      <Ionicons name="storefront" size={20} color="#fff" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.extrabold, color: '#fff' }}>
+                        {user?.nom_boutique || 'Ma boutique'}
+                      </Text>
+                      <Text style={{ fontSize: FONTS.xs, color: 'rgba(255,255,255,0.85)', marginTop: 1 }}>
+                        Catalogue, stock, horaires, lien à partager
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="#fff" />
+                  </TouchableOpacity>
+                )}
+
                 {/* Section Biographie / Description de la boutique */}
                 <Text style={styles.sectionLabel}>À propos / Biographie</Text>
                 <View style={[styles.card, styles.bioCard]}>
@@ -721,6 +749,66 @@ export default function ProfileScreen({ navigation }: Props) {
                     </TouchableOpacity>
                   )}
                 </View>
+
+                {/* Mes commandes (client) : suivi des commandes passées en boutique */}
+                <Text style={styles.sectionLabel}>Mes achats</Text>
+                <View style={[styles.card, { padding: 0 }]}>
+                  <TouchableOpacity
+                    style={styles.contactRow}
+                    onPress={() => navigation.navigate('Commandes', { mode: 'client' })}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.contactIconBox, { backgroundColor: '#15803d15' }]}>
+                      <Ionicons name="receipt-outline" size={18} color={theme.primary} />
+                    </View>
+                    <Text style={styles.contactText}>Mes commandes en boutique</Text>
+                    <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Programme partenaire : visible uniquement pour les invités (whitelist admin) */}
+                {campagne?.active && parrainRow && (
+                  <>
+                    <Text style={styles.sectionLabel}>Programme partenaire</Text>
+                    <View style={[styles.card, { padding: 0 }]}>
+                      <TouchableOpacity
+                        style={styles.contactRow}
+                        onPress={() => navigation.navigate('DevenirPartenaire')}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[styles.contactIconBox, { backgroundColor: '#15803d15' }]}>
+                          <Ionicons name="gift-outline" size={18} color={theme.primary} />
+                        </View>
+                        <Text style={styles.contactText}>
+                          {parrainRow.code
+                            ? `Mon code ${parrainRow.code} — suivre mes gains`
+                            : 'Vous êtes invité ! Devenir partenaire'}
+                        </Text>
+                        <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
+
+                {/* Saisie du code de parrainage : tant que ce compte n'a pas de parrain */}
+                {campagne?.active && !parrainRow && !monParrainage && (
+                  <>
+                    <Text style={styles.sectionLabel}>Parrainage</Text>
+                    <View style={[styles.card, { padding: 0 }]}>
+                      <TouchableOpacity
+                        style={styles.contactRow}
+                        onPress={() => navigation.navigate('SaisirCodeParrainage')}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[styles.contactIconBox, { backgroundColor: '#15803d15' }]}>
+                          <Ionicons name="ticket-outline" size={18} color={theme.primary} />
+                        </View>
+                        <Text style={styles.contactText}>J'ai un code de parrainage</Text>
+                        <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
               </View>
             )}
 
@@ -1078,55 +1166,6 @@ export default function ProfileScreen({ navigation }: Props) {
 
 const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
-
-  emailBanner: {
-    backgroundColor: isDark ? '#1E293B' : '#ECFDF5',
-    borderWidth: 1,
-    borderColor: isDark ? '#065F46' : '#A7F3D0',
-    borderRadius: RADIUS.lg,
-    padding: SPACING.md,
-    marginBottom: SPACING.lg,
-    gap: SPACING.md,
-  },
-  emailBannerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-  },
-  emailBannerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: isDark ? '#065F46' : '#D1FAE5',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emailBannerTextContainer: {
-    flex: 1,
-  },
-  emailBannerTitle: {
-    fontSize: FONTS.sm,
-    fontWeight: FONTS.bold,
-    color: theme.textPrimary,
-  },
-  emailBannerDesc: {
-    fontSize: 11,
-    color: theme.textSecondary,
-    marginTop: 2,
-    lineHeight: 15,
-  },
-  emailBannerBtn: {
-    backgroundColor: theme.primary,
-    paddingVertical: 8,
-    borderRadius: RADIUS.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emailBannerBtnText: {
-    fontSize: FONTS.xs,
-    fontWeight: FONTS.bold,
-    color: '#fff',
-  },
 
   // PRO Snapchat style header styles
   proHeaderContainer: {

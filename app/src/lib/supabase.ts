@@ -31,9 +31,18 @@ export interface User {
   facebook?: string;
   type_compte?: 'particulier' | 'vendeur' | 'professionnel';
   date_abonnement?: string;
+  statut?: 'actif' | 'suspendu';
   banniere_url?: string;
   images_business?: string[];
   date_creation?: string;
+  // Boutique PRO (migration_boutiques.sql)
+  nom_boutique?: string | null;
+  boutique_slug?: string | null;
+  quartier_boutique?: string | null;
+  adresse_boutique?: string | null;
+  horaires?: string | null;
+  livraison?: 'disponible' | 'a_discuter' | 'retrait' | null;
+  frais_livraison?: string | null;
 }
 
 export interface Annonce {
@@ -43,6 +52,7 @@ export interface Annonce {
   description: string;
   prix: number;
   categorie: string;
+  sous_categorie?: string | null;
   etat_article: string;
   statut: 'en_attente' | 'active' | 'vendu' | 'expire';
   est_payee: boolean;
@@ -54,9 +64,45 @@ export interface Annonce {
   longitude?: number;
   date_creation: string;
   nombre_vues?: number;
+  // Boutique PRO (migration_boutiques.sql) : stock NULL = non géré
+  stock?: number | null;
+  visible?: boolean;
+  catalogue_id?: string | null;
   // Joined
   images?: ImageAnnonce[];
   user?: User;
+}
+
+// Boutique PRO v2 (migration_boutiques_v2.sql)
+export interface Catalogue {
+  id: string;
+  user_id: string;
+  nom: string;
+  categorie: string;
+  ordre: number;
+  date_creation: string;
+}
+
+export type CommandeStatut = 'nouvelle' | 'confirmee' | 'livree' | 'refusee' | 'annulee';
+
+export interface Commande {
+  id: string;
+  vendeur_id: string;
+  client_id: string;
+  produit_id?: string | null;
+  catalogue_id?: string | null;
+  produit_titre: string;
+  prix: number;
+  quantite: number;
+  note_client?: string | null;
+  statut: CommandeStatut;
+  reponse_vendeur?: string | null;
+  date_creation: string;
+  date_maj: string;
+  // Joined
+  client?: User;
+  vendeur?: User;
+  produit?: Annonce;
 }
 
 export interface ImageAnnonce {
