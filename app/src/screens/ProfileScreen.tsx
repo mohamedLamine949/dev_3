@@ -5,7 +5,7 @@ import {
   KeyboardAvoidingView, Platform, Dimensions, Linking,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { PLANS_CONFIG, COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase, Annonce } from '../lib/supabase';
@@ -78,7 +78,7 @@ export default function ProfileScreen({ navigation }: Props) {
   const [editAvatarUri, setEditAvatarUri] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  const [editTypeCompte, setEditTypeCompte] = useState<'particulier' | 'professionnel'>('particulier');
+  const [editTypeCompte, setEditTypeCompte] = useState<'particulier' | 'vendeur' | 'professionnel'>('particulier');
   const [editBanniereUri, setEditBanniereUri] = useState<string | null>(null);
   const [editBanniereBase64, setEditBanniereBase64] = useState<string | null>(null);
   const [editImagesBusiness, setEditImagesBusiness] = useState<string[]>([]);
@@ -527,6 +527,60 @@ export default function ProfileScreen({ navigation }: Props) {
                 </TouchableOpacity>
               </View>
             )}
+
+            {/* Formule & Abonnement Card */}
+            <View style={{
+              backgroundColor: user?.type_compte === 'professionnel' ? theme.primaryFaded : theme.surface,
+              borderRadius: RADIUS.lg,
+              padding: SPACING.lg,
+              marginBottom: SPACING.lg,
+              borderWidth: 1,
+              borderColor: user?.type_compte === 'professionnel' ? theme.primary : theme.borderLight,
+              ...SHADOWS.sm
+            }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name={user?.type_compte === 'professionnel' ? "ribbon-outline" : "person-outline"} size={20} color={theme.primary} />
+                  <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.textPrimary }}>
+                    Formule : {user?.type_compte === 'professionnel' ? 'PRO / Boutique' : user?.type_compte === 'vendeur' ? 'Vendeur' : 'Gratuit'}
+                  </Text>
+                </View>
+                <View style={{ backgroundColor: theme.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                  <Text style={{ fontSize: 10, fontWeight: FONTS.bold, color: '#fff' }}>
+                    {user?.type_compte === 'professionnel' ? '0 FCFA / illimité' : user?.type_compte === 'vendeur' ? '2 000 FCFA / mois' : '3 annonces / mois'}
+                  </Text>
+                </View>
+              </View>
+
+              {user?.type_compte !== 'professionnel' && (
+                <View style={{ marginTop: 8 }}>
+                  <Text style={{ fontSize: FONTS.xs, color: theme.textSecondary, marginBottom: 10, lineHeight: 18 }}>
+                    Passez au Plan PRO offert à 0 FCFA pour bénéficier des annonces illimitées sans expiration, de la vitrine boutique et du badge « Vérifié » !
+                  </Text>
+                  <TouchableOpacity
+                    style={{ backgroundColor: theme.primary, paddingVertical: 10, borderRadius: RADIUS.md, alignItems: 'center' }}
+                    onPress={async () => {
+                      try {
+                        const { error } = await supabase
+                          .from('users')
+                          .update({ type_compte: 'professionnel', date_abonnement: new Date().toISOString() })
+                          .eq('id', session.user.id);
+                        if (error) throw error;
+                        await refreshUser();
+                        Alert.alert('Compte PRO Activé ! 🌟', 'Félicitations ! Votre profil PRO est désormais actif gratuitement avec la vitrine et les annonces illimitées.');
+                      } catch (err: any) {
+                        Alert.alert('Erreur', err.message || 'Impossible d\'activer le statut PRO.');
+                      }
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: '#fff' }}>
+                      Activer le statut PRO Gratuit (0 F)
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
 
             {/* Barre d'onglets (Vitrine, Annonces, Avis) */}
             <View style={styles.tabsContainer}>

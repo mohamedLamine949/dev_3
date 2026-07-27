@@ -1,0 +1,2170 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flashmarket – Le marché malien dans votre poche</title>
+    <meta name="description" content="Flashmarket: achetez, vendez et discutez facilement au Mali. Animation promotionnelle.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        /* ========== CSS VARIABLES ========== */
+        :root {
+            --green: #178A3B;
+            --green-light: #1ea94a;
+            --green-dark: #0f6e2c;
+            --green-bg: #e8f5e9;
+            --green-glow: rgba(23, 138, 59, 0.5);
+            --green-glow-soft: rgba(23, 138, 59, 0.15);
+            --white: #ffffff;
+            --gray-50: #fafafa;
+            --gray-100: #f5f5f5;
+            --gray-200: #eeeeee;
+            --gray-300: #e0e0e0;
+            --gray-400: #bdbdbd;
+            --gray-500: #9e9e9e;
+            --gray-600: #757575;
+            --gray-700: #616161;
+            --gray-800: #424242;
+            --gray-900: #212121;
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+            --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+            --shadow-lg: 0 8px 30px rgba(0,0,0,0.12);
+            --shadow-card: 0 2px 8px rgba(0,0,0,0.06);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --radius-full: 9999px;
+        }
+
+        /* ========== RESET & BASE ========== */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: var(--font);
+            background: var(--gray-100);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ========== PROGRESS BAR ========== */
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--gray-200);
+            z-index: 1000;
+        }
+        #progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--green), var(--green-light));
+            transition: width 0.1s linear;
+            box-shadow: 0 0 8px var(--green-glow);
+        }
+
+        /* ========== SCENE SYSTEM ========== */
+        .scene {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 1;
+            will-change: opacity, transform;
+            background: transparent;
+        }
+        .scene.active {
+            opacity: 1;
+            z-index: 10;
+            pointer-events: auto;
+        }
+        .scene.fade-in {
+            animation: sceneFadeIn 0.8s var(--ease-smooth) forwards;
+        }
+        .scene.fade-out {
+            animation: sceneFadeOut 0.6s var(--ease-smooth) forwards;
+            z-index: 5;
+        }
+        @keyframes sceneFadeIn {
+            from { opacity: 0; transform: scale(0.97); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes sceneFadeOut {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(1.03); }
+        }
+
+        .scene-inner {
+            height: 82vh;
+            aspect-ratio: 9 / 16;
+            background: var(--white);
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--gray-200);
+            transition: all 0.3s ease;
+        }
+
+        /* Recording mode layout override */
+        body.recording-mode {
+            background: var(--white);
+        }
+        body.recording-mode .scene-inner {
+            height: 100vh;
+            border-radius: 0;
+            border: none;
+            box-shadow: none;
+        }
+
+        /* ========== CAMERA ZOOM EFFECTS ========== */
+        .camera-zoom {
+            animation: cameraZoom 7s ease-out forwards;
+        }
+        @keyframes cameraZoom {
+            from { transform: scale(1) translateY(0); }
+            to { transform: scale(1.12) translateY(-15px); }
+        }
+        .camera-zoom-search {
+            animation: cameraZoomSearch 8s ease-out forwards;
+        }
+        @keyframes cameraZoomSearch {
+            from { transform: scale(1) translateY(0); }
+            to { transform: scale(1.15) translateY(-30px); }
+        }
+        .camera-zoom-slow {
+            animation: cameraZoomSlow 8s ease-out forwards;
+        }
+        @keyframes cameraZoomSlow {
+            from { transform: scale(1) translateY(0); }
+            to { transform: scale(1.06) translateY(-8px); }
+        }
+
+        /* ========== OVERLAY TEXT ========== */
+        .overlay-text {
+            position: absolute;
+            bottom: 60px;
+            left: 16px;
+            right: 16px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: linear-gradient(to top, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.9) 60%, rgba(255,255,255,0) 100%);
+            pointer-events: none;
+            border-radius: var(--radius-md);
+        }
+        .ot-line {
+            font-size: clamp(1.05rem, 2.5vw, 1.35rem);
+            font-weight: 700;
+            color: var(--gray-900);
+            text-align: center;
+            opacity: 0;
+            transform: translateY(20px);
+            line-height: 1.4;
+        }
+        .ot-line.green { color: var(--green); }
+        .ot-line.sub {
+            font-size: clamp(0.72rem, 1.8vw, 0.88rem);
+            font-weight: 600;
+            color: var(--green);
+            margin-top: 8px;
+            letter-spacing: 2px;
+        }
+        .ot-line.show {
+            animation: otReveal 0.7s var(--ease-out) forwards;
+        }
+        .ot-line.hide {
+            animation: otHide 0.4s var(--ease-smooth) forwards;
+        }
+        @keyframes otReveal {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes otHide {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-10px); }
+        }
+
+        /* ========== SCENE 1: LOGO + HOME ========== */
+        .logo-container {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            opacity: 0;
+        }
+        .logo-container.show {
+            animation: logoAppear 1s var(--ease-out) forwards;
+        }
+        .logo-container.shrink {
+            animation: logoShrink 1s var(--ease-out) forwards;
+        }
+        @keyframes logoAppear {
+            from { opacity: 0; transform: scale(0.6); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes logoShrink {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0.4) translateY(-80px); }
+        }
+        .logo-icon {
+            width: 120px;
+            height: 120px;
+            border-radius: 26px;
+            box-shadow: 0 8px 30px var(--green-glow-soft);
+            object-fit: cover;
+        }
+        .logo-text {
+            font-size: 2.3rem;
+            font-weight: 800;
+            color: var(--green);
+            margin-top: 14px;
+            letter-spacing: -0.5px;
+        }
+        .logo-glow {
+            position: absolute;
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--green-glow-soft) 0%, transparent 70%);
+            animation: glowPulse 2s ease-in-out infinite;
+        }
+        @keyframes glowPulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.3); opacity: 1; }
+        }
+
+        /* Phone Screen */
+        .phone-screen {
+            position: absolute;
+            inset: 0;
+            background: var(--white);
+            opacity: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px 70px;
+            overflow: hidden;
+        }
+        .phone-screen.show {
+            animation: screenAppear 0.8s var(--ease-out) forwards;
+        }
+        @keyframes screenAppear {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .home-header {
+            opacity: 0;
+            transform: translateY(-20px);
+            margin-bottom: 14px;
+        }
+        .home-header.show {
+            animation: slideDown 0.6s var(--ease-out) forwards;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .home-greeting {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--gray-900);
+        }
+        .home-subtitle {
+            font-size: 0.82rem;
+            color: var(--gray-500);
+            margin-top: 2px;
+        }
+
+        .search-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: var(--gray-100);
+            border-radius: var(--radius-full);
+            font-size: 0.88rem;
+            color: var(--gray-400);
+            opacity: 0;
+            transform: translateY(-15px);
+            margin-bottom: 12px;
+        }
+        .search-bar.show {
+            animation: slideDown 0.5s var(--ease-out) forwards;
+        }
+        /* SVG search icon */
+        .icon-search {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+
+        .category-pills {
+            display: flex;
+            gap: 8px;
+            overflow: hidden;
+            margin-bottom: 12px;
+            opacity: 0;
+        }
+        .category-pills.show {
+            animation: fadeInUp 0.5s var(--ease-out) forwards;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .pill {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-full);
+            font-size: 0.73rem;
+            font-weight: 500;
+            color: var(--gray-800);
+            white-space: nowrap;
+        }
+        .pill-icon {
+            width: 14px;
+            height: 14px;
+        }
+
+        .safety-banner {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, var(--green-bg), #d5f0db);
+            border-radius: var(--radius-md);
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--green-dark);
+            margin-bottom: 14px;
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+        .safety-banner.show {
+            animation: slideRight 0.6s var(--ease-out) forwards;
+        }
+        @keyframes slideRight {
+            from { opacity: 0; transform: translateX(-30px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .icon-shield {
+            width: 22px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            opacity: 0;
+        }
+        .section-header.show {
+            animation: fadeInUp 0.5s var(--ease-out) forwards;
+        }
+        .clear-link, .see-all {
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--green);
+        }
+
+        /* Product Cards */
+        .product-grid {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+            overflow: hidden;
+        }
+        .product-card {
+            flex-shrink: 0;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            background: var(--white);
+            box-shadow: var(--shadow-card);
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        .product-card.show {
+            animation: cardAppear 0.6s var(--ease-spring) forwards;
+        }
+        @keyframes cardAppear {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .product-card.small { width: 130px; }
+        .product-card.large { width: 180px; }
+        .product-img {
+            width: 100%;
+            height: 90px;
+            position: relative;
+            overflow: hidden;
+            background: var(--gray-100);
+        }
+        .product-img.large { height: 140px; }
+        .product-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 6s ease-out;
+        }
+        .product-card.show .product-img img {
+            transform: scale(1.08);
+        }
+        .product-title {
+            font-size: 0.73rem;
+            font-weight: 500;
+            color: var(--gray-800);
+            padding: 6px 8px 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .product-price {
+            font-size: 0.73rem;
+            font-weight: 700;
+            color: var(--green);
+            padding: 0 8px 6px;
+        }
+        .heart-icon {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 28px;
+            height: 28px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-sm);
+        }
+        .heart-icon svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 8px 0 14px;
+            background: var(--white);
+            border-top: 1px solid var(--gray-200);
+            opacity: 0;
+        }
+        .bottom-nav.show {
+            animation: slideUp 0.5s var(--ease-out) forwards;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            font-size: 0.62rem;
+            color: var(--gray-400);
+            font-weight: 500;
+        }
+        .nav-item.active { color: var(--green); }
+        .nav-icon { width: 22px; height: 22px; }
+        .plus-btn {
+            width: 48px;
+            height: 48px;
+            background: var(--green);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: -20px;
+            box-shadow: 0 4px 15px var(--green-glow);
+        }
+        .plus-btn svg { width: 24px; height: 24px; }
+
+        /* ========== SCENE 2: SEARCH + CATEGORIES ========== */
+        .search-scene {
+            padding: 24px 16px 70px;
+        }
+        .search-active-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: var(--gray-100);
+            border-radius: var(--radius-full);
+            border: 2px solid var(--green);
+            font-size: 0.88rem;
+            color: var(--gray-900);
+            margin-bottom: 16px;
+            opacity: 0;
+        }
+        .search-active-bar.show {
+            animation: fadeInUp 0.5s var(--ease-out) forwards;
+        }
+        .typing-text { font-weight: 500; }
+        .cursor-blink {
+            display: inline-block;
+            width: 2px;
+            height: 1.1em;
+            background: var(--green);
+            margin-left: 1px;
+            animation: blink 0.6s step-end infinite;
+            vertical-align: middle;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .search-results { opacity: 0; }
+        .search-results.show {
+            animation: fadeInUp 0.5s var(--ease-out) forwards;
+        }
+        .result-card {
+            display: flex;
+            gap: 12px;
+            padding: 10px;
+            background: var(--white);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-card);
+            margin-bottom: 10px;
+            opacity: 0;
+            transform: translateY(15px);
+        }
+        .result-card.show {
+            animation: cardAppear 0.5s var(--ease-out) forwards;
+        }
+        .result-img {
+            width: 80px;
+            height: 80px;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            flex-shrink: 0;
+            background: var(--gray-100);
+        }
+        .result-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .result-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .result-title { font-size: 0.85rem; font-weight: 600; color: var(--gray-900); }
+        .result-price { font-size: 0.85rem; font-weight: 700; color: var(--green); margin-top: 4px; }
+        .result-location { font-size: 0.7rem; color: var(--gray-500); margin-top: 2px; display: flex; align-items: center; gap: 3px; }
+        .icon-pin { width: 12px; height: 12px; }
+
+        /* Category Grid */
+        .category-grid-container {
+            position: absolute;
+            inset: 0;
+            padding: 24px 20px;
+            opacity: 0;
+            background: var(--white);
+        }
+        .category-grid-container.show {
+            animation: fadeInUp 0.6s var(--ease-out) forwards;
+        }
+        .category-back {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 24px;
+        }
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+        }
+        .category-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 18px 8px;
+            background: var(--gray-50);
+            border-radius: var(--radius-lg);
+            opacity: 0;
+            transform: scale(0.7);
+        }
+        .category-item.show {
+            animation: catPop 0.5s var(--ease-bounce) forwards;
+        }
+        @keyframes catPop {
+            from { opacity: 0; transform: scale(0.7); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .cat-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--green-bg);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .cat-icon svg { width: 24px; height: 24px; }
+        .cat-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--gray-700);
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        /* ========== SCENE 3: PUBLISH ========== */
+        .publish-scene {
+            padding: 24px 16px 70px;
+            overflow-y: auto;
+        }
+        .publish-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            opacity: 0;
+        }
+        .publish-header.show {
+            animation: fadeInUp 0.5s var(--ease-out) forwards;
+        }
+        .publish-title-text {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .photo-upload {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .photo-thumb {
+            width: 70px;
+            height: 70px;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            opacity: 0;
+            transform: scale(0.5);
+            background: var(--gray-100);
+        }
+        .photo-thumb.show {
+            animation: photoPop 0.4s var(--ease-bounce) forwards;
+        }
+        @keyframes photoPop {
+            from { opacity: 0; transform: scale(0.5); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .photo-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .photo-add {
+            width: 70px;
+            height: 70px;
+            border: 2px dashed var(--gray-300);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--gray-400);
+        }
+        .photo-add svg { width: 24px; height: 24px; }
+
+        .form-field {
+            margin-bottom: 16px;
+            opacity: 0;
+        }
+        .form-field.show {
+            animation: fadeInUp 0.5s var(--ease-out) forwards;
+        }
+        .field-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--gray-600);
+            margin-bottom: 6px;
+        }
+        .field-input {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--gray-100);
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-md);
+            font-size: 0.85rem;
+            color: var(--gray-800);
+            font-family: var(--font);
+        }
+        .field-input.typing {
+            border-color: var(--green);
+            background: var(--white);
+        }
+        .field-textarea { height: 80px; resize: none; }
+
+        .publish-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--green);
+            color: white;
+            border: none;
+            border-radius: var(--radius-full);
+            font-size: 1rem;
+            font-weight: 700;
+            font-family: var(--font);
+            cursor: pointer;
+            opacity: 0;
+            box-shadow: 0 4px 15px var(--green-glow);
+        }
+        .publish-btn.show {
+            animation: fadeInUp 0.5s var(--ease-out) forwards;
+        }
+        .publish-btn.glow {
+            animation: btnGlow 0.8s ease-in-out infinite alternate;
+        }
+        @keyframes btnGlow {
+            from { box-shadow: 0 4px 15px var(--green-glow); }
+            to { box-shadow: 0 4px 30px var(--green-glow), 0 0 40px var(--green-glow-soft); }
+        }
+        .publish-btn.pressed {
+            transform: scale(0.96);
+            transition: transform 0.15s ease;
+        }
+
+        /* Success Overlay */
+        .success-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.97);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 30;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .success-overlay.show {
+            animation: fadeIn 0.5s var(--ease-smooth) forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .success-check {
+            width: 90px;
+            height: 90px;
+            background: var(--green);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            opacity: 0;
+            transform: scale(0);
+        }
+        .success-check.show {
+            animation: checkPop 0.6s var(--ease-bounce) forwards;
+        }
+        @keyframes checkPop {
+            from { opacity: 0; transform: scale(0) rotate(-180deg); }
+            to { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+        .success-check svg { width: 44px; height: 44px; }
+        .success-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--green);
+            opacity: 0;
+        }
+        .success-title.show { animation: fadeInUp 0.5s var(--ease-out) forwards; }
+        .success-sub {
+            font-size: 0.9rem;
+            color: var(--gray-500);
+            margin-top: 6px;
+            opacity: 0;
+        }
+        .success-sub.show { animation: fadeInUp 0.5s var(--ease-out) 0.15s forwards; }
+
+        .confetti {
+            position: absolute;
+            border-radius: 2px;
+            z-index: 40;
+            pointer-events: none;
+        }
+        @keyframes confettiFall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+
+        /* ========== SCENE 4: PRODUCT DETAIL ========== */
+        .detail-scene { padding: 0; overflow: hidden; }
+        .detail-header {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 16px 12px;
+            z-index: 20;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.95) 0%, transparent 100%);
+        }
+        .detail-back-btn svg, .detail-share-btn svg { width: 22px; height: 22px; }
+
+        .detail-image-area {
+            width: 100%;
+            height: 300px;
+            position: relative;
+            opacity: 0;
+            overflow: hidden;
+            background: var(--gray-100);
+        }
+        .detail-image-area.show {
+            animation: imageReveal 0.8s var(--ease-out) forwards;
+        }
+        @keyframes imageReveal {
+            from { opacity: 0; transform: scale(1.1); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .detail-image-area img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 8s ease-out;
+        }
+        .detail-image-area.show img {
+            transform: scale(1.1);
+        }
+        .image-dots {
+            position: absolute;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+        }
+        .img-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.5);
+        }
+        .img-dot.active {
+            background: var(--white);
+            width: 20px;
+            border-radius: 4px;
+        }
+
+        .detail-content { padding: 20px 16px; opacity: 0; }
+        .detail-content.show { animation: slideUp 0.6s var(--ease-out) forwards; }
+        .detail-product-title { font-size: 1.2rem; font-weight: 700; color: var(--gray-900); }
+        .detail-product-price { font-size: 1.3rem; font-weight: 800; color: var(--green); margin-top: 6px; }
+        .detail-location { display: flex; align-items: center; gap: 4px; font-size: 0.8rem; color: var(--gray-500); margin-top: 8px; }
+
+        .seller-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px;
+            background: var(--gray-50);
+            border-radius: var(--radius-lg);
+            margin-top: 16px;
+            opacity: 0;
+        }
+        .seller-card.show { animation: fadeInUp 0.5s var(--ease-out) forwards; }
+        .seller-avatar {
+            width: 48px; height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--green), var(--green-light));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        .seller-name { font-size: 0.9rem; font-weight: 700; color: var(--gray-900); }
+        .seller-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--green);
+            background: var(--green-bg);
+            padding: 2px 8px;
+            border-radius: var(--radius-full);
+            margin-top: 2px;
+        }
+        .seller-rating { font-size: 0.75rem; color: var(--gray-500); margin-top: 2px; }
+
+        .detail-description { margin-top: 16px; opacity: 0; }
+        .detail-description.show { animation: fadeInUp 0.5s var(--ease-out) forwards; }
+        .desc-title { font-size: 0.9rem; font-weight: 700; color: var(--gray-900); margin-bottom: 6px; }
+        .desc-text { font-size: 0.8rem; color: var(--gray-600); line-height: 1.5; }
+
+        /* ========== SCENE 5: CHAT ========== */
+        .chat-scene {
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .chat-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 20px 16px 12px;
+            border-bottom: 1px solid var(--gray-200);
+            background: var(--white);
+            opacity: 0;
+        }
+        .chat-header.show { animation: slideDown 0.5s var(--ease-out) forwards; }
+        .chat-avatar {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--green), var(--green-light));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+        .chat-name { font-size: 0.95rem; font-weight: 700; color: var(--gray-900); }
+        .chat-status { font-size: 0.7rem; color: var(--green); font-weight: 500; }
+        .chat-dots { margin-left: auto; color: var(--gray-600); }
+        .chat-dots svg { width: 20px; height: 20px; }
+
+        .chat-body {
+            flex: 1;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow: hidden;
+        }
+        .chat-bubble {
+            max-width: 75%;
+            padding: 10px 14px;
+            border-radius: 18px;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            opacity: 0;
+            transform: translateY(10px) scale(0.95);
+        }
+        .chat-bubble.show { animation: bubbleAppear 0.4s var(--ease-out) forwards; }
+        @keyframes bubbleAppear {
+            from { opacity: 0; transform: translateY(10px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .chat-bubble.buyer {
+            align-self: flex-start;
+            background: var(--gray-100);
+            color: var(--gray-900);
+            border-bottom-left-radius: 4px;
+        }
+        .chat-bubble.seller {
+            align-self: flex-end;
+            background: var(--green);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .chat-time { font-size: 0.6rem; color: var(--gray-400); margin-top: 3px; }
+        .chat-bubble.seller .chat-time { color: rgba(255,255,255,0.7); }
+
+        .typing-indicator {
+            align-self: flex-start;
+            background: var(--gray-100);
+            padding: 12px 18px;
+            border-radius: 18px;
+            border-bottom-left-radius: 4px;
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+        }
+        .typing-indicator.show { animation: fadeIn 0.3s ease forwards; }
+        .typing-indicator.hide { animation: fadeOut 0.3s ease forwards; }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+        .typing-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--gray-400);
+            animation: typingBounce 1.4s ease-in-out infinite;
+        }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typingBounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-5px); }
+        }
+
+        .chat-input-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px 20px;
+            border-top: 1px solid var(--gray-200);
+            opacity: 0;
+        }
+        .chat-input-bar.show { animation: slideUp 0.5s var(--ease-out) forwards; }
+        .chat-input {
+            flex: 1;
+            padding: 10px 16px;
+            background: var(--gray-100);
+            border-radius: var(--radius-full);
+            font-size: 0.85rem;
+            color: var(--gray-400);
+            border: none;
+        }
+        .chat-send {
+            width: 40px; height: 40px;
+            background: var(--green);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .chat-send svg { width: 18px; height: 18px; }
+
+        /* ========== SCENE 6: FINALE ========== */
+        .finale-scene {
+            background: var(--white);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .montage-frame {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .montage-frame.flash { animation: montageFlash 0.2s ease forwards; }
+        @keyframes montageFlash {
+            0% { opacity: 0; transform: scale(0.95); }
+            30% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(1.02); }
+        }
+        .montage-frame img {
+            width: 60%;
+            max-height: 50%;
+            object-fit: cover;
+            border-radius: var(--radius-lg);
+            opacity: 0.4;
+        }
+
+        .finale-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        .finale-word {
+            font-size: clamp(1.8rem, 5vw, 2.5rem);
+            font-weight: 900;
+            color: var(--green);
+            opacity: 0;
+            transform: translateY(15px);
+        }
+        .finale-word.show { animation: finaleWordAppear 0.4s var(--ease-out) forwards; }
+        @keyframes finaleWordAppear {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .finale-word.brand {
+            font-size: clamp(2.2rem, 6vw, 3rem);
+            margin-top: 6px;
+        }
+
+        .finale-logo {
+            margin-bottom: 24px;
+            opacity: 0;
+            transform: scale(0.5);
+        }
+        .finale-logo.show { animation: finalLogoAppear 0.6s var(--ease-bounce) forwards; }
+        @keyframes finalLogoAppear {
+            from { opacity: 0; transform: scale(0.5); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .finale-logo .logo-icon {
+            width: 90px;
+            height: 90px;
+            border-radius: 20px;
+            box-shadow: 0 6px 20px var(--green-glow-soft);
+            animation: finalGlow 1.2s ease-in-out infinite alternate;
+        }
+        @keyframes finalGlow {
+            from { box-shadow: 0 6px 20px var(--green-glow-soft); }
+            to { box-shadow: 0 6px 35px var(--green-glow); }
+        }
+
+        .finale-cta {
+            font-size: clamp(0.9rem, 2vw, 1.05rem);
+            font-weight: 600;
+            color: var(--gray-600);
+            margin-top: 24px;
+            opacity: 0;
+        }
+        .finale-cta.show { animation: fadeInUp 0.5s var(--ease-out) forwards; }
+
+        .badge-container {
+            margin-top: 20px;
+            display: flex;
+            gap: 12px;
+            opacity: 0;
+            justify-content: center;
+            align-items: center;
+        }
+        .badge-container.show { animation: fadeInUp 0.5s var(--ease-out) forwards; }
+        .app-store-badge, .google-play-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 18px;
+            background: var(--gray-900);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+            transition: transform 0.2s ease;
+        }
+        .app-store-badge:hover, .google-play-badge:hover {
+            transform: translateY(-2px);
+        }
+        .as-icon svg, .gp-icon svg { width: 22px; height: 22px; display: block; }
+        .as-text, .gp-text { display: flex; flex-direction: column; text-align: left; }
+        .as-text-top, .gp-text-top {
+            font-size: 0.52rem;
+            color: rgba(255,255,255,0.7);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .as-text-bottom, .gp-text-bottom {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: white;
+            margin-top: -1px;
+            white-space: nowrap;
+        }
+
+        /* ========== CONTROLS ========== */
+        .controls-container {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 200;
+            display: flex;
+            gap: 12px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s var(--ease-out);
+            pointer-events: none;
+        }
+        .controls-container.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        .control-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: var(--radius-full);
+            font-family: var(--font);
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 20px var(--green-glow);
+            transition: all 0.2s var(--ease-out);
+        }
+        .control-btn.primary {
+            background: var(--green);
+            color: white;
+        }
+        .control-btn.secondary {
+            background: var(--gray-900);
+            color: white;
+        }
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px var(--green-glow);
+        }
+        .control-btn:active {
+            transform: translateY(0);
+        }
+
+        #timer {
+            position: fixed;
+            top: 12px;
+            right: 16px;
+            z-index: 1000;
+            font-family: var(--font);
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--gray-400);
+            background: rgba(255,255,255,0.9);
+            padding: 4px 10px;
+            border-radius: var(--radius-full);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body>
+
+<!-- Progress Bar -->
+<div id="progress-bar"><div id="progress-fill"></div></div>
+<div id="timer">0:00 / 0:44</div>
+
+<!-- ========== SCENE 1: LOGO + HOME ========== -->
+<div class="scene" id="scene1">
+    <div class="logo-container" id="logo1">
+        <div class="logo-glow"></div>
+        <img class="logo-icon" src="images/logo.jpg" alt="Flashmarket Logo">
+        <div class="logo-text">Flashmarket</div>
+    </div>
+    <div class="scene-inner">
+        <div class="phone-screen" id="home-screen">
+            <div class="home-header" id="s1-header">
+                <div class="home-greeting">Salut, Soumaila !</div>
+                <div class="home-subtitle">Que cherchez-vous aujourd'hui ?</div>
+            </div>
+            <div class="search-bar" id="s1-search">
+                <svg class="icon-search" viewBox="0 0 24 24" fill="none" stroke="#bdbdbd" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span>Que cherchez-vous ?</span>
+            </div>
+            <div class="category-pills" id="s1-pills">
+                <div class="pill">
+                    <svg class="pill-icon" viewBox="0 0 24 24" fill="none" stroke="#424242" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+                    Téléphone & Électronique
+                </div>
+                <div class="pill">
+                    <svg class="pill-icon" viewBox="0 0 24 24" fill="none" stroke="#424242" stroke-width="2"><path d="M20.38 3.46L16 2 12 5.99 8 2 3.62 3.46a2 2 0 00-1.34 2.23l.58 3.47a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V10h2.15a1 1 0 00.99-.84l.58-3.47a2 2 0 00-1.34-2.23z"/></svg>
+                    Mode & Beauté
+                </div>
+            </div>
+            <div class="safety-banner" id="s1-safety">
+                <svg class="icon-shield" viewBox="0 0 24 24" fill="none" stroke="#0f6e2c" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                <span>Achetez en toute sécurité</span>
+            </div>
+            <div class="section-header" id="s1-section1">
+                <span>Récemment consultés</span>
+                <span class="clear-link">Effacer</span>
+            </div>
+            <div class="product-grid" id="s1-grid1">
+                <div class="product-card small" id="s1-card1">
+                    <div class="product-img"><img src="images/kia_front.jpg" alt="Kia K5"></div>
+                    <div class="product-title">Kia k5 tout fini 6.5...</div>
+                    <div class="product-price">6,5M FCFA</div>
+                </div>
+                <div class="product-card small" id="s1-card2">
+                    <div class="product-img"><img src="images/ostrich.jpg" alt="Autruche"></div>
+                    <div class="product-title">Autruche</div>
+                    <div class="product-price">2M FCFA</div>
+                </div>
+                <div class="product-card small" id="s1-card3">
+                    <div class="product-img"><img src="images/macbook.jpg" alt="MacBook M4"></div>
+                    <div class="product-title">MacBook M4</div>
+                    <div class="product-price">450 000 FCFA</div>
+                </div>
+            </div>
+            <div class="section-header" id="s1-section2">
+                <span>Annonces récentes</span>
+                <span class="see-all">Voir tout</span>
+            </div>
+            <div class="product-grid" id="s1-grid2">
+                <div class="product-card large" id="s1-card4">
+                    <div class="product-img large">
+                        <img src="images/kia_side.jpg" alt="Kia K5">
+                        <span class="heart-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#bdbdbd" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span>
+                    </div>
+                    <div class="product-title">Kia k5 tout fini</div>
+                    <div class="product-price">6,5M FCFA</div>
+                </div>
+                <div class="product-card large" id="s1-card5">
+                    <div class="product-img large">
+                        <img src="images/ostrich.jpg" alt="Autruche">
+                        <span class="heart-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#bdbdbd" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span>
+                    </div>
+                    <div class="product-title">Autruche</div>
+                    <div class="product-price">2M FCFA</div>
+                </div>
+            </div>
+            <div class="bottom-nav" id="s1-nav">
+                <div class="nav-item active">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="#178A3B" stroke="none"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                    <span>Accueil</span>
+                </div>
+                <div class="nav-item">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#bdbdbd" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <span>Recherche</span>
+                </div>
+                <div class="nav-item">
+                    <div class="plus-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </div>
+                </div>
+                <div class="nav-item">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#bdbdbd" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                    <span>Messages</span>
+                </div>
+                <div class="nav-item">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="#bdbdbd" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span>Profil</span>
+            </div> <!-- Closes bottom-nav -->
+        </div> <!-- Closes phone-screen -->
+        <div class="overlay-text" id="ot1">
+            <div class="ot-line" id="ot1a">Le marché malien dans votre poche.</div>
+            <div class="ot-line sub" id="ot1b">Simple · Rapide · Local</div>
+        </div>
+    </div> <!-- Closes scene-inner -->
+</div> <!-- Closes scene1 -->
+</div>
+
+<!-- ========== SCENE 2: SEARCH + CATEGORIES ========== -->
+<div class="scene" id="scene2">
+    <div class="scene-inner">
+        <div class="category-grid-container" id="cat-view" style="opacity: 1; display: block;">
+            <div class="category-back">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#424242" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+                Catégories
+            </div>
+            <div class="category-grid" id="cat-grid">
+                <div class="category-item" id="cat1"><div class="cat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#178A3B" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg></div><div class="cat-label">Téléphones &<br>Électronique</div></div>
+                <div class="category-item" id="cat2"><div class="cat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#178A3B" stroke-width="2"><path d="M20.38 3.46L16 2 12 5.99 8 2 3.62 3.46a2 2 0 00-1.34 2.23l.58 3.47a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V10h2.15a1 1 0 00.99-.84l.58-3.47a2 2 0 00-1.34-2.23z"/></svg></div><div class="cat-label">Mode &<br>Beauté</div></div>
+                <div class="category-item" id="cat3"><div class="cat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#178A3B" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div><div class="cat-label">Maison &<br>Bureau</div></div>
+                <div class="category-item" id="cat4"><div class="cat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#178A3B" stroke-width="2"><path d="M7 17m-2 0a2 2 0 104 0 2 2 0 10-4 0"/><path d="M17 17m-2 0a2 2 0 104 0 2 2 0 10-4 0"/><path d="M5 17H3V6l2-3h5l2 3h5l3 3v8h-2"/><path d="M9 17h6"/></svg></div><div class="cat-label">Véhicules</div></div>
+                <div class="category-item" id="cat5"><div class="cat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#178A3B" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg></div><div class="cat-label">Immobilier</div></div>
+                <div class="category-item" id="cat6"><div class="cat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#178A3B" stroke-width="2"><path d="M12 2C8 2 4 6 4 10c0 6 8 12 8 12s8-6 8-12c0-4-4-8-8-8z"/><circle cx="12" cy="10" r="3"/></svg></div><div class="cat-label">Animaux</div></div>
+                <div class="category-item" id="cat7"><div class="cat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#178A3B" stroke-width="2"><path d="M12 22V8"/><path d="M5 12H2a10 10 0 0020 0h-3"/><path d="M8 5l4-3 4 3"/><path d="M8 5v3"/><path d="M16 5v3"/></svg></div><div class="cat-label">Agriculture</div></div>
+                <div class="category-item" id="cat8"><div class="cat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#178A3B" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg></div><div class="cat-label">Services</div></div>
+                <div class="category-item" id="cat9"><div class="cat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#178A3B" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/></svg></div><div class="cat-label">Autres</div></div>
+            </div>
+        </div>
+        <div class="overlay-text" id="ot2">
+            <div class="ot-line" id="ot2a">Explorez des milliers d'annonces.</div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SCENE 3: PUBLISH ========== -->
+<div class="scene" id="scene3">
+    <div class="scene-inner">
+        <div class="publish-scene" id="publish-view">
+            <div class="publish-header" id="s3-header">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#424242" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+                <span class="publish-title-text">Nouvelle annonce</span>
+            </div>
+            <div class="field-label" style="opacity:0" id="s3-photo-label">Ajouter des photos</div>
+            <div class="photo-upload" id="s3-photos">
+                <div class="photo-thumb" id="pt1"><img src="images/kia_front.jpg" alt="Photo 1"></div>
+                <div class="photo-thumb" id="pt2"><img src="images/kia_side.jpg" alt="Photo 2"></div>
+                <div class="photo-thumb" id="pt3"><img src="images/kia_front.jpg" alt="Photo 3"></div>
+                <div class="photo-thumb" id="pt4"><img src="images/kia_side.jpg" alt="Photo 4"></div>
+                <div class="photo-add">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#bdbdbd" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </div>
+            </div>
+            <div class="form-field" id="s3-f1">
+                <div class="field-label">Titre de l'annonce</div>
+                <div class="field-input" id="s3-title-input">Kia k5 tout fini 6.5L</div>
+            </div>
+            <div class="form-field" id="s3-f2">
+                <div class="field-label">Description</div>
+                <div class="field-input field-textarea" id="s3-desc-input"></div>
+            </div>
+            <div class="form-field" id="s3-f3">
+                <div class="field-label">Prix</div>
+                <div class="field-input" id="s3-price-input">6 500 000 FCFA</div>
+            </div>
+            <button class="publish-btn" id="s3-btn">Publier l'annonce</button>
+        </div>
+        <div class="success-overlay" id="success-overlay">
+            <div class="success-check" id="success-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div class="success-title" id="success-title">Annonce publiée !</div>
+            <div class="success-sub" id="success-sub">Votre annonce est en ligne.</div>
+        </div>
+        <div class="overlay-text" id="ot3">
+            <div class="ot-line" id="ot3a">Postez votre annonce en quelques secondes.</div>
+            <div class="ot-line sub" id="ot3b">Trouvez rapidement des acheteurs.</div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SCENE 4: PRODUCT DETAIL ========== -->
+<div class="scene" id="scene4">
+    <div class="scene-inner">
+        <div class="detail-scene" id="detail-view">
+            <div class="detail-header">
+                <span class="detail-back-btn"><svg viewBox="0 0 24 24" fill="none" stroke="#424242" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg></span>
+                <span class="detail-share-btn"><svg viewBox="0 0 24 24" fill="none" stroke="#424242" stroke-width="2" stroke-linecap="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></span>
+            </div>
+            <div class="detail-image-area" id="s4-img">
+                <img src="images/kia_front.jpg" alt="Kia K5" id="s4-main-img">
+                <div class="image-dots">
+                    <div class="img-dot active"></div>
+                    <div class="img-dot"></div>
+                    <div class="img-dot"></div>
+                    <div class="img-dot"></div>
+                </div>
+            </div>
+            <div class="detail-content" id="s4-content">
+                <div class="detail-product-title">Kia k5 tout fini 6.5L</div>
+                <div class="detail-product-price">6 500 000 FCFA</div>
+                <div class="detail-location">
+                    <svg class="icon-pin" viewBox="0 0 24 24" fill="none" stroke="#9e9e9e" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    Bamako, Hamdallaye ACI
+                </div>
+                <div class="seller-card" id="s4-seller">
+                    <div class="seller-avatar">MS</div>
+                    <div>
+                        <div class="seller-name">Moussa Sidibé</div>
+                        <div class="seller-badge">
+                            <svg viewBox="0 0 24 24" width="12" height="12" fill="#178A3B" stroke="none"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                            Professionnel
+                        </div>
+                        <div class="seller-rating">4.8 · 32 annonces</div>
+                    </div>
+                </div>
+                <div class="detail-description" id="s4-desc">
+                    <div class="desc-title">Description</div>
+                    <div class="desc-text">Voiture propre, aucun problème, prête à rouler. Kia K5 tout fini 6.5L en excellent état. Climatisation, intérieur cuir, caméra de recul. Première main.</div>
+                </div>
+            </div>
+        </div>
+        <div class="overlay-text" id="ot4">
+            <div class="ot-line" id="ot4a">Découvrez les vendeurs près de chez vous.</div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SCENE 5: CHAT ========== -->
+<div class="scene" id="scene5">
+    <div class="scene-inner">
+        <div class="chat-scene" id="chat-view">
+            <div class="chat-header" id="s5-header">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#424242" stroke-width="2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+                <div class="chat-avatar">MS</div>
+                <div>
+                    <div class="chat-name">Kia k5 tout fini 6.5L</div>
+                    <div class="chat-status">En ligne</div>
+                </div>
+                <div class="chat-dots"><svg viewBox="0 0 24 24" fill="none" stroke="#757575" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></div>
+            </div>
+            <div class="chat-body" id="chat-body">
+                <div class="chat-bubble buyer" id="msg1">
+                    Bonjour, est-il disponible ?
+                    <div class="chat-time">10:30</div>
+                </div>
+                <div class="chat-bubble seller" id="msg2">
+                    Oui, toujours disponible.
+                    <div class="chat-time">10:31</div>
+                </div>
+                <div class="chat-bubble buyer" id="msg3">
+                    On peut se rencontrer aujourd'hui ?
+                    <div class="chat-time">10:32</div>
+                </div>
+                <div class="typing-indicator" id="typing-ind">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+                <div class="chat-bubble seller" id="msg4">
+                    Avec plaisir.
+                    <div class="chat-time">10:33</div>
+                </div>
+            </div>
+            <div class="chat-input-bar" id="s5-input">
+                <div class="chat-input">Écrire un message...</div>
+                <div class="chat-send">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </div>
+            </div>
+        </div>
+        <div class="overlay-text" id="ot5">
+            <div class="ot-line" id="ot5a">Discutez directement avec les vendeurs.</div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SCENE 6: FINALE ========== -->
+<div class="scene" id="scene6">
+    <div class="finale-scene" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <div class="montage-frame" id="mf1"><img src="images/kia_front.jpg" alt=""></div>
+        <div class="montage-frame" id="mf2"><img src="images/ostrich.jpg" alt=""></div>
+        <div class="montage-frame" id="mf3"><img src="images/macbook.jpg" alt=""></div>
+        <div class="montage-frame" id="mf4"><img src="images/kia_side.jpg" alt=""></div>
+
+        <div class="finale-content" id="finale-content">
+            <div class="finale-logo" id="f-logo">
+                <img class="logo-icon" src="images/logo.jpg" alt="Flashmarket Logo">
+            </div>
+            <div class="finale-word" id="fw1">Achetez.</div>
+            <div class="finale-word" id="fw2">Vendez.</div>
+            <div class="finale-word" id="fw3">Discutez.</div>
+            <div class="finale-word brand" id="fw4">Flashmarket.</div>
+            <div class="finale-cta" id="f-cta">Téléchargez l'application dès maintenant.</div>
+            <div class="badge-container" id="f-badges">
+                <!-- App Store Badge -->
+                <div class="app-store-badge">
+                    <div class="as-icon"><svg viewBox="0 0 24 24" fill="white" stroke="none"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.17c.66-.81 1.11-1.93.99-3.06-1 .04-2.21.67-2.93 1.49-.62.69-1.16 1.84-1.01 2.96 1.12.09 2.27-.58 2.95-1.39z"/></svg></div>
+                    <div class="as-text">
+                        <span class="as-text-top">Télécharger dans l'</span>
+                        <span class="as-text-bottom">App Store</span>
+                    </div>
+                </div>
+                <!-- Google Play Badge -->
+                <div class="google-play-badge">
+                    <div class="gp-icon"><svg viewBox="0 0 24 24" fill="white" stroke="none"><path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-1.4l2.834 1.64a1 1 0 010 1.732l-2.834 1.64-2.536-2.536 2.536-2.476zM5.864 2.658L16.8 8.99l-2.302 2.302-8.635-8.635z"/></svg></div>
+                    <div class="gp-text">
+                        <span class="gp-text-top">Disponible sur</span>
+                        <span class="gp-text-bottom">Google Play</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="controls-container" id="controls">
+    <button class="control-btn primary" onclick="replayAnimation()">Rejouer</button>
+    <button class="control-btn secondary" onclick="startRecording()">Télécharger la Vidéo 🎥</button>
+</div>
+
+<script>
+    // ========== TIMELINE ENGINE - 44 SECONDS ==========
+    const TOTAL_DURATION = 44000;
+    let startTime = 0;
+    let animationId = null;
+    let currentScene = 0;
+    let scheduledTimeouts = [];
+
+    function clearAllTimeouts() {
+        scheduledTimeouts.forEach(id => clearTimeout(id));
+        scheduledTimeouts = [];
+    }
+
+    function schedule(fn, delay) {
+        const id = setTimeout(fn, delay);
+        scheduledTimeouts.push(id);
+        return id;
+    }
+
+    // ========== SCENE MANAGEMENT ==========
+    function showScene(num) {
+        document.querySelectorAll('.scene.active').forEach(s => {
+            s.classList.remove('active', 'fade-in');
+            s.classList.add('fade-out');
+            setTimeout(() => s.classList.remove('fade-out'), 800);
+        });
+        const scene = document.getElementById('scene' + num);
+        if (scene) {
+            scene.classList.add('active', 'fade-in');
+            currentScene = num;
+        }
+    }
+
+    function showElement(id, cls = 'show') {
+        const el = document.getElementById(id);
+        if (el) el.classList.add(cls);
+    }
+
+    function hideElement(id) {
+        const el = document.getElementById(id);
+        if (el) { el.classList.remove('show'); el.classList.add('hide'); }
+    }
+
+    function showOT(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('show');
+    }
+
+    function hideOT(id) {
+        const el = document.getElementById(id);
+        if (el) { el.classList.remove('show'); el.classList.add('hide'); }
+    }
+
+    // ========== PROGRESS BAR ==========
+    function updateProgress(elapsed) {
+        const pct = Math.min((elapsed / TOTAL_DURATION) * 100, 100);
+        document.getElementById('progress-fill').style.width = pct + '%';
+        const secs = Math.floor(elapsed / 1000);
+        document.getElementById('timer').textContent = `0:${String(secs).padStart(2, '0')} / 0:44`;
+    }
+
+    // ========== TYPING ANIMATION ==========
+    function typeText(elementId, text, speed = 100) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        let i = 0;
+        function type() {
+            if (i < text.length) {
+                el.textContent += text.charAt(i);
+                i++;
+                schedule(type, speed);
+            }
+        }
+        type();
+    }
+
+    function typeInField(elementId, text, speed = 50) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        el.classList.add('typing');
+        let i = 0;
+        function type() {
+            if (i < text.length) {
+                el.textContent += text.charAt(i);
+                i++;
+                schedule(type, speed);
+            }
+        }
+        type();
+    }
+
+    // ========== CONFETTI ==========
+    function createConfetti(container) {
+        const colors = ['#178A3B', '#1ea94a', '#4CAF50', '#81C784', '#A5D6A7', '#ffffff', '#C8E6C9'];
+        const parent = document.getElementById(container) || document.body;
+        for (let i = 0; i < 60; i++) {
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
+            confetti.style.cssText = `
+                left: ${Math.random() * 100}%;
+                top: -10px;
+                width: ${Math.random() * 8 + 4}px;
+                height: ${Math.random() * 8 + 4}px;
+                background: ${colors[Math.floor(Math.random() * colors.length)]};
+                border-radius: ${Math.random() > 0.5 ? '50%' : '2px'};
+                animation: confettiFall ${Math.random() * 2 + 1.5}s ease-out forwards;
+                animation-delay: ${Math.random() * 0.5}s;
+            `;
+            parent.appendChild(confetti);
+            schedule(() => confetti.remove(), 4000);
+        }
+    }
+
+    // ========== SCENE ANIMATIONS ==========
+    // Scene 1: 0s - 8s  (8 seconds - Logo + Home)
+    function playScene1() {
+        showScene(1);
+
+        // Logo appears with glow
+        schedule(() => showElement('logo1', 'show'), 200);
+
+        // Hold logo for 2 seconds, then shrink
+        schedule(() => {
+            const logo = document.getElementById('logo1');
+            logo.classList.remove('show');
+            logo.classList.add('shrink');
+        }, 2500);
+
+        // Home screen fades in
+        schedule(() => showElement('home-screen', 'show'), 3000);
+
+        // Staggered home elements - much slower pacing
+        schedule(() => showElement('s1-header', 'show'), 3300);
+        schedule(() => showElement('s1-search', 'show'), 3800);
+        schedule(() => showElement('s1-pills', 'show'), 4200);
+        schedule(() => showElement('s1-safety', 'show'), 4600);
+        schedule(() => showElement('s1-section1', 'show'), 5000);
+        schedule(() => showElement('s1-card1', 'show'), 5300);
+        schedule(() => showElement('s1-card2', 'show'), 5600);
+        schedule(() => showElement('s1-card3', 'show'), 5900);
+        schedule(() => showElement('s1-section2', 'show'), 6200);
+        schedule(() => showElement('s1-card4', 'show'), 6500);
+        schedule(() => showElement('s1-card5', 'show'), 6800);
+        schedule(() => showElement('s1-nav', 'show'), 5500);
+
+        // Camera zoom
+        schedule(() => {
+            const inner = document.querySelector('#scene1 .scene-inner');
+            if (inner) inner.classList.add('camera-zoom');
+        }, 3500);
+
+        // Overlay text - appears after content is loaded, stays visible longer
+        schedule(() => showOT('ot1a'), 4500);
+        schedule(() => showOT('ot1b'), 5200);
+        schedule(() => { hideOT('ot1a'); hideOT('ot1b'); }, 7500);
+    }
+
+    // Scene 2: 8s - 16s  (8 seconds - Categories)
+    function playScene2() {
+        showScene(2);
+
+        // Show categories directly with layout animation
+        schedule(() => showElement('cat-view', 'show'), 300);
+
+        // Categories pop in - slower stagger
+        schedule(() => showElement('cat1', 'show'), 600);
+        schedule(() => showElement('cat2', 'show'), 800);
+        schedule(() => showElement('cat3', 'show'), 1000);
+        schedule(() => showElement('cat4', 'show'), 1200);
+        schedule(() => showElement('cat5', 'show'), 1400);
+        schedule(() => showElement('cat6', 'show'), 1600);
+        schedule(() => showElement('cat7', 'show'), 1800);
+        schedule(() => showElement('cat8', 'show'), 2000);
+        schedule(() => showElement('cat9', 'show'), 2200);
+
+        // Camera
+        schedule(() => {
+            const inner = document.querySelector('#scene2 .scene-inner');
+            if (inner) inner.classList.add('camera-zoom-search');
+        }, 500);
+
+        // Overlay text - stays longer
+        schedule(() => showOT('ot2a'), 2000);
+        schedule(() => hideOT('ot2a'), 7200);
+    }
+
+    // Scene 3: 16s - 24s  (8 seconds - Publish)
+    function playScene3() {
+        showScene(3);
+
+        schedule(() => showElement('s3-header', 'show'), 400);
+
+        // Photo label
+        schedule(() => {
+            const label = document.getElementById('s3-photo-label');
+            if (label) { label.style.opacity = '1'; label.style.transition = 'opacity 0.4s ease'; }
+        }, 700);
+
+        // Photos pop in - slower
+        schedule(() => showElement('pt1', 'show'), 900);
+        schedule(() => showElement('pt2', 'show'), 1200);
+        schedule(() => showElement('pt3', 'show'), 1500);
+        schedule(() => showElement('pt4', 'show'), 1800);
+
+        // Form fields
+        schedule(() => showElement('s3-f1', 'show'), 2200);
+        schedule(() => showElement('s3-f2', 'show'), 2600);
+
+        // Type description slowly
+        schedule(() => typeInField('s3-desc-input', 'Voiture propre, aucun problème, prête à rouler.', 40), 2800);
+
+        schedule(() => showElement('s3-f3', 'show'), 4800);
+
+        // Publish button
+        schedule(() => showElement('s3-btn', 'show'), 5200);
+        schedule(() => {
+            const btn = document.getElementById('s3-btn');
+            if (btn) btn.classList.add('glow');
+        }, 5500);
+
+        // Button press
+        schedule(() => {
+            const btn = document.getElementById('s3-btn');
+            if (btn) { btn.classList.add('pressed'); btn.classList.remove('glow'); }
+        }, 6000);
+
+        // Success overlay
+        schedule(() => showElement('success-overlay', 'show'), 6300);
+        schedule(() => createConfetti('success-overlay'), 6300);
+        schedule(() => showElement('success-check', 'show'), 6500);
+        schedule(() => showElement('success-title', 'show'), 6800);
+        schedule(() => showElement('success-sub', 'show'), 7000);
+
+        // Camera
+        schedule(() => {
+            const inner = document.querySelector('#scene3 .scene-inner');
+            if (inner) inner.classList.add('camera-zoom-slow');
+        }, 400);
+
+        // Overlay text
+        schedule(() => showOT('ot3a'), 5500);
+        schedule(() => showOT('ot3b'), 6300);
+        schedule(() => { hideOT('ot3a'); hideOT('ot3b'); }, 7600);
+    }
+
+    // Scene 4: 24s - 32s  (8 seconds - Product Detail)
+    function playScene4() {
+        showScene(4);
+
+        // Image reveals with slow zoom
+        schedule(() => showElement('s4-img', 'show'), 400);
+
+        // Image swipe effect (change source mid-scene)
+        schedule(() => {
+            const img = document.getElementById('s4-main-img');
+            if (img) {
+                img.style.transition = 'opacity 0.5s ease';
+                img.style.opacity = '0';
+                setTimeout(() => {
+                    img.src = 'images/kia_side.jpg';
+                    img.style.opacity = '1';
+                    // Update dots
+                    document.querySelectorAll('.img-dot').forEach((d, i) => {
+                        d.classList.toggle('active', i === 1);
+                        if (i === 0) { d.style.width = '8px'; d.style.borderRadius = '50%'; }
+                        if (i === 1) { d.style.width = '20px'; d.style.borderRadius = '4px'; }
+                    });
+                }, 500);
+            }
+        }, 2500);
+
+        // Content slides up
+        schedule(() => showElement('s4-content', 'show'), 1200);
+
+        // Seller card
+        schedule(() => showElement('s4-seller', 'show'), 2000);
+
+        // Description
+        schedule(() => showElement('s4-desc', 'show'), 3000);
+
+        // Parallax scroll effect
+        schedule(() => {
+            const content = document.getElementById('s4-content');
+            if (content) {
+                content.style.transition = 'transform 2.5s ease-out';
+                content.style.transform = 'translateY(-40px)';
+            }
+        }, 4000);
+
+        // Camera
+        schedule(() => {
+            const inner = document.querySelector('#scene4 .scene-inner');
+            if (inner) inner.classList.add('camera-zoom-slow');
+        }, 400);
+
+        // Overlay text
+        schedule(() => showOT('ot4a'), 4500);
+        schedule(() => hideOT('ot4a'), 7200);
+    }
+
+    // Scene 5: 32s - 38s  (6 seconds - Chat)
+    function playScene5() {
+        showScene(5);
+
+        // Chat header + input
+        schedule(() => showElement('s5-header', 'show'), 300);
+        schedule(() => showElement('s5-input', 'show'), 500);
+
+        // Messages with realistic timing
+        schedule(() => showElement('msg1', 'show'), 1000);
+
+        // Typing indicator before seller response
+        schedule(() => showElement('typing-ind', 'show'), 1800);
+        schedule(() => {
+            hideElement('typing-ind');
+            schedule(() => showElement('msg2', 'show'), 100);
+        }, 2600);
+
+        schedule(() => showElement('msg3', 'show'), 3400);
+
+        // Typing indicator again
+        schedule(() => showElement('typing-ind', 'show'), 4000);
+        schedule(() => {
+            hideElement('typing-ind');
+            schedule(() => showElement('msg4', 'show'), 100);
+        }, 4800);
+
+        // Overlay text
+        schedule(() => showOT('ot5a'), 3500);
+        schedule(() => hideOT('ot5a'), 5500);
+    }
+
+    // Scene 6: 38s - 44s  (6 seconds - Finale)
+    function playScene6() {
+        showScene(6);
+
+        // Quick montage flashes - slower pacing
+        schedule(() => document.getElementById('mf1').classList.add('flash'), 100);
+        schedule(() => document.getElementById('mf2').classList.add('flash'), 400);
+        schedule(() => document.getElementById('mf3').classList.add('flash'), 700);
+        schedule(() => document.getElementById('mf4').classList.add('flash'), 1000);
+
+        // Logo
+        schedule(() => showElement('f-logo', 'show'), 1500);
+
+        // Words appear - with pauses between
+        schedule(() => showElement('fw1', 'show'), 2000);
+        schedule(() => showElement('fw2', 'show'), 2500);
+        schedule(() => showElement('fw3', 'show'), 3000);
+        schedule(() => showElement('fw4', 'show'), 3500);
+
+        // CTA
+        schedule(() => showElement('f-cta', 'show'), 4200);
+
+        // Badges container
+        schedule(() => showElement('f-badges', 'show'), 4800);
+
+        // Controls
+        schedule(() => document.getElementById('controls').classList.add('show'), 5500);
+    }
+
+    // ========== MAIN TIMELINE ==========
+    const sceneTimeline = [
+        { time: 0, fn: playScene1 },
+        { time: 8000, fn: playScene2 },
+        { time: 16000, fn: playScene3 },
+        { time: 24000, fn: playScene4 },
+        { time: 32000, fn: playScene5 },
+        { time: 38000, fn: playScene6 },
+    ];
+
+    function startAnimation() {
+        clearAllTimeouts();
+        if (animationId) cancelAnimationFrame(animationId);
+        document.getElementById('controls').classList.remove('show');
+        document.getElementById('progress-fill').style.width = '0%';
+
+        // Reset all scenes
+        document.querySelectorAll('.scene').forEach(s => {
+            s.classList.remove('active', 'fade-in', 'fade-out');
+        });
+
+        // Reset all animated elements
+        document.querySelectorAll('.show, .hide, .camera-zoom, .camera-zoom-search, .camera-zoom-slow, .glow, .pressed, .flash, .typing, .shrink').forEach(el => {
+            el.classList.remove('show', 'hide', 'camera-zoom', 'camera-zoom-search', 'camera-zoom-slow', 'glow', 'pressed', 'flash', 'typing', 'shrink');
+        });
+        document.body.classList.remove('recording-mode');
+
+        // Reset typing text
+        const typingEl = document.getElementById('s2-typing');
+        if (typingEl) typingEl.textContent = '';
+
+        // Reset description
+        const descInput = document.getElementById('s3-desc-input');
+        if (descInput) descInput.textContent = '';
+
+        // Reset search view
+        const searchView = document.getElementById('search-view');
+        if (searchView) { searchView.style.opacity = ''; searchView.style.transform = ''; searchView.style.transition = ''; }
+
+        // Reset category view
+        const catView = document.getElementById('cat-view');
+        if (catView) catView.classList.remove('show');
+
+        // Reset detail content
+        const s4Content = document.getElementById('s4-content');
+        if (s4Content) { s4Content.style.transition = ''; s4Content.style.transform = ''; }
+
+        // Reset detail image
+        const s4Img = document.getElementById('s4-main-img');
+        if (s4Img) { s4Img.src = 'images/kia_front.jpg'; s4Img.style.transition = ''; s4Img.style.opacity = ''; }
+
+        // Reset dots
+        document.querySelectorAll('.img-dot').forEach((d, i) => {
+            d.classList.toggle('active', i === 0);
+            d.style.width = ''; d.style.borderRadius = '';
+        });
+
+        // Reset photo label
+        const photoLabel = document.getElementById('s3-photo-label');
+        if (photoLabel) { photoLabel.style.opacity = '0'; photoLabel.style.transition = ''; }
+
+        // Reset overlay texts
+        document.querySelectorAll('.ot-line').forEach(el => {
+            el.classList.remove('show', 'hide');
+            el.style.opacity = '0';
+        });
+
+        // Remove confetti
+        document.querySelectorAll('.confetti').forEach(c => c.remove());
+
+        // Start timeline
+        startTime = performance.now();
+        let triggeredScenes = new Set();
+
+        function tick(now) {
+            const elapsed = now - startTime;
+            updateProgress(elapsed);
+
+            sceneTimeline.forEach(s => {
+                if (elapsed >= s.time && !triggeredScenes.has(s.time)) {
+                    triggeredScenes.add(s.time);
+                    s.fn();
+                }
+            });
+
+            if (elapsed < TOTAL_DURATION + 1000) {
+                animationId = requestAnimationFrame(tick);
+            }
+        }
+
+        animationId = requestAnimationFrame(tick);
+    }
+
+    function replayAnimation() {
+        startAnimation();
+    }
+
+    async function startRecording() {
+        const btn = document.querySelector('.control-btn.secondary');
+        const originalText = btn.textContent;
+        btn.textContent = "Sélectionnez l'onglet...";
+        btn.disabled = true;
+
+        try {
+            // Get screen/tab sharing capture
+            const stream = await navigator.mediaDevices.getDisplayMedia({
+                video: {
+                    displaySurface: "browser",
+                    frameRate: 60,
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                },
+                audio: false
+            });
+
+            btn.textContent = "Enregistrement en cours...";
+            
+            // Set recording layout
+            document.body.classList.add('recording-mode');
+            
+            // Replay the animation cleanly
+            replayAnimation();
+
+            // Create a hidden video element to read the stream
+            const video = document.createElement('video');
+            video.srcObject = stream;
+            video.muted = true;
+            video.setAttribute('playsinline', '');
+            video.play();
+
+            // Wait for video properties to load
+            await new Promise((resolve) => {
+                video.onloadedmetadata = () => resolve();
+                if (video.videoWidth > 0) resolve();
+            });
+
+            // Create target 9:16 portrait canvas (TikTok HD Resolution)
+            const canvas = document.createElement('canvas');
+            canvas.width = 1080;
+            canvas.height = 1920;
+            const ctx = canvas.getContext('2d');
+
+            let isDrawing = true;
+            function drawFrame() {
+                if (!isDrawing) return;
+                
+                const streamW = video.videoWidth;
+                const streamH = video.videoHeight;
+                
+                // Calculate the crop coordinates for the centered 9:16 inner-frame
+                const cropH = streamH;
+                const cropW = streamH * (9 / 16);
+                const cropX = (streamW - cropW) / 2;
+                const cropY = 0;
+                
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw the cropped center part from the tab stream
+                ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+                
+                requestAnimationFrame(drawFrame);
+            }
+            requestAnimationFrame(drawFrame);
+
+            // Capture the cropped canvas stream at 60 FPS
+            const canvasStream = canvas.captureStream(60);
+
+            const mediaRecorder = new MediaRecorder(canvasStream, {
+                mimeType: 'video/webm;codecs=vp9',
+                videoBitsPerSecond: 10000000 // 10 Mbps for ultra quality
+            });
+
+            const chunks = [];
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) chunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                isDrawing = false;
+                document.body.classList.remove('recording-mode');
+                
+                // Stop all tracks
+                stream.getTracks().forEach(track => track.stop());
+                canvasStream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'flashmarket-promo.webm';
+                a.click();
+                
+                btn.textContent = originalText;
+                btn.disabled = false;
+            };
+
+            // Start recording
+            mediaRecorder.start();
+
+            // Auto stop when animation finishes (after 44s + 1.5s margin)
+            schedule(() => {
+                if (mediaRecorder.state === "recording") {
+                    mediaRecorder.stop();
+                }
+            }, TOTAL_DURATION + 1500);
+
+        } catch (err) {
+            console.error("Recording failed: ", err);
+            btn.textContent = originalText;
+            btn.disabled = false;
+            document.body.classList.remove('recording-mode');
+            alert("L'enregistrement a échoué ou a été annulé.");
+        }
+    }
+
+    // Auto-start
+    window.addEventListener('load', () => {
+        setTimeout(startAnimation, 500);
+    });
+</script>
+
+</body>
+</html>

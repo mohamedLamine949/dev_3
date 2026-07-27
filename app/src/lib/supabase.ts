@@ -29,7 +29,8 @@ export interface User {
   instagram?: string;
   tiktok?: string;
   facebook?: string;
-  type_compte?: 'particulier' | 'professionnel';
+  type_compte?: 'particulier' | 'vendeur' | 'professionnel';
+  date_abonnement?: string;
   banniere_url?: string;
   images_business?: string[];
   date_creation?: string;

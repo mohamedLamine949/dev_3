@@ -177,3 +177,43 @@ export const ETAT_ARTICLE = [
   { id: 'etat_moyen', label: 'État moyen' },
   { id: 'non_specifie', label: 'Non précisé' },
 ];
+
+export const PLANS_CONFIG = {
+  particulier: {
+    id: 'particulier',
+    nom: 'Gratuit (Occasionnel)',
+    prix: 0,
+    quotaMensuel: 3,
+    dureeAnnonceJours: 30,
+    badgeVerifie: false,
+    boutique: false,
+    annoncesPermanentes: false,
+    boost: 'Normale',
+    stats: false,
+  },
+  vendeur: {
+    id: 'vendeur',
+    nom: 'Vendeur',
+    prix: 2000,
+    quotaMensuel: 30,
+    dureeAnnonceJours: 30,
+    badgeVerifie: false,
+    boutique: false,
+    annoncesPermanentes: false,
+    boost: 'Léger',
+    stats: true,
+  },
+  professionnel: {
+    id: 'professionnel',
+    nom: 'PRO / Boutique',
+    prix: 0, // Offre PRO gratuite (0 F) pour l'amorçage
+    quotaMensuel: Infinity,
+    dureeAnnonceJours: null, // N'expire jamais
+    badgeVerifie: true,
+    boutique: true,
+    annoncesPermanentes: true,
+    boost: 'Maximale',
+    stats: true,
+  },
+} as const;
+

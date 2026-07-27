@@ -16,12 +16,13 @@ import {
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { pickImages } from '../lib/imagePicker';
-import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, ETAT_ARTICLE, CATEGORY_PRICES } from '../constants/theme';
+import { PLANS_CONFIG, COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, ETAT_ARTICLE, CATEGORY_PRICES } from '../constants/theme';
 import { WebView } from 'react-native-webview';
 import { createAnnonce } from '../hooks/useAnnonces';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation } from '../hooks/useLocation';
 import { useTheme } from '../contexts/ThemeContext';
+import { supabase } from '../lib/supabase';
 
 const MAX_IMAGES = 10;
 
@@ -30,7 +31,7 @@ interface Props {
 }
 
 export default function PostAnnonceScreen({ navigation }: any) {
-  const { session, user } = useAuth();
+  const { session, user, refreshUser } = useAuth();
   const { location } = useLocation();
   const { theme, isDark } = useTheme();
 
@@ -42,18 +43,28 @@ export default function PostAnnonceScreen({ navigation }: any) {
   const [selectedEtat, setSelectedEtat] = useState<string | null>(null);
   const [quartier, setQuartier] = useState('');
 
-  const price = selectedCategory ? (CATEGORY_PRICES[selectedCategory] || 250) : 250;
+  const unitPrice = selectedCategory ? (CATEGORY_PRICES[selectedCategory] || 250) : 250;
 
-  // Payment Modal State
+  // Monthly Quota state
+  const [monthlyCount, setMonthlyCount] = useState<number>(0);
+  const [checkingQuota, setCheckingQuota] = useState(false);
+
+  // Payment & Subscription Modal State
   const [isPaymentModalVisible, setPaymentModalVisible] = useState(false);
   const [paymentPhone, setPaymentPhone] = useState('');
   const [paymentUrl, setPaymentUrl] = useState('');
-  const [paymentStep, setPaymentStep] = useState<'form' | 'init_payment' | 'webview' | 'processing' | 'success' | 'error'>('form');
+  const [paymentType, setPaymentType] = useState<'unit_ad' | 'subscription_vendeur'>('unit_ad');
+  const [paymentAmount, setPaymentAmount] = useState(unitPrice);
+  const [paymentStep, setPaymentStep] = useState<'quota_choice' | 'init_payment' | 'webview' | 'processing' | 'success' | 'error'>('quota_choice');
   const [transactionId, setTransactionId] = useState('');
   const [paymentError, setPaymentError] = useState('');
   const isProcessingRef = React.useRef(false);
 
-  // Pre-fill phone from user profile
+  // User current plan definition
+  const currentPlanKey = user?.type_compte || 'particulier';
+  const currentPlan = PLANS_CONFIG[currentPlanKey as keyof typeof PLANS_CONFIG] || PLANS_CONFIG.particulier;
+
+  // Pre-fill phone from user profile & check monthly posts count
   useEffect(() => {
     const rawPhone = user?.telephone || user?.num_telephone;
     if (rawPhone) {
@@ -64,6 +75,27 @@ export default function PostAnnonceScreen({ navigation }: any) {
       setPaymentPhone('00000000');
     }
   }, [user]);
+
+  // Fetch monthly posts count whenever screen or session changes
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const fetchQuota = async () => {
+      setCheckingQuota(true);
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const { count, error } = await supabase
+        .from('annonces')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', session.user.id)
+        .gte('date_creation', startOfMonth);
+      
+      if (!error && count !== null) {
+        setMonthlyCount(count);
+      }
+      setCheckingQuota(false);
+    };
+    fetchQuota();
+  }, [session?.user?.id]);
 
   // Auto-fill ville/quartier from GPS when location becomes available
   useEffect(() => {
@@ -129,12 +161,78 @@ export default function PostAnnonceScreen({ navigation }: any) {
     setQuartier('');
   };
 
-  const performPaymentAndUpload = async () => {
-    isProcessingRef.current = false; // Réinitialiser le verrouillage pour autoriser les succès sur cette tentative
+  // Direct free publication helper
+  const publishAnnonceDirectly = async (montantDepot = 0, transactionRef = 'FREE_QUOTA') => {
+    setPaymentModalVisible(true);
+    setPaymentStep('processing');
+
+    const annonceData = {
+      titre,
+      description: description || null,
+      prix: parseInt(prix, 10),
+      categorie: selectedCategory!,
+      etat_article: selectedEtat || 'non_specifie',
+      ville: location?.ville || 'Mali',
+      quartier: quartier || null,
+      latitude: location?.latitude || null,
+      longitude: location?.longitude || null,
+      est_payee: true,
+      statut: 'active',
+      id_transaction_paiement: transactionRef,
+      montant_depot: montantDepot,
+      user_id: session?.user?.id,
+    };
+
+    const { error } = await createAnnonce(annonceData as any, images);
+
+    if (error) {
+      console.error(error);
+      setPaymentError("La publication a échoué. " + error);
+      setPaymentStep('error');
+      return;
+    }
+
+    setPaymentStep('success');
+    
+    setTimeout(() => {
+      setPaymentModalVisible(false);
+      resetForm();
+      navigation.navigate('Accueil');
+    }, 2500);
+  };
+
+  // Immediate 0 F PRO upgrade and publication
+  const handleUpgradeToProAndPublish = async () => {
+    setPaymentStep('processing');
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          type_compte: 'professionnel',
+          date_abonnement: new Date().toISOString(),
+        })
+        .eq('id', session.user.id);
+
+      if (error) throw error;
+      await refreshUser();
+
+      // Directly publish ad for 0 FCFA under PRO status
+      await publishAnnonceDirectly(0, 'PRO_UPGRADE_FREE');
+    } catch (err: any) {
+      console.error("Erreur activation PRO:", err);
+      setPaymentError("Impossible d'activer le statut PRO. " + (err.message || ''));
+      setPaymentStep('error');
+    }
+  };
+
+  // Initiate Mobile Money payment flow (for Unit Ad or Vendeur Subscription)
+  const performPaymentAndUpload = async (type: 'unit_ad' | 'subscription_vendeur', amount: number) => {
+    isProcessingRef.current = false;
+    setPaymentType(type);
+    setPaymentAmount(amount);
     setPaymentStep('init_payment');
     setPaymentError('');
 
-    // Calcul dynamique à partir du profil utilisateur pour éviter tout retard d'état React
     const rawPhone = user?.telephone || user?.num_telephone;
     let finalPhone = '00000000';
     if (rawPhone) {
@@ -145,6 +243,10 @@ export default function PostAnnonceScreen({ navigation }: any) {
     const refNum = `CC-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
     setTransactionId(refNum);
 
+    const payDesc = type === 'subscription_vendeur'
+      ? 'Chap Chap - Abonnement Vendeur Pro (30 annonces/mois)'
+      : `Chap Chap - Publication annonce: ${titre.substring(0, 40)}`;
+
     try {
       const response = await fetch('https://www.paiementpro.net/webservice/onlinepayment/init/curl-init.php', {
         method: 'POST',
@@ -153,8 +255,8 @@ export default function PostAnnonceScreen({ navigation }: any) {
         },
         body: JSON.stringify({
           merchantId: 'PP-F92288',
-          amount: price,
-          description: `Chap Chap - Publication annonce: ${titre.substring(0, 50)}`,
+          amount: amount,
+          description: payDesc,
           referenceNumber: refNum,
           customerEmail: session?.user?.email || 'client@app-flashmarket.com',
           customerFirstName: user?.prenom || 'Client',
@@ -201,17 +303,43 @@ export default function PostAnnonceScreen({ navigation }: any) {
       Alert.alert('Champs manquants', 'Titre, prix, catégorie et au moins une photo sont requis.');
       return;
     }
-    isProcessingRef.current = false;
-    setPaymentError('');
-    setPaymentModalVisible(true);
-    
-    // Lancer directement le processus de paiement
-    performPaymentAndUpload();
+
+    // Determine eligibility based on Business Model rules
+    const isPro = currentPlanKey === 'professionnel';
+    const isWithinQuota = monthlyCount < currentPlan.quotaMensuel;
+
+    if (isPro || isWithinQuota) {
+      // Free publication under quota or PRO plan!
+      publishAnnonceDirectly(0, isPro ? 'PLAN_PRO' : `QUOTA_${currentPlanKey.toUpperCase()}`);
+    } else {
+      // Quota exceeded! Show subscription options modal
+      isProcessingRef.current = false;
+      setPaymentError('');
+      setPaymentStep('quota_choice');
+      setPaymentModalVisible(true);
+    }
   };
 
   const handlePaymentSuccess = async () => {
     setPaymentStep('processing');
 
+    // If subscription payment, update user profile first
+    if (paymentType === 'subscription_vendeur') {
+      try {
+        await supabase
+          .from('users')
+          .update({
+            type_compte: 'vendeur',
+            date_abonnement: new Date().toISOString(),
+          })
+          .eq('id', session.user.id);
+        await refreshUser();
+      } catch (e) {
+        console.error("Error updating subscription status:", e);
+      }
+    }
+
+    // Publish advertisement
     const annonceData = {
       titre,
       description: description || null,
@@ -225,7 +353,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
       est_payee: true,
       statut: 'active',
       id_transaction_paiement: transactionId,
-      montant_depot: price, // frais de dépôt réellement payé (varie selon la catégorie)
+      montant_depot: paymentAmount,
       user_id: session?.user?.id,
     };
 
@@ -233,7 +361,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
 
     if (error) {
       console.error(error);
-      setPaymentError("L'annonce a été payée avec succès, mais la publication a échoué. " + error);
+      setPaymentError("Le paiement a été validé avec succès, mais la publication de l'annonce a échoué. " + error);
       setPaymentStep('error');
       return;
     }
@@ -244,7 +372,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
       setPaymentModalVisible(false);
       resetForm();
       navigation.navigate('Accueil');
-    }, 3000);
+    }, 2500);
   };
 
   const handlePaymentFailure = (message: string) => {
@@ -283,6 +411,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
   };
 
   const isFormValid = titre && prix && selectedCategory && images.length > 0;
+
 
   return (
     <View style={styles.container}>
@@ -411,16 +540,31 @@ export default function PostAnnonceScreen({ navigation }: any) {
             textAlignVertical="top"
           />
 
-          {/* Coût */}
+          {/* Coût & Quota Info */}
           <View style={styles.costCard}>
             <View style={styles.costRow}>
-              <Text style={styles.costLabel}>Frais de publication</Text>
-              <Text style={styles.costValue}>{price} FCFA</Text>
+              <Text style={styles.costLabel}>Formule actuelle</Text>
+              <Text style={[styles.costValue, { fontSize: FONTS.md }]}>{currentPlan.nom}</Text>
+            </View>
+            <View style={styles.costDivider} />
+            <View style={styles.costRow}>
+              <Text style={styles.costLabel}>Frais de dépôt cette annonce</Text>
+              <Text style={styles.costValue}>
+                {currentPlanKey === 'professionnel'
+                  ? '0 FCFA (Illimité PRO)'
+                  : monthlyCount < currentPlan.quotaMensuel
+                    ? '0 FCFA (Inclus dans quota)'
+                    : `${unitPrice} FCFA`}
+              </Text>
             </View>
             <View style={styles.costDivider} />
             <View style={styles.costInfo}>
-              <Ionicons name="information-circle-outline" size={16} color={theme.textMuted} />
-              <Text style={styles.costInfoText}>Le paiement s'effectuera via Mobile Money.</Text>
+              <Ionicons name="information-circle-outline" size={18} color={theme.primary} />
+              <Text style={styles.costInfoText}>
+                {currentPlanKey === 'professionnel'
+                  ? 'En tant que membre PRO, toutes vos publications sont illimitées et gratuit.'
+                  : `Vous avez publié ${monthlyCount} / ${currentPlan.quotaMensuel} annonces ce mois-ci. Les 3 premières annonces de chaque mois sont gratuit.`}
+              </Text>
             </View>
           </View>
 
@@ -437,11 +581,15 @@ export default function PostAnnonceScreen({ navigation }: any) {
           activeOpacity={0.8}
         >
           <Ionicons name="flash" size={20} color={theme.textInverse} />
-          <Text style={styles.ctaText}>Publier pour {price} FCFA</Text>
+          <Text style={styles.ctaText}>
+            {currentPlanKey === 'professionnel' || monthlyCount < currentPlan.quotaMensuel
+              ? "Publier l'annonce (Gratuit)"
+              : `Publier mon annonce`}
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* REAL PAYMENT MODAL */}
+      {/* PAYMENT & SUBSCRIPTION MODAL */}
       <Modal
         visible={isPaymentModalVisible}
         transparent
@@ -464,7 +612,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
             {/* Header du Modal */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {paymentStep === 'webview' ? 'Portail de Paiement' : 'Paiement Mobile Money'}
+                {paymentStep === 'quota_choice' ? 'Quota mensuel atteint' : paymentStep === 'webview' ? 'Portail de Paiement Mobile Money' : 'Publication & Paiement'}
               </Text>
               {(paymentStep !== 'processing' && paymentStep !== 'init_payment') && (
                 <TouchableOpacity onPress={() => setPaymentModalVisible(false)}>
@@ -473,11 +621,93 @@ export default function PostAnnonceScreen({ navigation }: any) {
               )}
             </View>
 
+            {/* STEP: Quota Exceeded Choice Modal */}
+            {paymentStep === 'quota_choice' && (
+              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 460 }}>
+                <Text style={{ fontSize: FONTS.sm, color: theme.textSecondary, marginBottom: SPACING.lg, lineHeight: 20 }}>
+                  Vous avez utilisé votre quota gratuit de {currentPlan.quotaMensuel} annonces ce mois-ci ({monthlyCount}/{currentPlan.quotaMensuel}). Choisissez une formule pour publier votre annonce :
+                </Text>
+
+                {/* Option PRO 0 FCFA (Recommandée) */}
+                <View style={{ backgroundColor: theme.primaryFaded, borderRadius: RADIUS.lg, padding: SPACING.lg, borderWidth: 2, borderColor: theme.primary, marginBottom: SPACING.md }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.extrabold, color: theme.primary }}>
+                      🌟 Plan PRO / Boutique
+                    </Text>
+                    <View style={{ backgroundColor: theme.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                      <Text style={{ fontSize: 10, fontWeight: FONTS.bold, color: '#fff' }}>RECOMMANDE</Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: FONTS.xl, fontWeight: FONTS.extrabold, color: theme.primary, marginBottom: 6 }}>
+                    0 FCFA <Text style={{ fontSize: FONTS.xs, fontWeight: 'normal', color: theme.textSecondary }}>/ mois (Offert)</Text>
+                  </Text>
+                  <Text style={{ fontSize: FONTS.xs, color: theme.textSecondary, marginBottom: SPACING.md, lineHeight: 18 }}>
+                    • Annonces illimitées & permanentes (n'expirent jamais){'\n'}
+                    • Vitrine professionnelle & Badge « Vérifié »{'\n'}
+                    • Visibilité maximale dans la recherche
+                  </Text>
+                  <TouchableOpacity
+                    style={{ backgroundColor: theme.primary, paddingVertical: 12, borderRadius: RADIUS.md, alignItems: 'center' }}
+                    onPress={handleUpgradeToProAndPublish}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: '#fff' }}>
+                      Activer le statut PRO & Publier (0 F)
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Option Vendeur 2000 FCFA */}
+                <View style={{ backgroundColor: theme.surfaceMuted, borderRadius: RADIUS.lg, padding: SPACING.lg, borderWidth: 1, borderColor: theme.borderLight, marginBottom: SPACING.md }}>
+                  <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.textPrimary, marginBottom: 4 }}>
+                    💼 Plan Vendeur
+                  </Text>
+                  <Text style={{ fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.textPrimary, marginBottom: 6 }}>
+                    2 000 FCFA <Text style={{ fontSize: FONTS.xs, fontWeight: 'normal', color: theme.textMuted }}>/ mois</Text>
+                  </Text>
+                  <Text style={{ fontSize: FONTS.xs, color: theme.textSecondary, marginBottom: SPACING.md }}>
+                    30 annonces par mois + Statistiques de vues
+                  </Text>
+                  <TouchableOpacity
+                    style={{ backgroundColor: theme.surface, borderWidth: 1.5, borderColor: theme.primary, paddingVertical: 12, borderRadius: RADIUS.md, alignItems: 'center' }}
+                    onPress={() => performPaymentAndUpload('subscription_vendeur', 2000)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.primary }}>
+                      S'abonner Vendeur (2 000 FCFA)
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Option Unité {unitPrice} FCFA */}
+                <View style={{ backgroundColor: theme.surfaceMuted, borderRadius: RADIUS.lg, padding: SPACING.lg, borderWidth: 1, borderColor: theme.borderLight, marginBottom: SPACING.lg }}>
+                  <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.textPrimary, marginBottom: 4 }}>
+                    🏷️ Paiement à l'unité
+                  </Text>
+                  <Text style={{ fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.textPrimary, marginBottom: 6 }}>
+                    {unitPrice} FCFA
+                  </Text>
+                  <Text style={{ fontSize: FONTS.xs, color: theme.textSecondary, marginBottom: SPACING.md }}>
+                    Publier uniquement cette annonce sans abonnement
+                  </Text>
+                  <TouchableOpacity
+                    style={{ backgroundColor: theme.surfaceMuted, borderWidth: 1, borderColor: theme.borderLight, paddingVertical: 12, borderRadius: RADIUS.md, alignItems: 'center' }}
+                    onPress={() => performPaymentAndUpload('unit_ad', unitPrice)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textPrimary }}>
+                      Payer {unitPrice} FCFA via Mobile Money
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            )}
+
             {paymentStep === 'init_payment' && (
               <View style={styles.processingContainer}>
                 <ActivityIndicator size="large" color={theme.primary} />
                 <Text style={styles.processingTitle}>Initialisation du paiement...</Text>
-                <Text style={styles.processingText}>Connexion sécurisée avec la passerelle de paiement en cours. Veuillez patienter.</Text>
+                <Text style={styles.processingText}>Connexion sécurisée à PaiementPro en cours ({paymentAmount} FCFA). Veuillez patienter.</Text>
               </View>
             )}
 
@@ -525,28 +755,32 @@ export default function PostAnnonceScreen({ navigation }: any) {
               <View style={styles.processingContainer}>
                 <ActivityIndicator size="large" color={theme.primary} />
                 <Text style={styles.processingTitle}>Publication en cours...</Text>
-                <Text style={styles.processingText}>Validation de votre paiement et mise en ligne de votre annonce. Ne quittez pas l'application.</Text>
+                <Text style={styles.processingText}>Validation de votre demande et mise en ligne de votre annonce. Ne quittez pas l'application.</Text>
               </View>
             )}
 
             {paymentStep === 'success' && (
               <View style={styles.processingContainer}>
                 <Ionicons name="checkmark-circle" size={80} color={theme.success} />
-                <Text style={[styles.processingTitle, { color: theme.success }]}>Paiement Réussi !</Text>
-                <Text style={styles.processingText}>Votre paiement de {price} FCFA a été validé. Votre annonce est maintenant en ligne.</Text>
+                <Text style={[styles.processingTitle, { color: theme.success }]}>Annonce Publiée !</Text>
+                <Text style={styles.processingText}>
+                  {paymentType === 'subscription_vendeur'
+                    ? "Félicitations ! Votre abonnement Vendeur est actif et votre annonce est en ligne !"
+                    : "Votre annonce est maintenant en ligne et visible par tous les acheteurs."}
+                </Text>
               </View>
             )}
 
             {paymentStep === 'error' && (
               <View style={styles.processingContainer}>
                 <Ionicons name="alert-circle" size={80} color={theme.error} />
-                <Text style={[styles.processingTitle, { color: theme.error }]}>Échec du paiement</Text>
+                <Text style={[styles.processingTitle, { color: theme.error }]}>Échec de l'opération</Text>
                 <Text style={styles.processingText}>
-                  {paymentError || "Le paiement n'a pas pu être validé. Veuillez réessayer."}
+                  {paymentError || "Le paiement ou la publication n'a pas pu être validé. Veuillez réessayer."}
                 </Text>
                 <TouchableOpacity
                   style={[styles.ctaButton, { marginTop: SPACING.xl, width: '100%' }]}
-                  onPress={performPaymentAndUpload}
+                  onPress={() => setPaymentStep('quota_choice')}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.ctaText}>Réessayer</Text>

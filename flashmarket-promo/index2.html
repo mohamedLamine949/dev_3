@@ -1,0 +1,2356 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flashmarket – Workspace Motion Design Promo V2</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* ========== RESET & THEME ========== */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --green: #178A3B;
+            --green-light: #24b655;
+            --green-dark: #0f6e2c;
+            --green-bg: #e8f5e9;
+            --dark-bg: #090b0d;
+            --dark-panel: #12161a;
+            --dark-border: #222a30;
+            --text-light: #ecf0f2;
+            --text-muted: #8696a0;
+            --canvas-bg: #F4F4F7;
+            --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+
+            /* Cubic Bezier curve requested by Director */
+            --cubic-bezier: cubic-bezier(0.16, 1, 0.3, 1);
+            --transition-snappy: all 0.55s var(--cubic-bezier);
+        }
+
+        body {
+            font-family: var(--font-main);
+            background: var(--dark-bg);
+            color: var(--text-light);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ========== WORKSPACE LAYOUT ========== */
+        .app-header {
+            height: 50px;
+            background: var(--dark-panel);
+            border-bottom: 1px solid var(--dark-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 10;
+        }
+
+        .app-title {
+            font-size: 0.88rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--green-light);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .app-specs-pill {
+            background: rgba(36, 182, 85, 0.15);
+            border: 1px solid rgba(36, 182, 85, 0.3);
+            color: var(--green-light);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.68rem;
+            font-family: var(--font-mono);
+            font-weight: bold;
+        }
+
+        .main-workspace {
+            flex: 1;
+            display: flex;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* ========== SIDEBARS (INSPECTORS) ========== */
+        .panel {
+            width: 320px;
+            background: var(--dark-panel);
+            border-right: 1px solid var(--dark-border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 5;
+        }
+
+        .panel-right {
+            border-right: none;
+            border-left: 1px solid var(--dark-border);
+        }
+
+        .panel-header {
+            padding: 16px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--dark-border);
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        /* Easing Curve Display */
+        .bezier-card {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--dark-border);
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 16px;
+        }
+
+        .bezier-graph-svg {
+            width: 100%;
+            height: 120px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+
+        .bezier-equation {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        /* Layers Log */
+        .properties-log {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .prop-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.73rem;
+            font-family: var(--font-mono);
+        }
+
+        .prop-name {
+            color: var(--text-muted);
+        }
+
+        .prop-val {
+            color: var(--green-light);
+            font-weight: bold;
+        }
+
+        /* Audio Track & Cues */
+        .audio-cue-item {
+            display: flex;
+            gap: 12px;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 0.75rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .audio-cue-item.active {
+            background: rgba(23, 138, 59, 0.08);
+            border-color: rgba(23, 138, 59, 0.3);
+        }
+
+        .audio-cue-item.active .cue-time {
+            color: var(--green-light);
+        }
+
+        .cue-time {
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            font-weight: bold;
+        }
+
+        .cue-desc {
+            line-height: 1.4;
+        }
+
+        /* ========== CANVAS PREVIEW (CENTER) ========== */
+        .preview-canvas {
+            flex: 1;
+            background: var(--canvas-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Background Studio Grid */
+        .preview-canvas::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-position: center;
+            pointer-events: none;
+        }
+
+        /* ========== PHONE FRAME MOCKUP ========== */
+        .phone-frame {
+            width: 340px;
+            height: 700px;
+            background: #000;
+            border-radius: 48px;
+            padding: 10px;
+            box-shadow: 
+                0 25px 60px -15px rgba(0, 0, 0, 0.25),
+                0 0 0 4px #2c2d30,
+                0 0 0 1px #000;
+            position: relative;
+            z-index: 2;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Dynamic Island / Camera Notch */
+        .dynamic-island {
+            width: 95px;
+            height: 25px;
+            background: #000;
+            border-radius: 999px;
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 12px;
+        }
+
+        .dynamic-island::after {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #111;
+            border-radius: 50%;
+            box-shadow: inset 0 0 2px rgba(255,255,255,0.2);
+        }
+
+        /* The viewport within the phone */
+        .phone-viewport {
+            flex: 1;
+            background: #fff;
+            border-radius: 38px;
+            overflow: hidden;
+            position: relative;
+            user-select: none;
+        }
+
+        /* Top status bar */
+        .status-bar {
+            height: 44px;
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #000;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 990;
+            pointer-events: none;
+            transition: var(--transition-snappy);
+        }
+
+        .status-bar.white-text {
+            color: #fff;
+        }
+
+        .status-right {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .status-battery {
+            width: 18px;
+            height: 9px;
+            border: 1px solid currentColor;
+            border-radius: 3px;
+            padding: 1px;
+            display: flex;
+        }
+
+        .status-battery::after {
+            content: '';
+            width: 100%;
+            height: 100%;
+            background: currentColor;
+            display: block;
+        }
+
+        /* ========== SCREEN LAYERS (THE TIMELINE STATES) ========== */
+
+        .layer {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            pointer-events: none;
+            transition: transform 0.85s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), filter 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            will-change: transform, opacity, filter;
+            filter: blur(8px);
+        }
+
+        #app.s1 .layer-brand,
+        #app.s2 .layer-categories,
+        #app.s3 .layer-feed,
+        #app.s4 .layer-profile,
+        #app.s5 .layer-messages,
+        #app.s6 .layer-outro {
+            opacity: 1;
+            filter: blur(0px);
+        }
+
+        /* --- S1: Brand Reveal --- */
+        .layer-brand {
+            z-index: 10;
+            background: #F4F4F7;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .brand-logo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transform: scale(0);
+            opacity: 0;
+            transition: var(--transition-snappy);
+        }
+
+        .logo-icon-box {
+            width: 110px;
+            height: 110px;
+            background: linear-gradient(135deg, var(--green), #1ba347);
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 30px rgba(23, 138, 59, 0.25);
+            transition: var(--transition-snappy);
+        }
+
+        .logo-svg {
+            width: 60px;
+            height: 60px;
+            fill: #fff;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: var(--transition-snappy);
+            transition-delay: 0.1s;
+        }
+
+        .logo-text-mask {
+            overflow: hidden;
+            margin-top: 16px;
+            height: 36px;
+        }
+
+        .logo-wordmark {
+            font-size: 1.85rem;
+            font-weight: 900;
+            color: #0d0f12;
+            transform: translateY(100%);
+            transition: var(--transition-snappy);
+            transition-delay: 0.15s;
+            letter-spacing: -0.5px;
+        }
+
+        /* S1 Active States */
+        #app.s1 .layer-brand {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #app.s1 .brand-logo-container {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        #app.s1 .logo-svg {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        #app.s1 .logo-wordmark {
+            transform: translateY(0);
+        }
+
+        /* S1 Exit: Collapse to Navbar */
+        #app.navbar-collapsed .brand-logo-container {
+            transform: scale(0);
+            opacity: 0;
+        }
+
+        /* --- S2: Categories Screen --- */
+        .layer-categories {
+            z-index: 8;
+            padding-top: 50px;
+            background: #fff;
+        }
+
+        .cat-header {
+            padding: 16px 20px 8px;
+        }
+
+        .cat-title-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .nav-logo-icon {
+            width: 28px;
+            height: 28px;
+            background: var(--green);
+            border-radius: 7px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 3px 8px rgba(23, 138, 59, 0.2);
+        }
+
+        .nav-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #111;
+        }
+
+        .search-mock {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f0f2f5;
+            padding: 10px 14px;
+            border-radius: 12px;
+            color: #888;
+            font-size: 0.8rem;
+            margin-bottom: 16px;
+        }
+
+        .search-mock svg {
+            width: 14px;
+            height: 14px;
+            stroke: currentColor;
+            stroke-width: 2.5;
+            fill: none;
+        }
+
+        .cat-section-title {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: #666;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .cat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            padding: 0 20px 20px;
+            height: calc(100% - 100px);
+            overflow-y: auto;
+        }
+
+        .cat-card {
+            border-radius: 14px;
+            padding: 14px;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-align: center;
+            font-size: 0.7rem;
+            font-weight: bold;
+            opacity: 0;
+            transform: translateY(30px) scale(0.8) rotate(-3deg);
+            transition: transform 0.75s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.6s ease, filter 0.6s ease;
+            filter: blur(4px);
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .cat-card.show {
+            opacity: 1;
+            transform: translateY(0) scale(1) rotate(0deg);
+            filter: blur(0);
+        }
+
+        /* Native CSS Staggers for category cards */
+        .cat-card:nth-child(1) { transition-delay: 0ms; }
+        .cat-card:nth-child(2) { transition-delay: 45ms; }
+        .cat-card:nth-child(3) { transition-delay: 90ms; }
+        .cat-card:nth-child(4) { transition-delay: 135ms; }
+        .cat-card:nth-child(5) { transition-delay: 180ms; }
+        .cat-card:nth-child(6) { transition-delay: 225ms; }
+        .cat-card:nth-child(7) { transition-delay: 270ms; }
+        .cat-card:nth-child(8) { transition-delay: 315ms; }
+
+        .cat-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            font-size: 1.1rem;
+        }
+
+        /* Cat cards colors */
+        .cat-c1 { background: #3b82f6; }
+        .cat-c2 { background: #ec4899; }
+        .cat-c3 { background: #06b6d4; }
+        .cat-c4 { background: #f97316; }
+        .cat-c5 { background: #f59e0b; }
+        .cat-c6 { background: #0d9488; }
+        .cat-c7 { background: #ef4444; }
+        .cat-c8 { background: #78350f; }
+
+        /* S2 Active State */
+        #app.s2 .layer-categories {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* --- S3: Feed Screen --- */
+        .layer-feed {
+            z-index: 7;
+            padding-top: 50px;
+            background: #f4f5f8;
+            transform: translate3d(100%, 0, 0);
+            opacity: 0;
+            filter: blur(8px);
+        }
+
+        /* Header block inside feed */
+        .feed-header {
+            padding: 12px 16px;
+            background: #fff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eef0f3;
+        }
+
+        .feed-greeting {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #111;
+        }
+
+        .feed-container {
+            flex: 1;
+            overflow-y: hidden; /* Programmatically scrolled */
+        }
+
+        .feed-content {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            padding: 12px;
+            transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: transform;
+        }
+
+        .feed-card {
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+            display: flex;
+            flex-direction: column;
+            transition: var(--transition-snappy);
+            position: relative;
+        }
+
+        .feed-img {
+            width: 100%;
+            height: 90px;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /* Placeholder Gradients if images are missing */
+        .img-colis { background-image: linear-gradient(135deg, #a1887f, #8d6e63); }
+        .img-kia { background-image: url('images/kia_front.jpg'), linear-gradient(135deg, #90a4ae, #78909c); }
+        .img-autruche { background-image: url('images/ostrich.jpg'), linear-gradient(135deg, #81c784, #66bb6a); }
+        .img-ps3 { background-image: linear-gradient(135deg, #e57373, #ef5350); }
+        .img-macbook { background-image: url('images/macbook.jpg'), linear-gradient(135deg, #64b5f6, #42a5f5); }
+        .img-sneaker { background-image: linear-gradient(135deg, #4db6ac, #26a69a); }
+
+        /* Complex SVG sneaker drawing if image fails */
+        .img-sneaker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1abc9c, #16a085);
+        }
+
+        .sneaker-vector {
+            width: 50px;
+            height: 30px;
+            fill: #fff;
+        }
+
+        .feed-details {
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .feed-title {
+            font-size: 0.62rem;
+            font-weight: 500;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .feed-price {
+            font-size: 0.72rem;
+            font-weight: 800;
+            color: var(--green);
+        }
+
+        .feed-meta {
+            font-size: 0.55rem;
+            color: #888;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Bottom Floating CTA and Navbar */
+        .floating-cta {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translate3d(-50%, 100px, 0) scale(0);
+            width: 44px;
+            height: 44px;
+            background: var(--green);
+            border-radius: 50%;
+            box-shadow: 0 6px 16px rgba(23, 138, 59, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 1.4rem;
+            z-index: 100;
+            transition: var(--transition-snappy);
+            cursor: pointer;
+        }
+
+        .floating-cta svg {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 3;
+        }
+
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 52px;
+            background: #fff;
+            border-top: 1px solid #eef0f3;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 90;
+            padding-bottom: 4px;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            color: #777;
+            font-size: 0.52rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-snappy);
+        }
+
+        .nav-item.active {
+            color: var(--green);
+        }
+
+        .nav-item svg {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+        }
+
+        /* S3 Active state & Transitions */
+        #app.s3 .layer-feed {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translate3d(0, 0, 0);
+        }
+
+        #app.s2 .layer-categories {
+            transform: translate3d(0, 0, 0);
+        }
+
+        #app.s3 .layer-categories {
+            transform: translate3d(-35%, 0, 0) scale(0.95);
+            filter: blur(6px);
+            opacity: 0;
+        }
+
+        /* Auto-scroll triggered state */
+        #app.feed-scrolled .feed-content {
+            transform: translate3d(0, -145px, 0);
+        }
+
+        /* Dim state for focus cards */
+        .feed-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 10;
+            transition: var(--transition-snappy);
+        }
+
+        #app.feed-focused .feed-overlay {
+            opacity: 1;
+        }
+
+        /* Focused Cards Elevation */
+        #app.feed-focused .feed-card.focus-target {
+            z-index: 11;
+            transform: scale(1.04);
+            box-shadow: 0 12px 28px rgba(0,0,0,0.25);
+        }
+
+        /* FAB Entry & Pulse Loop */
+        #app.s3 .floating-cta {
+            transform: translate3d(-50%, 0, 0) scale(1);
+        }
+
+        #app.s3 .floating-cta.pulse-animation {
+            animation: ctaPulseLoop 1.5s infinite ease-in-out;
+        }
+
+        @keyframes ctaPulseLoop {
+            0%, 100% { transform: translate3d(-50%, 0, 0) scale(1); }
+            50% { transform: translate3d(-50%, 0, 0) scale(1.08); }
+        }
+
+        /* --- S4: Profile Screen --- */
+        .layer-profile {
+            z-index: 6;
+            background: #fff;
+            transform: translate3d(0, 100%, 0);
+            opacity: 0;
+            filter: blur(8px);
+        }
+
+        .profile-scrollable {
+            flex: 1;
+            overflow-y: hidden;
+            display: flex;
+            flex-direction: column;
+            background: #f4f5f8;
+            transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Profile Banner Visual */
+        .profile-banner {
+            height: 120px;
+            background: linear-gradient(rgba(0,0,0,0.2), rgba(0,0,0,0.5)), url('images/kia_side.jpg'), #f1c40f;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .profile-avatar-container {
+            position: absolute;
+            bottom: -32px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            border: 3px solid #fff;
+            background: #fff;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .profile-avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #34495e, #2c3e50);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            transition: var(--transition-snappy);
+        }
+
+        /* SVG Crown Overlay */
+        .avatar-crown {
+            position: absolute;
+            top: 4px;
+            width: 16px;
+            height: 16px;
+            fill: #f1c40f;
+        }
+
+        /* PRO Badge */
+        .pro-badge {
+            position: absolute;
+            bottom: -4px;
+            right: -4px;
+            background: var(--green);
+            color: #fff;
+            font-size: 0.45rem;
+            font-weight: 800;
+            padding: 2px 4px;
+            border-radius: 4px;
+            border: 1px solid #fff;
+            transform: scale(0) rotate(15deg);
+            transition: var(--transition-snappy);
+            will-change: transform;
+        }
+
+        .profile-info {
+            padding: 40px 16px 16px;
+            background: #fff;
+            text-align: center;
+            border-bottom: 1px solid #eef0f3;
+            flex-shrink: 0;
+        }
+
+        .profile-name {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #111;
+        }
+
+        .profile-subtitle {
+            font-size: 0.65rem;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        .profile-boutique-btn {
+            background: var(--green-bg);
+            border: 1.5px solid rgba(23, 138, 59, 0.2);
+            color: var(--green-dark);
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            margin-top: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .profile-showcase-sect {
+            padding: 16px;
+            background: #fff;
+            margin-top: 8px;
+            flex-shrink: 0;
+        }
+
+        .showcase-title {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #555;
+            margin-bottom: 10px;
+        }
+
+        /* Carousel Row */
+        .carousel-outer {
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .carousel-inner-track {
+            display: flex;
+            gap: 8px;
+            width: max-content;
+            transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: transform;
+        }
+
+        .carousel-card {
+            width: 140px;
+            height: 90px;
+            border-radius: 10px;
+            background-size: cover;
+            background-position: center;
+            border: 1px solid #eef0f3;
+            flex-shrink: 0;
+        }
+
+        .car-img-1 { background-image: url('images/kia_side.jpg'), linear-gradient(135deg, #111, #333); }
+        .car-img-2 { background-image: url('images/kia_front.jpg'), linear-gradient(135deg, #333, #555); }
+        .car-img-3 { background-image: linear-gradient(135deg, #555, #777); }
+
+        /* Contact Action Pills */
+        .profile-contact-row {
+            display: flex;
+            gap: 10px;
+            padding: 16px;
+            background: #fff;
+            margin-top: 8px;
+            flex-shrink: 0;
+        }
+
+        .contact-pill {
+            flex: 1;
+            padding: 11px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 0.72rem;
+            font-weight: bold;
+            color: #fff;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pill-phone { background: var(--green); }
+        .pill-wa { background: #25d366; }
+
+        .contact-pill svg {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+        }
+
+        /* Gloss/Sheen effect overlay */
+        .contact-pill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -150%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.4),
+                transparent
+            );
+            transform: skewX(-20deg);
+        }
+
+        /* S4 Active state & Transitions */
+        #app.s4 .layer-profile {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translate3d(0, 0, 0);
+        }
+
+        #app.s4 .layer-feed {
+            transform: translate3d(0, -35%, 0) scale(0.95);
+            filter: blur(6px);
+            opacity: 0;
+        }
+
+        #app.profile-badge .pro-badge {
+            transform: scale(1) rotate(0);
+        }
+
+        #app.carousel-scrolled .carousel-inner-track {
+            transform: translate3d(-100px, 0, 0);
+        }
+
+        #app.pills-sheen .contact-pill::after {
+            animation: glossSheen 0.7s forwards cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes glossSheen {
+            from { left: -100%; }
+            to { left: 150%; }
+        }
+
+        /* --- S5: Messages Screen --- */
+        .layer-messages {
+            z-index: 5;
+            padding-top: 50px;
+            background: #fff;
+        }
+
+        /* 3D split transitions from Profile to Messages */
+        .split-reveal-mask {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 200;
+        }
+
+        .msg-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #eef0f3;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .msg-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #111;
+        }
+
+        .msg-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+
+        .msg-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            border-bottom: 1px solid #f9fafb;
+            opacity: 0;
+            transform: translate3d(40px, 0, 0) scale(0.95);
+            transition: transform 0.75s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.6s ease, filter 0.6s ease;
+            filter: blur(4px);
+            will-change: transform, opacity;
+        }
+
+        .msg-row.show {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) scale(1);
+            filter: blur(0);
+        }
+
+        /* Native CSS Staggers for message rows */
+        .msg-row:nth-child(1) { transition-delay: 0ms; }
+        .msg-row:nth-child(2) { transition-delay: 60ms; }
+        .msg-row:nth-child(3) { transition-delay: 120ms; }
+        .msg-row:nth-child(4) { transition-delay: 180ms; }
+
+        .msg-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #e1e4e8;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #fff;
+            background-size: cover;
+            background-position: center;
+            transition: transform 0.4s var(--cubic-bezier);
+        }
+
+        .msg-row.show .msg-avatar {
+            transform: scale(1.08);
+        }
+
+        /* Mock avatar graphics */
+        .ava-1 { background-image: linear-gradient(135deg, #1abc9c, #2ecc71); }
+        .ava-2 { background-image: linear-gradient(135deg, #3498db, #9b59b6); }
+        .ava-3 { background-image: linear-gradient(135deg, #e67e22, #e74c3c); }
+
+        .msg-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .msg-username {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #111;
+        }
+
+        .msg-prod {
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .msg-text {
+            font-size: 0.62rem;
+            color: #888;
+        }
+
+        .msg-time {
+            font-size: 0.58rem;
+            color: #aaa;
+            font-weight: 500;
+        }
+
+        /* S5 Active States */
+        #app.s5 .layer-messages {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Fold page split simulation via Clip path keyframe on layer-profile */
+        #app.s5 .layer-profile {
+            transform: scale(0.95);
+            opacity: 0;
+            clip-path: polygon(0% 0%, 50% 0%, 50% 100%, 0% 100%);
+            /* simulating split away */
+        }
+
+        /* --- S6: Call To Action (Outro) --- */
+        .layer-outro {
+            z-index: 12;
+            background: #F4F4F7;
+            align-items: center;
+            justify-content: center;
+            transform: scale(0.5);
+            opacity: 0;
+        }
+
+        /* Transitions from S5 to S6 */
+        #app.s6 .layer-messages {
+            transform: scale(2.2);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #app.s6 .layer-outro {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+
+        .outro-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            width: 100%;
+        }
+
+        .outro-logo-box {
+            width: 86px;
+            height: 86px;
+            background: var(--green);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 24px rgba(23, 138, 59, 0.2);
+            margin-bottom: 24px;
+        }
+
+        .outro-tagline {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 40px;
+        }
+
+        .tagline-word {
+            font-size: 1.45rem;
+            font-weight: 900;
+            color: #0d0f12;
+            opacity: 0;
+            transform: scale(0.8) translateY(10px);
+            transition: var(--transition-snappy);
+        }
+
+        .tagline-word.highlight {
+            color: var(--green);
+        }
+
+        .tagline-word {
+            font-size: 1.45rem;
+            font-weight: 900;
+            color: #0d0f12;
+            opacity: 0;
+            transform: scale(0.7) translateY(15px);
+            transition: transform 0.65s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.55s ease, filter 0.55s ease;
+            filter: blur(4px);
+            display: inline-block;
+        }
+
+        .tagline-word.show {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+            filter: blur(0);
+        }
+
+        /* Native CSS Staggers for Outro tagline */
+        .tagline-word:nth-child(1) { transition-delay: 0ms; }
+        .tagline-word:nth-child(2) { transition-delay: 180ms; }
+        .tagline-word:nth-child(3) { transition-delay: 360ms; }
+
+        .app-badges-row {
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: var(--transition-snappy);
+            transition-delay: 0.6s;
+        }
+
+        #app.outro-active .app-badges-row {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .store-badge {
+            width: 90px;
+            height: auto;
+        }
+
+        /* ========== CONTROL BAR (BOTTOM PANEL) ========== */
+        .bottom-timeline-panel {
+            height: 80px;
+            background: var(--dark-panel);
+            border-top: 1px solid var(--dark-border);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 20px;
+            z-index: 10;
+        }
+
+        .playback-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-btn {
+            background: #1b2126;
+            border: 1px solid var(--dark-border);
+            color: var(--text-light);
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .control-btn:hover {
+            background: var(--green);
+            border-color: var(--green-light);
+        }
+
+        .control-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        .timeline-track-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .timeline-scrubber {
+            position: relative;
+            width: 100%;
+            height: 8px;
+            background: #1b2126;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .timeline-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--green), var(--green-light));
+            border-radius: 4px;
+            width: 0%;
+        }
+
+        .timeline-handle {
+            position: absolute;
+            top: 50%;
+            left: 0%;
+            transform: translate(-50%, -50%);
+            width: 16px;
+            height: 16px;
+            background: #fff;
+            border: 3px solid var(--green);
+            border-radius: 50%;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            pointer-events: none;
+            transition: left 0.05s linear;
+        }
+
+        .timeline-markers {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .marker-tick {
+            position: absolute;
+            height: 6px;
+            width: 2px;
+            background: var(--dark-border);
+            top: -6px;
+        }
+
+        .time-display-box {
+            min-width: 120px;
+            text-align: right;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+        }
+
+        .frame-counter {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+
+        /* Quick scene skip buttons */
+        .scene-skips {
+            display: flex;
+            gap: 4px;
+            background: rgba(0,0,0,0.2);
+            padding: 4px;
+            border-radius: 6px;
+            border: 1px solid var(--dark-border);
+            margin-right: 12px;
+        }
+
+        .scene-skip-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 4px 8px;
+            font-size: 0.68rem;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .scene-skip-btn.active, .scene-skip-btn:hover {
+            background: var(--green);
+            color: #fff;
+        }
+
+        /* SVG custom drawing utilities */
+        .svg-icon {
+            width: 24px;
+            height: 24px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* ========== PHONE-ONLY MODE OVERRIDES ========== */
+        body.phone-only-mode .app-header {
+            display: none !important;
+        }
+        body.phone-only-mode .panel {
+            display: none !important;
+        }
+        body.phone-only-mode .bottom-timeline-panel {
+            display: none !important;
+        }
+        body.phone-only-mode .preview-canvas {
+            width: 100vw;
+            height: 100vh;
+            padding: 0;
+            margin: 0;
+            background: var(--canvas-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        body.phone-only-mode .phone-frame {
+            height: 94vh;
+            width: auto;
+            aspect-ratio: 9 / 16;
+            max-height: 100vh;
+            border-radius: 40px;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.15);
+        }
+        
+        .floating-phone-controls {
+            display: none;
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(18, 22, 26, 0.88);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--dark-border);
+            padding: 8px 16px;
+            border-radius: 30px;
+            z-index: 2000;
+            gap: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            align-items: center;
+        }
+        
+        body.phone-only-mode .floating-phone-controls {
+            display: flex;
+        }
+        
+        .floating-control-btn {
+            background: #1b2126;
+            border: 1px solid var(--dark-border);
+            color: var(--text-light);
+            padding: 6px 12px;
+            font-size: 0.72rem;
+            font-weight: bold;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .floating-control-btn:hover {
+            background: var(--green);
+            color: #fff;
+            border-color: var(--green-light);
+        }
+        
+        .floating-control-btn.exit-btn {
+            background: #e74c3c;
+            border-color: #c0392b;
+            color: #fff;
+        }
+        
+        .floating-control-btn.exit-btn:hover {
+            background: #c0392b;
+        }
+
+    </style>
+</head>
+<body class="phone-only-mode">
+
+    <!-- App Navbar Header -->
+    <header class="app-header">
+        <div class="app-title">
+            <svg class="svg-icon" style="width: 18px; height: 18px; color: var(--green-light);" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="currentColor"/></svg>
+            Flash promo engine
+            <span class="app-specs-pill">60fps interpolator v2</span>
+        </div>
+        <div class="scene-skips">
+            <button class="scene-skip-btn active" onclick="seekToSection(1)">S1: Reveal</button>
+            <button class="scene-skip-btn" onclick="seekToSection(2)">S2: Cards</button>
+            <button class="scene-skip-btn" onclick="seekToSection(3)">S3: Feed</button>
+            <button class="scene-skip-btn" onclick="seekToSection(4)">S4: Profile</button>
+            <button class="scene-skip-btn" onclick="seekToSection(5)">S5: Chat</button>
+            <button class="scene-skip-btn" onclick="seekToSection(6)">S6: Outro</button>
+            <button class="scene-skip-btn" onclick="togglePhoneMode()" id="btn-phone-mode" style="background:var(--green); color:#fff; border-radius: 4px; margin-left: 10px; padding: 4px 10px;">📱 Format Téléphone</button>
+        </div>
+    </header>
+
+    <div class="main-workspace">
+        
+        <!-- Left Inspector Panel -->
+        <aside class="panel">
+            <div class="panel-header">
+                <span>Choreography Inspector</span>
+                <span style="color: var(--green-light); font-family: var(--font-mono);">#01</span>
+            </div>
+            <div class="panel-content">
+                
+                <div class="bezier-card">
+                    <h3 style="font-size: 0.8rem; font-weight: bold; margin-bottom: 6px;">Director Easing Curve</h3>
+                    <svg class="bezier-graph-svg" viewBox="0 0 100 100">
+                        <!-- Grid lines -->
+                        <line x1="0" y1="100" x2="100" y2="0" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+                        <!-- Easing Bezier Curve (0.16, 1, 0.3, 1) -->
+                        <path d="M 0 100 C 16 0, 30 0, 100 0" fill="none" stroke="var(--green-light)" stroke-width="3"/>
+                        <!-- Points -->
+                        <circle cx="16" cy="0" r="3" fill="#ff7675"/>
+                        <circle cx="30" cy="0" r="3" fill="#ff7675"/>
+                    </svg>
+                    <div class="bezier-equation">cubic-bezier(0.16, 1, 0.3, 1)</div>
+                </div>
+
+                <div class="properties-log">
+                    <h3 style="font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;">Active Layer States</h3>
+                    <div class="prop-row">
+                        <span class="prop-name">Active Section</span>
+                        <span class="prop-val" id="spec-section">S1</span>
+                    </div>
+                    <div class="prop-row">
+                        <span class="prop-name">Shutter Blur (Angle)</span>
+                        <span class="prop-val">180°</span>
+                    </div>
+                    <div class="prop-row">
+                        <span class="prop-name">Logo_Icon Scale</span>
+                        <span class="prop-val" id="spec-logo-scale">0%</span>
+                    </div>
+                    <div class="prop-row">
+                        <span class="prop-name">Viewport Pan Y</span>
+                        <span class="prop-val" id="spec-feed-scroll">0px</span>
+                    </div>
+                    <div class="prop-row">
+                        <span class="prop-name">Highlight Zoom</span>
+                        <span class="prop-val" id="spec-highlight">1.0</span>
+                    </div>
+                    <div class="prop-row">
+                        <span class="prop-name">Page Split Angle</span>
+                        <span class="prop-val" id="spec-split">0°</span>
+                    </div>
+                </div>
+
+            </div>
+        </aside>
+
+        <!-- Center Mobile Canvas Frame -->
+        <main class="preview-canvas">
+            <div class="phone-frame">
+                <div class="dynamic-island"></div>
+                
+                <div class="phone-viewport" id="app" class="s1">
+                    
+                    <!-- Standard Mobile Status Bar overlay -->
+                    <div class="status-bar" id="status-bar">
+                        <span class="status-time">15:45</span>
+                        <div class="status-right">
+                            <!-- Signal Strength SVG -->
+                            <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3c-1.2 0-2.4.2-3.6.7L12 9.3l3.6-5.6c-1.2-.5-2.4-.7-3.6-.7zm0 14c-2.8 0-5-2.2-5-5s2.2-5 5-5 5 2.2 5 5-2.2 5-5 5z"/></svg>
+                            <!-- Wifi SVG -->
+                            <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24"><path fill="currentColor" d="M12 21l-12-18c0 0 3.3-3 12-3s12 3 12 3l-12 18z"/></svg>
+                            <div class="status-battery"></div>
+                        </div>
+                    </div>
+
+                    <!-- ==================== S1: BRAND LAYER ==================== -->
+                    <div class="layer layer-brand">
+                        <div class="brand-logo-container">
+                            <div class="logo-icon-box">
+                                <svg viewBox="0 0 100 100" class="logo-svg">
+                                    <defs>
+                                        <mask id="logo-mask-s1">
+                                            <rect x="0" y="0" width="100" height="100" fill="#fff" />
+                                            <path d="M 58 40 L 40 55 H 59 L 41 74 L 60 51 H 42 Z" fill="#000" />
+                                        </mask>
+                                    </defs>
+                                    <path d="M 36 34 A 14 14 0 0 1 64 34" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" />
+                                    <path d="M 36 32 H 64 C 67 32, 68 34, 67.7 37 L 72.3 75 C 72.7 78, 70 80, 66 80 H 34 C 30 80, 27.3 78, 27.7 75 L 32.3 37 C 32 34, 33 32, 36 32 Z" fill="#fff" mask="url(#logo-mask-s1)" />
+                                </svg>
+                            </div>
+                            <div class="logo-text-mask">
+                                <div class="logo-wordmark">Flash</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ==================== S2: CATEGORIES LAYER ==================== -->
+                    <div class="layer layer-categories">
+                        <div class="cat-header">
+                            <div class="cat-title-bar">
+                                <div class="nav-logo-icon">
+                                    <svg viewBox="0 0 100 100" style="width: 18px; height: 18px;">
+                                        <defs>
+                                            <mask id="logo-mask-nav">
+                                                <rect x="0" y="0" width="100" height="100" fill="#fff" />
+                                                <path d="M 58 40 L 40 55 H 59 L 41 74 L 60 51 H 42 Z" fill="#000" />
+                                            </mask>
+                                        </defs>
+                                        <path d="M 36 34 A 14 14 0 0 1 64 34" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" />
+                                        <path d="M 36 32 H 64 C 67 32, 68 34, 67.7 37 L 72.3 75 C 72.7 78, 70 80, 66 80 H 34 C 30 80, 27.3 78, 27.7 75 L 32.3 37 C 32 34, 33 32, 36 32 Z" fill="#fff" mask="url(#logo-mask-nav)" />
+                                    </svg>
+                                </div>
+                                <span class="nav-title">Recherche</span>
+                            </div>
+                            <div class="search-mock">
+                                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                Que cherchez-vous ?
+                            </div>
+                            <h4 class="cat-section-title">Parcourir par catégorie</h4>
+                        </div>
+                        
+                        <div class="cat-grid">
+                            <div class="cat-card cat-c1" data-index="0"><div class="cat-icon">📱</div>Téléphonie</div>
+                            <div class="cat-card cat-c2" data-index="1"><div class="cat-icon">👕</div>Mode & Beauté</div>
+                            <div class="cat-card cat-c3" data-index="2"><div class="cat-icon">🛋️</div>Maison</div>
+                            <div class="cat-card cat-c4" data-index="3"><div class="cat-icon">🚗</div>Voitures</div>
+                            <div class="cat-card cat-c5" data-index="4"><div class="cat-icon">🏍️</div>Motos</div>
+                            <div class="cat-card cat-c6" data-index="5"><div class="cat-icon">🏢</div>Immobilier</div>
+                            <div class="cat-card cat-c7" data-index="6"><div class="cat-icon">🍎</div>Alimentation</div>
+                            <div class="cat-card cat-c8" data-index="7"><div class="cat-icon">🐾</div>Animaux</div>
+                        </div>
+                    </div>
+
+                    <!-- ==================== S3: FEED LAYER ==================== -->
+                    <div class="layer layer-feed">
+                        <div class="feed-overlay"></div>
+                        <div class="feed-header">
+                            <span class="feed-greeting">Flash Market</span>
+                            <svg class="svg-icon" style="width: 20px; height: 20px; color:#555;" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke="currentColor" stroke-width="2.5"/></svg>
+                        </div>
+                        
+                        <div class="feed-container">
+                            <div class="feed-content" id="feed-scroll-container">
+                                <!-- Card 1 -->
+                                <div class="feed-card">
+                                    <div class="feed-img img-colis"></div>
+                                    <div class="feed-details">
+                                        <div class="feed-title">Envoi de colis Paris Bamako</div>
+                                        <div class="feed-price">5 000 FCFA</div>
+                                        <div class="feed-meta"><span>Bamako</span><span>14 km</span></div>
+                                    </div>
+                                </div>
+                                <!-- Card 2 -->
+                                <div class="feed-card">
+                                    <div class="feed-img img-kia"></div>
+                                    <div class="feed-details">
+                                        <div class="feed-title">Kia k5 tout fini</div>
+                                        <div class="feed-price">65M FCFA</div>
+                                        <div class="feed-meta"><span>Commune VI</span><span>4151 km</span></div>
+                                    </div>
+                                </div>
+                                <!-- Card 3 -->
+                                <div class="feed-card">
+                                    <div class="feed-img img-autruche"></div>
+                                    <div class="feed-details">
+                                        <div class="feed-title">Autruche vivante</div>
+                                        <div class="feed-price">2M FCFA</div>
+                                        <div class="feed-meta"><span>Kati kôkô</span><span>20 km</span></div>
+                                    </div>
+                                </div>
+                                <!-- Card 4 -->
+                                <div class="feed-card">
+                                    <div class="feed-img img-ps3"></div>
+                                    <div class="feed-details">
+                                        <div class="feed-title">Jeu Playstation 3</div>
+                                        <div class="feed-price">2 500 FCFA</div>
+                                        <div class="feed-meta"><span>Niamakoro</span><span>4155 km</span></div>
+                                    </div>
+                                </div>
+                                <!-- Card 5 - Focus Target 1 -->
+                                <div class="feed-card focus-target" id="focus-macbook">
+                                    <div class="feed-img img-macbook"></div>
+                                    <div class="feed-details">
+                                        <div class="feed-title">MacBook M4 2025</div>
+                                        <div class="feed-price">450 000 FCFA</div>
+                                        <div class="feed-meta"><span>Bamako</span><span>2 km</span></div>
+                                    </div>
+                                </div>
+                                <!-- Card 6 - Focus Target 2 -->
+                                <div class="feed-card focus-target" id="focus-shoe">
+                                    <div class="feed-img img-sneaker">
+                                        <svg class="sneaker-vector" viewBox="0 0 24 24">
+                                            <path d="M21 13h-4.32l-1.84-3.68A2 2 0 0 0 13.06 8H7a3 3 0 0 0-3 3v2a3 3 0 0 0 3 3h12a2 2 0 0 0 2-2v-1z"/>
+                                            <path d="M6 18a2 2 0 1 0 0-4 2 2 0 0 0 0 4z M18 18a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
+                                        </svg>
+                                    </div>
+                                    <div class="feed-details">
+                                        <div class="feed-title">Chaussure basketball</div>
+                                        <div class="feed-price">15 000 FCFA</div>
+                                        <div class="feed-meta"><span>Sotuba</span><span>5 km</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Floating FAB Action button -->
+                        <div class="floating-cta pulse-animation">
+                            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        </div>
+                    </div>
+
+                    <!-- ==================== S4: PROFILE LAYER ==================== -->
+                    <div class="layer layer-profile">
+                        <div class="profile-scrollable" id="profile-scroll-container">
+                            
+                            <!-- Banner & Photo -->
+                            <div class="profile-banner">
+                                <div class="profile-avatar-container">
+                                    <div class="profile-avatar">
+                                        👨🏾
+                                        <svg class="avatar-crown" viewBox="0 0 24 24"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"/></svg>
+                                        <span class="pro-badge">PRO</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- User info details -->
+                            <div class="profile-info">
+                                <h3 class="profile-name">Soumaila Toure</h3>
+                                <p class="profile-subtitle">Vendeur vérifié pro • Bamako</p>
+                                
+                                <div class="profile-boutique-btn">
+                                    <span>🏪 Ma boutique</span>
+                                    <span>👉</span>
+                                </div>
+                            </div>
+
+                            <!-- Showcase Horizontal Carousel -->
+                            <div class="profile-showcase-sect">
+                                <h4 class="showcase-title">Photos d'activité (vitrine)</h4>
+                                <div class="carousel-outer">
+                                    <div class="carousel-inner-track" id="car-carousel">
+                                        <div class="carousel-card car-img-1"></div>
+                                        <div class="carousel-card car-img-2"></div>
+                                        <div class="carousel-card car-img-3"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Action Contact pills -->
+                            <div class="profile-contact-row">
+                                <div class="contact-pill pill-phone">
+                                    <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                                    Appeler
+                                </div>
+                                <div class="contact-pill pill-wa">
+                                    <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                                    WhatsApp
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- ==================== S5: MESSAGES LAYER ==================== -->
+                    <div class="layer layer-messages">
+                        <div class="msg-header">
+                            <span class="msg-title">Messages</span>
+                            <svg class="svg-icon" style="width: 20px; height: 20px; color:#555;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                        </div>
+                        <div class="msg-list">
+                            <!-- Row 1 -->
+                            <div class="msg-row">
+                                <div class="msg-avatar ava-1">DK</div>
+                                <div class="msg-content">
+                                    <div class="msg-username">Djigui Kone</div>
+                                    <div class="msg-prod">Moto JAKARTA</div>
+                                    <div class="msg-text">Nouvelle conversation ouverte</div>
+                                </div>
+                                <span class="msg-time">7j</span>
+                            </div>
+                            <!-- Row 2 -->
+                            <div class="msg-row">
+                                <div class="msg-avatar ava-2">CT</div>
+                                <div class="msg-content">
+                                    <div class="msg-username">Chaimaa Targhi</div>
+                                    <div class="msg-prod">Moto JAKARTA</div>
+                                    <div class="msg-text">Oui c'est dispo, je prends direct.</div>
+                                </div>
+                                <span class="msg-time">7j</span>
+                            </div>
+                            <!-- Row 3 -->
+                            <div class="msg-row">
+                                <div class="msg-avatar ava-1">DK</div>
+                                <div class="msg-content">
+                                    <div class="msg-username">Djigui Kone</div>
+                                    <div class="msg-prod">Corolla S</div>
+                                    <div class="msg-text">Quel est votre dernier prix ?</div>
+                                </div>
+                                <span class="msg-time">9j</span>
+                            </div>
+                            <!-- Row 4 -->
+                            <div class="msg-row">
+                                <div class="msg-avatar ava-3">SG</div>
+                                <div class="msg-content">
+                                    <div class="msg-username">Sory Gano</div>
+                                    <div class="msg-prod">Ticket de Concert Trk</div>
+                                    <div class="msg-text">Oui c'est possible d'échanger</div>
+                                </div>
+                                <span class="msg-time">9j</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ==================== S6: OUTRO LAYER ==================== -->
+                    <div class="layer layer-outro">
+                        <div class="outro-container">
+                            <div class="outro-logo-box">
+                                <svg viewBox="0 0 100 100" style="width: 48px; height: 48px;">
+                                    <defs>
+                                        <mask id="logo-mask-outro">
+                                            <rect x="0" y="0" width="100" height="100" fill="#fff" />
+                                            <path d="M 58 40 L 40 55 H 59 L 41 74 L 60 51 H 42 Z" fill="#000" />
+                                        </mask>
+                                    </defs>
+                                    <path d="M 36 34 A 14 14 0 0 1 64 34" fill="none" stroke="#fff" stroke-width="5.5" stroke-linecap="round" />
+                                    <path d="M 36 32 H 64 C 67 32, 68 34, 67.7 37 L 72.3 75 C 72.7 78, 70 80, 66 80 H 34 C 30 80, 27.3 78, 27.7 75 L 32.3 37 C 32 34, 33 32, 36 32 Z" fill="#fff" mask="url(#logo-mask-outro)" />
+                                </svg>
+                            </div>
+                            
+                            <div class="outro-tagline">
+                                <span class="tagline-word">Vendez.</span>
+                                <span class="tagline-word">Achetez.</span>
+                                <span class="tagline-word highlight">Sécurisez.</span>
+                            </div>
+
+                            <div class="app-badges-row">
+                                <!-- App Store Mini vector replacement -->
+                                <svg class="store-badge" viewBox="0 0 135 40" style="background:#000; border-radius:6px; padding:4px;"><rect width="135" height="40" fill="none"/><path d="M20 14a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H22a2 2 0 0 1-2-2z" fill="#fff"/><text x="45" y="18" fill="#fff" font-size="7" font-weight="bold">Download on the</text><text x="45" y="28" fill="#fff" font-size="10" font-weight="900">App Store</text></svg>
+                                <!-- Play Store Mini vector replacement -->
+                                <svg class="store-badge" viewBox="0 0 135 40" style="background:#000; border-radius:6px; padding:4px;"><rect width="135" height="40" fill="none"/><path d="M20 12l14 8-14 8V12z" fill="#a4c639"/><text x="45" y="18" fill="#fff" font-size="7" font-weight="bold">GET IT ON</text><text x="45" y="28" fill="#fff" font-size="10" font-weight="900">Google Play</text></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Nav Frame overlay (always visible when navbar-collapsed, hidden in outro/outro-active) -->
+                    <div class="bottom-nav" id="global-bottom-nav">
+                        <div class="nav-item active" id="nav-accueil">
+                            <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                            <span>Accueil</span>
+                        </div>
+                        <div class="nav-item" id="nav-recherche">
+                            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <span>Recherche</span>
+                        </div>
+                        <div class="nav-item" style="opacity: 0; pointer-events: none;">
+                            <!-- Space for floating FAB button -->
+                        </div>
+                        <div class="nav-item" id="nav-messages">
+                            <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                            <span>Messages</span>
+                        </div>
+                        <div class="nav-item" id="nav-profil">
+                            <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            <span>Profil</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            
+            <!-- Floating overlay controls for phone-only recording mode -->
+            <div class="floating-phone-controls">
+                <button class="floating-control-btn" id="float-play-pause-btn" onclick="togglePlay()">Play</button>
+                <button class="floating-control-btn" onclick="seekToSection(1)">S1</button>
+                <button class="floating-control-btn" onclick="seekToSection(2)">S2</button>
+                <button class="floating-control-btn" onclick="seekToSection(3)">S3</button>
+                <button class="floating-control-btn" onclick="seekToSection(4)">S4</button>
+                <button class="floating-control-btn" onclick="seekToSection(5)">S5</button>
+                <button class="floating-control-btn" onclick="seekToSection(6)">S6</button>
+                <button class="floating-control-btn exit-btn" onclick="togglePhoneMode()">Studio 🖥️</button>
+            </div>
+        </main>
+
+        <!-- Right Sound Sync Panel -->
+        <aside class="panel panel-right">
+            <div class="panel-header">
+                <span>Audio Cue Sheet</span>
+                <span style="color: var(--green-light); font-family: var(--font-mono);">#02</span>
+            </div>
+            <div class="panel-content" id="audio-cues-list">
+                
+                <div class="audio-cue-item" data-start="0" data-end="4000">
+                    <span class="cue-time">0.0s</span>
+                    <div class="cue-desc">
+                        <strong>Deep sub-bass swell</strong><br>
+                        Click sound when bolt is revealed.
+                    </div>
+                </div>
+
+                <div class="audio-cue-item" data-start="4000" data-end="10000">
+                    <span class="cue-time">4.0s</span>
+                    <div class="cue-desc">
+                        <strong>Future Bass drum kick</strong><br>
+                        Staggered "pop" sound for 8 cards.
+                    </div>
+                </div>
+
+                <div class="audio-cue-item" data-start="10000" data-end="16000">
+                    <span class="cue-time">10.0s</span>
+                    <div class="cue-desc">
+                        <strong>Stereo Whoosh transition</strong><br>
+                        Slight radar pulse on search FAB.
+                    </div>
+                </div>
+
+                <div class="audio-cue-item" data-start="16000" data-end="22000">
+                    <span class="cue-time">16.0s</span>
+                    <div class="cue-desc">
+                        <strong>Fast Swipe up sound</strong><br>
+                        Contact sheen gloss synth chime.
+                    </div>
+                </div>
+
+                <div class="audio-cue-item" data-start="22000" data-end="26000">
+                    <span class="cue-time">22.0s</span>
+                    <div class="cue-desc">
+                        <strong>4 rhythmic chat pop tones</strong><br>
+                        Rhythmic scaling tones.
+                    </div>
+                </div>
+
+                <div class="audio-cue-item" data-start="26000" data-end="30000">
+                    <span class="cue-time">26.0s</span>
+                    <div class="cue-desc">
+                        <strong>3 heavy kicks / snaps</strong><br>
+                        "Vendez. Achetez. Sécurisez."
+                    </div>
+                </div>
+
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- Bottom Playback Timeline Panel -->
+    <footer class="bottom-timeline-panel">
+        <div class="playback-controls">
+            <button class="control-btn" id="btn-play-pause" title="Play / Pause">
+                <svg viewBox="0 0 24 24" id="svg-play"><path d="M8 5v14l11-7z"/></svg>
+                <svg viewBox="0 0 24 24" id="svg-pause" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </button>
+            <button class="control-btn" id="btn-loop" title="Toggle Loop" style="border-color: var(--green);">
+                <svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 12c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+            </button>
+        </div>
+
+        <div class="timeline-track-container">
+            <div class="timeline-scrubber" id="timeline-scrubber-element">
+                <div class="timeline-fill" id="timeline-fill-bar"></div>
+                <div class="timeline-handle" id="timeline-handle-pin"></div>
+                
+                <!-- Sec Markers Ticks -->
+                <div class="marker-tick" style="left: 0%"></div>
+                <div class="marker-tick" style="left: 13.33%" title="S2"></div>
+                <div class="marker-tick" style="left: 33.33%" title="S3"></div>
+                <div class="marker-tick" style="left: 53.33%" title="S4"></div>
+                <div class="marker-tick" style="left: 73.33%" title="S5"></div>
+                <div class="marker-tick" style="left: 86.66%" title="S6"></div>
+            </div>
+            <div class="timeline-markers">
+                <span>0s (Reveal)</span>
+                <span style="left: 13.33%">4s (Cards)</span>
+                <span style="left: 33.33%">10s (Feed)</span>
+                <span style="left: 53.33%">16s (Profile)</span>
+                <span style="left: 73.33%">22s (Chat)</span>
+                <span style="left: 86.66%">26s (Outro)</span>
+                <span>30s</span>
+            </div>
+        </div>
+
+        <div class="time-display-box">
+            <span id="time-clock">00:00.00</span>
+            <span class="frame-counter" id="frame-clock">Frame 0000</span>
+        </div>
+    </footer>
+
+    <!-- ========== JS TIMELINE MOTOR ========== -->
+    <script>
+        const DURATION = 30000; // 30 seconds in ms
+        let currentTime = 0;   // elapsed time in ms
+        let isPlaying = false;
+        let loop = true;
+        let lastTime = 0;
+        let animationFrameId = null;
+
+        // Elements
+        const app = document.getElementById('app');
+        const btnPlayPause = document.getElementById('btn-play-pause');
+        const btnLoop = document.getElementById('btn-loop');
+        const svgPlay = document.getElementById('svg-play');
+        const svgPause = document.getElementById('svg-pause');
+        const timelineScrubber = document.getElementById('timeline-scrubber-element');
+        const timelineFill = document.getElementById('timeline-fill-bar');
+        const timelineHandle = document.getElementById('timeline-handle-pin');
+        const timeClock = document.getElementById('time-clock');
+        const frameClock = document.getElementById('frame-clock');
+
+        // Nav Indicators
+        const statusBar = document.getElementById('status-bar');
+        const globalBottomNav = document.getElementById('global-bottom-nav');
+        const navAccueil = document.getElementById('nav-accueil');
+        const navRecherche = document.getElementById('nav-recherche');
+        const navMessages = document.getElementById('nav-messages');
+        const navProfil = document.getElementById('nav-profil');
+
+        // Specs Panels outputs
+        const specSection = document.getElementById('spec-section');
+        const specLogoScale = document.getElementById('spec-logo-scale');
+        const specFeedScroll = document.getElementById('spec-feed-scroll');
+        const specHighlight = document.getElementById('spec-highlight');
+        const specSplit = document.getElementById('spec-split');
+
+        // Initialization
+        syncState(0);
+
+        function togglePlay() {
+            if (isPlaying) {
+                pause();
+            } else {
+                play();
+            }
+        }
+
+        function play() {
+            isPlaying = true;
+            svgPlay.style.display = 'none';
+            svgPause.style.display = 'block';
+            lastTime = performance.now();
+            animationFrameId = requestAnimationFrame(tick);
+        }
+
+        function pause() {
+            isPlaying = false;
+            svgPlay.style.display = 'block';
+            svgPause.style.display = 'none';
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+        }
+
+        function tick(now) {
+            if (!isPlaying) return;
+            const delta = now - lastTime;
+            lastTime = now;
+            
+            currentTime += delta;
+            if (currentTime >= DURATION) {
+                if (loop) {
+                    currentTime = 0;
+                } else {
+                    currentTime = DURATION;
+                    pause();
+                }
+            }
+            
+            updateTimeline();
+            syncState(currentTime);
+            animationFrameId = requestAnimationFrame(tick);
+        }
+
+        function updateTimeline() {
+            const percentage = (currentTime / DURATION) * 100;
+            timelineFill.style.width = percentage + '%';
+            timelineHandle.style.left = percentage + '%';
+
+            // Clock formatted (MM:SS.CC)
+            const seconds = Math.floor(currentTime / 1000);
+            const ms = Math.floor((currentTime % 1000) / 10);
+            timeClock.innerText = `00:${seconds.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+            
+            // Frame counter (60fps)
+            const frame = Math.floor((currentTime / 1000) * 60);
+            frameClock.innerText = `Frame ${frame.toString().padStart(4, '0')}`;
+        }
+
+        // Timeline Scrubbing Event listeners
+        timelineScrubber.addEventListener('mousedown', function(e) {
+            scrub(e);
+            window.addEventListener('mousemove', scrub);
+            window.addEventListener('mouseup', endScrub);
+        });
+
+        function scrub(e) {
+            const rect = timelineScrubber.getBoundingClientRect();
+            let clickX = e.clientX - rect.left;
+            if (clickX < 0) clickX = 0;
+            if (clickX > rect.width) clickX = rect.width;
+            
+            const pct = clickX / rect.width;
+            currentTime = pct * DURATION;
+            updateTimeline();
+            syncState(currentTime);
+        }
+
+        function endScrub() {
+            window.removeEventListener('mousemove', scrub);
+            window.removeEventListener('mouseup', endScrub);
+        }
+
+        btnPlayPause.addEventListener('click', togglePlay);
+        btnLoop.addEventListener('click', () => {
+            loop = !loop;
+            btnLoop.style.borderColor = loop ? 'var(--green)' : 'var(--dark-border)';
+        });
+
+        // Quick Seek to specific section
+        function seekToSection(sec) {
+            const marks = [0, 4000, 10000, 16000, 22000, 26000];
+            currentTime = marks[sec - 1];
+            updateTimeline();
+            syncState(currentTime);
+        }
+
+        // --- Core Deterministic State Sync ---
+        function syncState(t) {
+            // Apply current section class to workspace navbar
+            const btns = document.querySelectorAll('.scene-skip-btn');
+            btns.forEach(btn => btn.classList.remove('active'));
+            
+            let currentSecIndex = 0;
+            if (t < 4000) currentSecIndex = 0;
+            else if (t < 10000) currentSecIndex = 1;
+            else if (t < 16000) currentSecIndex = 2;
+            else if (t < 22000) currentSecIndex = 3;
+            else if (t < 26000) currentSecIndex = 4;
+            else currentSecIndex = 5;
+            
+            btns[currentSecIndex].classList.add('active');
+
+            // Reset all state classes
+            app.className = 'phone-viewport';
+            statusBar.classList.remove('white-text');
+            globalBottomNav.style.opacity = '1';
+            globalBottomNav.style.pointerEvents = 'auto';
+            
+            navAccueil.classList.remove('active');
+            navRecherche.classList.remove('active');
+            navMessages.classList.remove('active');
+            navProfil.classList.remove('active');
+
+            // Audio cues visual highlights
+            const cues = document.querySelectorAll('.audio-cue-item');
+            cues.forEach(cue => {
+                const start = parseInt(cue.dataset.start);
+                const end = parseInt(cue.dataset.end);
+                cue.classList.toggle('active', t >= start && t < end);
+            });
+
+            // Card list staggered triggers
+            document.querySelectorAll('.cat-card').forEach((card, idx) => {
+                const triggerTime = 4200 + (idx * 45);
+                card.classList.toggle('show', t >= triggerTime);
+            });
+
+            document.querySelectorAll('.msg-row').forEach((row, idx) => {
+                const triggerTime = 22600 + (idx * 60);
+                row.classList.toggle('show', t >= triggerTime);
+            });
+
+            document.querySelectorAll('.tagline-word').forEach((word, idx) => {
+                const triggerTime = 27100 + (idx * 180);
+                word.classList.toggle('show', t >= triggerTime);
+            });
+
+            // Specific timeline blocks
+            if (t < 4000) {
+                // Section 1: Logo Reveal
+                app.classList.add('s1');
+                specSection.innerText = 'S1 (Reveal)';
+                
+                // Real-time specs outputs calculations
+                const progressS1 = t / 4000;
+                let scaleVal = 0;
+                if (t < 300) {
+                    scaleVal = Math.min((t / 300) * 105, 105);
+                } else if (t < 500) {
+                    scaleVal = 105 - ((t - 300) / 200) * 5;
+                } else {
+                    scaleVal = 100;
+                }
+                specLogoScale.innerText = scaleVal.toFixed(0) + '%';
+                specFeedScroll.innerText = '0px';
+                specHighlight.innerText = '1.0';
+                specSplit.innerText = '0°';
+            } 
+            else if (t < 10000) {
+                // Section 2: Categories Grid
+                app.classList.add('s2');
+                app.classList.add('navbar-collapsed');
+                navRecherche.classList.add('active');
+                specSection.innerText = 'S2 (Categories)';
+                specLogoScale.innerText = '15%';
+                specFeedScroll.innerText = '0px';
+                specHighlight.innerText = '1.0';
+                specSplit.innerText = '0°';
+            } 
+            else if (t < 16000) {
+                // Section 3: Marketplace Feed
+                app.classList.add('s3');
+                app.classList.add('navbar-collapsed');
+                navAccueil.classList.add('active');
+                specSection.innerText = 'S3 (Marketplace)';
+                specLogoScale.innerText = '15%';
+                
+                // Feed auto-scroll calculations
+                if (t >= 10600) {
+                    app.classList.add('feed-scrolled');
+                    specFeedScroll.innerText = '-145px';
+                } else {
+                    specFeedScroll.innerText = '0px';
+                }
+
+                // Feed high-light zoom card triggers
+                if (t >= 11600) {
+                    app.classList.add('feed-focused');
+                    specHighlight.innerText = '1.04';
+                } else {
+                    specHighlight.innerText = '1.0';
+                }
+                specSplit.innerText = '0°';
+            } 
+            else if (t < 22000) {
+                // Section 4: Profile Details
+                app.classList.add('s4');
+                app.classList.add('navbar-collapsed');
+                navProfil.classList.add('active');
+                statusBar.classList.add('white-text');
+                specSection.innerText = 'S4 (Profile)';
+                specLogoScale.innerText = '15%';
+                specFeedScroll.innerText = '0px';
+                specHighlight.innerText = '1.0';
+                specSplit.innerText = '0°';
+
+                if (t >= 16600) app.classList.add('profile-badge');
+                if (t >= 17600) app.classList.add('carousel-scrolled');
+                if (t >= 19100) app.classList.add('pills-sheen');
+            } 
+            else if (t < 26000) {
+                // Section 5: Messages chat
+                app.classList.add('s5');
+                app.classList.add('navbar-collapsed');
+                navMessages.classList.add('active');
+                specSection.innerText = 'S5 (Messages)';
+                specLogoScale.innerText = '15%';
+                specFeedScroll.innerText = '0px';
+                specHighlight.innerText = '1.0';
+                
+                // Split simulation calculations
+                if (t >= 22000) {
+                    specSplit.innerText = '90° (Split Open)';
+                } else {
+                    specSplit.innerText = '0°';
+                }
+            } 
+            else {
+                // Section 6: Marketing Outro
+                app.classList.add('s6');
+                app.classList.add('outro-active');
+                globalBottomNav.style.opacity = '0';
+                globalBottomNav.style.pointerEvents = 'none';
+                specSection.innerText = 'S6 (Outro)';
+                specLogoScale.innerText = '100%';
+                specFeedScroll.innerText = '0px';
+                specHighlight.innerText = '1.0';
+                specSplit.innerText = '0°';
+            }
+            
+            // Sync floating play button text
+            const floatPlayBtn = document.getElementById('float-play-pause-btn');
+            if (floatPlayBtn) {
+                floatPlayBtn.innerText = isPlaying ? 'Pause ⏸️' : 'Play ▶️';
+            }
+        }
+
+        // Toggle phone mode function
+        function togglePhoneMode() {
+            document.body.classList.toggle('phone-only-mode');
+            const isPhoneMode = document.body.classList.contains('phone-only-mode');
+            const headerBtn = document.getElementById('btn-phone-mode');
+            if (headerBtn) {
+                headerBtn.innerText = isPhoneMode ? '🖥️ Mode Studio' : '📱 Format Téléphone';
+            }
+        }
+
+        // Keyboard navigation shortcuts
+        window.addEventListener('keydown', function(e) {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                togglePlay();
+            } else if (e.key === 'Escape' || e.key === 't' || e.key === 'T') {
+                e.preventDefault();
+                togglePhoneMode();
+            } else if (e.key >= '1' && e.key <= '6') {
+                seekToSection(parseInt(e.key));
+            }
+        });
+    </script>
+</body>
+</html>
