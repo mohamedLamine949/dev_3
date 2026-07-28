@@ -312,7 +312,7 @@ export const PLANS_CONFIG = {
   professionnel: {
     id: 'professionnel',
     nom: 'PRO / Boutique',
-    prix: 0, // Offre PRO gratuite (0 F) pour l'amorçage
+    prix: 5000, // Abonnement PRO (monétisation via interrupteur app_config.payments_enabled)
     quotaMensuel: Infinity,
     dureeAnnonceJours: null, // N'expire jamais
     badgeVerifie: true,

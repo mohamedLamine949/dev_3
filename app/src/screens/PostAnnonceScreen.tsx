@@ -56,7 +56,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
   const [isPaymentModalVisible, setPaymentModalVisible] = useState(false);
   const [paymentPhone, setPaymentPhone] = useState('');
   const [paymentUrl, setPaymentUrl] = useState('');
-  const [paymentType, setPaymentType] = useState<'unit_ad' | 'subscription_vendeur'>('unit_ad');
+  const [paymentType, setPaymentType] = useState<'unit_ad' | 'subscription_vendeur' | 'subscription_pro'>('unit_ad');
   const [paymentAmount, setPaymentAmount] = useState(unitPrice);
   const [paymentStep, setPaymentStep] = useState<'quota_choice' | 'init_payment' | 'webview' | 'processing' | 'success' | 'error'>('quota_choice');
   const [transactionId, setTransactionId] = useState('');
@@ -176,6 +176,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
       description: description || null,
       prix: parseInt(prix, 10),
       categorie: selectedCategory!,
+      sous_categorie: selectedSousCategorie,
       etat_article: selectedEtat || 'non_specifie',
       ville: location?.ville || 'Mali',
       quartier: quartier || null,
@@ -206,32 +207,8 @@ export default function PostAnnonceScreen({ navigation }: any) {
     }, 2500);
   };
 
-  // Immediate 0 F PRO upgrade and publication
-  const handleUpgradeToProAndPublish = async () => {
-    setPaymentStep('processing');
-    try {
-      const { error } = await supabase
-        .from('users')
-        .update({
-          type_compte: 'professionnel',
-          date_abonnement: new Date().toISOString(),
-        })
-        .eq('id', session.user.id);
-
-      if (error) throw error;
-      await refreshUser();
-
-      // Directly publish ad for 0 FCFA under PRO status
-      await publishAnnonceDirectly(0, 'PRO_UPGRADE_FREE');
-    } catch (err: any) {
-      console.error("Erreur activation PRO:", err);
-      setPaymentError("Impossible d'activer le statut PRO. " + (err.message || ''));
-      setPaymentStep('error');
-    }
-  };
-
-  // Initiate Mobile Money payment flow (for Unit Ad or Vendeur Subscription)
-  const performPaymentAndUpload = async (type: 'unit_ad' | 'subscription_vendeur', amount: number) => {
+  // Initiate Mobile Money payment flow (Unit Ad, Vendeur or PRO subscription)
+  const performPaymentAndUpload = async (type: 'unit_ad' | 'subscription_vendeur' | 'subscription_pro', amount: number) => {
     isProcessingRef.current = false;
     setPaymentType(type);
     setPaymentAmount(amount);
@@ -248,8 +225,10 @@ export default function PostAnnonceScreen({ navigation }: any) {
     const refNum = `CC-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
     setTransactionId(refNum);
 
-    const payDesc = type === 'subscription_vendeur'
-      ? 'Chap Chap - Abonnement Vendeur Pro (30 annonces/mois)'
+    const payDesc = type === 'subscription_pro'
+      ? 'Chap Chap - Abonnement PRO / Boutique (annonces illimitees)'
+      : type === 'subscription_vendeur'
+      ? 'Chap Chap - Abonnement Vendeur (30 annonces/mois)'
       : `Chap Chap - Publication annonce: ${titre.substring(0, 40)}`;
 
     try {
@@ -308,12 +287,21 @@ export default function PostAnnonceScreen({ navigation }: any) {
       Alert.alert('Champs manquants', 'Titre, prix, catégorie, sous-catégorie et au moins une photo sont requis.');
       return;
     }
+
+    // Interrupteur maître (app_config.payments_enabled) : si la monétisation est
+    // désactivée (phase de lancement gratuite), on publie directement, sans quota.
+    if (!paymentsEnabled) {
+      publishFree();
+      return;
+    }
+
     // Determine eligibility based on Business Model rules
     const isPro = currentPlanKey === 'professionnel';
     const isWithinQuota = monthlyCount < currentPlan.quotaMensuel;
 
     if (isPro || isWithinQuota) {
       // Free publication under quota or PRO plan!
+      if (!isPro) setMonthlyCount((c) => c + 1); // maj optimiste du compteur mensuel
       publishAnnonceDirectly(0, isPro ? 'PLAN_PRO' : `QUOTA_${currentPlanKey.toUpperCase()}`);
     } else {
       // Quota exceeded! Show subscription options modal
@@ -370,12 +358,12 @@ export default function PostAnnonceScreen({ navigation }: any) {
     setPaymentStep('processing');
 
     // If subscription payment, update user profile first
-    if (paymentType === 'subscription_vendeur') {
+    if (paymentType === 'subscription_vendeur' || paymentType === 'subscription_pro') {
       try {
         await supabase
           .from('users')
           .update({
-            type_compte: 'vendeur',
+            type_compte: paymentType === 'subscription_pro' ? 'professionnel' : 'vendeur',
             date_abonnement: new Date().toISOString(),
           })
           .eq('id', session.user.id);
@@ -612,32 +600,48 @@ export default function PostAnnonceScreen({ navigation }: any) {
           />
 
           {/* Coût & Quota Info */}
-          <View style={styles.costCard}>
-            <View style={styles.costRow}>
-              <Text style={styles.costLabel}>Formule actuelle</Text>
-              <Text style={[styles.costValue, { fontSize: FONTS.md }]}>{currentPlan.nom}</Text>
+          {!paymentsEnabled ? (
+            <View style={styles.costCard}>
+              <View style={styles.costRow}>
+                <Text style={styles.costLabel}>Frais de publication</Text>
+                <Text style={styles.costValue}>Gratuit</Text>
+              </View>
+              <View style={styles.costDivider} />
+              <View style={styles.costInfo}>
+                <Ionicons name="information-circle-outline" size={18} color={theme.primary} />
+                <Text style={styles.costInfoText}>
+                  Publication gratuite et illimitée pendant la période de lancement.
+                </Text>
+              </View>
             </View>
-            <View style={styles.costDivider} />
-            <View style={styles.costRow}>
-              <Text style={styles.costLabel}>Frais de dépôt cette annonce</Text>
-              <Text style={styles.costValue}>
-                {currentPlanKey === 'professionnel'
-                  ? '0 FCFA (Illimité PRO)'
-                  : monthlyCount < currentPlan.quotaMensuel
-                    ? '0 FCFA (Inclus dans quota)'
-                    : `${unitPrice} FCFA`}
-              </Text>
+          ) : (
+            <View style={styles.costCard}>
+              <View style={styles.costRow}>
+                <Text style={styles.costLabel}>Formule actuelle</Text>
+                <Text style={[styles.costValue, { fontSize: FONTS.md }]}>{currentPlan.nom}</Text>
+              </View>
+              <View style={styles.costDivider} />
+              <View style={styles.costRow}>
+                <Text style={styles.costLabel}>Frais de dépôt cette annonce</Text>
+                <Text style={styles.costValue}>
+                  {currentPlanKey === 'professionnel'
+                    ? '0 FCFA (Illimité PRO)'
+                    : monthlyCount < currentPlan.quotaMensuel
+                      ? '0 FCFA (Inclus dans quota)'
+                      : `${unitPrice} FCFA`}
+                </Text>
+              </View>
+              <View style={styles.costDivider} />
+              <View style={styles.costInfo}>
+                <Ionicons name="information-circle-outline" size={18} color={theme.primary} />
+                <Text style={styles.costInfoText}>
+                  {currentPlanKey === 'professionnel'
+                    ? 'En tant que membre PRO, toutes vos publications sont illimitées et gratuites.'
+                    : `Vous avez publié ${monthlyCount} / ${currentPlan.quotaMensuel} annonces ce mois-ci. Les ${currentPlan.quotaMensuel} premières annonces de chaque mois sont gratuites.`}
+                </Text>
+              </View>
             </View>
-            <View style={styles.costDivider} />
-            <View style={styles.costInfo}>
-              <Ionicons name="information-circle-outline" size={18} color={theme.primary} />
-              <Text style={styles.costInfoText}>
-                {currentPlanKey === 'professionnel'
-                  ? 'En tant que membre PRO, toutes vos publications sont illimitées et gratuit.'
-                  : `Vous avez publié ${monthlyCount} / ${currentPlan.quotaMensuel} annonces ce mois-ci. Les 3 premières annonces de chaque mois sont gratuit.`}
-              </Text>
-            </View>
-          </View>
+          )}
 
           <View style={{ height: 100 }} />
         </ScrollView>
@@ -653,9 +657,11 @@ export default function PostAnnonceScreen({ navigation }: any) {
         >
           <Ionicons name="flash" size={20} color={theme.textInverse} />
           <Text style={styles.ctaText}>
-            {currentPlanKey === 'professionnel' || monthlyCount < currentPlan.quotaMensuel
+            {!paymentsEnabled
+              ? 'Publier gratuitement'
+              : currentPlanKey === 'professionnel' || monthlyCount < currentPlan.quotaMensuel
               ? "Publier l'annonce (Gratuit)"
-              : `Publier mon annonce`}
+              : 'Publier mon annonce'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -699,7 +705,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
                   Vous avez utilisé votre quota gratuit de {currentPlan.quotaMensuel} annonces ce mois-ci ({monthlyCount}/{currentPlan.quotaMensuel}). Choisissez une formule pour publier votre annonce :
                 </Text>
 
-                {/* Option PRO 0 FCFA (Recommandée) */}
+                {/* Option PRO 5000 FCFA (Recommandée) */}
                 <View style={{ backgroundColor: theme.primaryFaded, borderRadius: RADIUS.lg, padding: SPACING.lg, borderWidth: 2, borderColor: theme.primary, marginBottom: SPACING.md }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.extrabold, color: theme.primary }}>
@@ -710,7 +716,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
                     </View>
                   </View>
                   <Text style={{ fontSize: FONTS.xl, fontWeight: FONTS.extrabold, color: theme.primary, marginBottom: 6 }}>
-                    0 FCFA <Text style={{ fontSize: FONTS.xs, fontWeight: 'normal', color: theme.textSecondary }}>/ mois (Offert)</Text>
+                    5 000 FCFA <Text style={{ fontSize: FONTS.xs, fontWeight: 'normal', color: theme.textSecondary }}>/ mois</Text>
                   </Text>
                   <Text style={{ fontSize: FONTS.xs, color: theme.textSecondary, marginBottom: SPACING.md, lineHeight: 18 }}>
                     • Annonces illimitées & permanentes (n'expirent jamais){'\n'}
@@ -719,11 +725,11 @@ export default function PostAnnonceScreen({ navigation }: any) {
                   </Text>
                   <TouchableOpacity
                     style={{ backgroundColor: theme.primary, paddingVertical: 12, borderRadius: RADIUS.md, alignItems: 'center' }}
-                    onPress={handleUpgradeToProAndPublish}
+                    onPress={() => performPaymentAndUpload('subscription_pro', 5000)}
                     activeOpacity={0.85}
                   >
                     <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: '#fff' }}>
-                      Activer le statut PRO & Publier (0 F)
+                      S'abonner PRO (5 000 FCFA)
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -835,7 +841,9 @@ export default function PostAnnonceScreen({ navigation }: any) {
                 <Ionicons name="checkmark-circle" size={80} color={theme.success} />
                 <Text style={[styles.processingTitle, { color: theme.success }]}>Annonce Publiée !</Text>
                 <Text style={styles.processingText}>
-                  {paymentType === 'subscription_vendeur'
+                  {paymentType === 'subscription_pro'
+                    ? "Félicitations ! Votre abonnement PRO est actif : annonces illimitées, vitrine et badge « Vérifié » !"
+                    : paymentType === 'subscription_vendeur'
                     ? "Félicitations ! Votre abonnement Vendeur est actif et votre annonce est en ligne !"
                     : "Votre annonce est maintenant en ligne et visible par tous les acheteurs."}
                 </Text>

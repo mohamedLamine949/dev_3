@@ -11,6 +11,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { supabase, Annonce } from '../lib/supabase';
 import { useSellerAvis, Avis } from '../hooks/useAvis';
 import { useParrainage } from '../hooks/useParrainage';
+import { useAppConfig } from '../hooks/useAppConfig';
 import { pickImages } from '../lib/imagePicker';
 import { decode } from 'base64-arraybuffer';
 
@@ -60,6 +61,7 @@ const SOCIAL_FIELDS = [
 export default function ProfileScreen({ navigation }: Props) {
   const { session, user, signOut, refreshUser } = useAuth();
   const { theme, isDark } = useTheme();
+  const { paymentsEnabled } = useAppConfig();
   const { avis, avgNote, loading: loadingAvis } = useSellerAvis(session?.user?.id);
   // Programme de parrainage : détermine quelles entrées afficher dans la vitrine
   const { campagne, parrain: parrainRow, monParrainage } = useParrainage(session?.user?.id);
@@ -527,7 +529,19 @@ export default function ProfileScreen({ navigation }: Props) {
               </View>
             )}
 
-            {/* Formule & Abonnement Card */}
+            {/* Offre de lancement (monétisation désactivée) */}
+            {!paymentsEnabled ? (
+              <View style={{ backgroundColor: theme.primaryFaded, borderRadius: RADIUS.lg, padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: theme.primary, ...SHADOWS.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <Ionicons name="gift-outline" size={20} color={theme.primary} />
+                  <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.textPrimary }}>Offre de lancement 🎉</Text>
+                </View>
+                <Text style={{ fontSize: FONTS.xs, color: theme.textSecondary, lineHeight: 18 }}>
+                  Pendant le lancement, toutes vos publications sont gratuites et illimitées. Profitez-en pour remplir votre boutique !
+                </Text>
+              </View>
+            ) : (
+            /* Formule & Abonnement Card */
             <View style={{
               backgroundColor: user?.type_compte === 'professionnel' ? theme.primaryFaded : theme.surface,
               borderRadius: RADIUS.lg,
@@ -546,7 +560,7 @@ export default function ProfileScreen({ navigation }: Props) {
                 </View>
                 <View style={{ backgroundColor: theme.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
                   <Text style={{ fontSize: 10, fontWeight: FONTS.bold, color: '#fff' }}>
-                    {user?.type_compte === 'professionnel' ? '0 FCFA / illimité' : user?.type_compte === 'vendeur' ? '2 000 FCFA / mois' : '3 annonces / mois'}
+                    {user?.type_compte === 'professionnel' ? '5 000 F / mois · illimité' : user?.type_compte === 'vendeur' ? '2 000 F / mois' : '3 annonces / mois'}
                   </Text>
                 </View>
               </View>
@@ -554,32 +568,21 @@ export default function ProfileScreen({ navigation }: Props) {
               {user?.type_compte !== 'professionnel' && (
                 <View style={{ marginTop: 8 }}>
                   <Text style={{ fontSize: FONTS.xs, color: theme.textSecondary, marginBottom: 10, lineHeight: 18 }}>
-                    Passez au Plan PRO offert à 0 FCFA pour bénéficier des annonces illimitées sans expiration, de la vitrine boutique et du badge « Vérifié » !
+                    Passez au Plan PRO (5 000 F/mois) pour des annonces illimitées et permanentes, la vitrine boutique et le badge « Vérifié ». L'abonnement se fait au moment de publier.
                   </Text>
                   <TouchableOpacity
                     style={{ backgroundColor: theme.primary, paddingVertical: 10, borderRadius: RADIUS.md, alignItems: 'center' }}
-                    onPress={async () => {
-                      try {
-                        const { error } = await supabase
-                          .from('users')
-                          .update({ type_compte: 'professionnel', date_abonnement: new Date().toISOString() })
-                          .eq('id', session.user.id);
-                        if (error) throw error;
-                        await refreshUser();
-                        Alert.alert('Compte PRO Activé ! 🌟', 'Félicitations ! Votre profil PRO est désormais actif gratuitement avec la vitrine et les annonces illimitées.');
-                      } catch (err: any) {
-                        Alert.alert('Erreur', err.message || 'Impossible d\'activer le statut PRO.');
-                      }
-                    }}
+                    onPress={() => navigation.navigate('Publier')}
                     activeOpacity={0.85}
                   >
                     <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: '#fff' }}>
-                      Activer le statut PRO Gratuit (0 F)
+                      Découvrir le PRO
                     </Text>
                   </TouchableOpacity>
                 </View>
               )}
             </View>
+            )}
             {/* Barre d'onglets (Vitrine, Annonces, Avis) */}
             <View style={styles.tabsContainer}>
               <TouchableOpacity 
