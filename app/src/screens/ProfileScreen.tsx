@@ -587,7 +587,7 @@ export default function ProfileScreen({ navigation }: Props) {
                     </Text>
                     <TouchableOpacity
                       style={{ backgroundColor: theme.primary, paddingVertical: 10, borderRadius: RADIUS.md, alignItems: 'center' }}
-                      onPress={() => navigation.navigate('Publier')}
+                      onPress={() => navigation.navigate('Subscription')}
                       activeOpacity={0.85}
                     >
                       <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: '#fff' }}>Renouveler mon abonnement</Text>
@@ -603,7 +603,7 @@ export default function ProfileScreen({ navigation }: Props) {
                     </Text>
                     <TouchableOpacity
                       style={{ backgroundColor: theme.primary, paddingVertical: 10, borderRadius: RADIUS.md, alignItems: 'center' }}
-                      onPress={() => navigation.navigate('Publier')}
+                      onPress={() => navigation.navigate('Subscription')}
                       activeOpacity={0.85}
                     >
                       <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: '#fff' }}>Découvrir le PRO</Text>

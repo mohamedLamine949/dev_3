@@ -38,6 +38,7 @@ import MaBoutiqueScreen from '../screens/MaBoutiqueScreen';
 import BoutiqueScreen from '../screens/BoutiqueScreen';
 import AjouterProduitScreen from '../screens/AjouterProduitScreen';
 import CommandesScreen from '../screens/CommandesScreen';
+import SubscriptionScreen from '../screens/SubscriptionScreen';
 import TermsModal from '../components/TermsModal';
 import NotificationManager from '../components/NotificationManager';
 
@@ -353,6 +354,11 @@ export default function AppNavigator() {
           name="Commandes"
           component={CommandesScreen}
           options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="Subscription"
+          component={SubscriptionScreen}
+          options={{ animation: 'slide_from_bottom' }}
         />
       </Stack.Navigator>
     </NavigationContainer>
