@@ -12,6 +12,7 @@ import { supabase, Annonce } from '../lib/supabase';
 import { useSellerAvis, Avis } from '../hooks/useAvis';
 import { useParrainage } from '../hooks/useParrainage';
 import { useAppConfig } from '../hooks/useAppConfig';
+import { getEffectivePlanKey, isSubscriptionExpired, subscriptionExpiryDate } from '../lib/subscription';
 import { pickImages } from '../lib/imagePicker';
 import { decode } from 'base64-arraybuffer';
 
@@ -62,6 +63,9 @@ export default function ProfileScreen({ navigation }: Props) {
   const { session, user, signOut, refreshUser } = useAuth();
   const { theme, isDark } = useTheme();
   const { paymentsEnabled } = useAppConfig();
+  const effectivePlanKey = getEffectivePlanKey(user);
+  const subExpired = isSubscriptionExpired(user);
+  const subExpiry = subscriptionExpiryDate(user);
   const { avis, avgNote, loading: loadingAvis } = useSellerAvis(session?.user?.id);
   // Programme de parrainage : détermine quelles entrées afficher dans la vitrine
   const { campagne, parrain: parrainRow, monParrainage } = useParrainage(session?.user?.id);
@@ -540,49 +544,75 @@ export default function ProfileScreen({ navigation }: Props) {
                   Pendant le lancement, toutes vos publications sont gratuites et illimitées. Profitez-en pour remplir votre boutique !
                 </Text>
               </View>
-            ) : (
-            /* Formule & Abonnement Card */
-            <View style={{
-              backgroundColor: user?.type_compte === 'professionnel' ? theme.primaryFaded : theme.surface,
-              borderRadius: RADIUS.lg,
-              padding: SPACING.lg,
-              marginBottom: SPACING.lg,
-              borderWidth: 1,
-              borderColor: user?.type_compte === 'professionnel' ? theme.primary : theme.borderLight,
-              ...SHADOWS.sm
-            }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name={user?.type_compte === 'professionnel' ? "ribbon-outline" : "person-outline"} size={20} color={theme.primary} />
-                  <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.textPrimary }}>
-                    Formule : {user?.type_compte === 'professionnel' ? 'PRO / Boutique' : user?.type_compte === 'vendeur' ? 'Vendeur' : 'Gratuit'}
-                  </Text>
-                </View>
-                <View style={{ backgroundColor: theme.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
-                  <Text style={{ fontSize: 10, fontWeight: FONTS.bold, color: '#fff' }}>
-                    {user?.type_compte === 'professionnel' ? '5 000 F / mois · illimité' : user?.type_compte === 'vendeur' ? '2 000 F / mois' : '3 annonces / mois'}
-                  </Text>
-                </View>
-              </View>
-
-              {user?.type_compte !== 'professionnel' && (
-                <View style={{ marginTop: 8 }}>
-                  <Text style={{ fontSize: FONTS.xs, color: theme.textSecondary, marginBottom: 10, lineHeight: 18 }}>
-                    Passez au Plan PRO (5 000 F/mois) pour des annonces illimitées et permanentes, la vitrine boutique et le badge « Vérifié ». L'abonnement se fait au moment de publier.
-                  </Text>
-                  <TouchableOpacity
-                    style={{ backgroundColor: theme.primary, paddingVertical: 10, borderRadius: RADIUS.md, alignItems: 'center' }}
-                    onPress={() => navigation.navigate('Publier')}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: '#fff' }}>
-                      Découvrir le PRO
+            ) : (() => {
+              const isActivePro = effectivePlanKey === 'professionnel';
+              const planLabel = effectivePlanKey === 'professionnel' ? 'PRO / Boutique' : effectivePlanKey === 'vendeur' ? 'Vendeur' : 'Gratuit';
+              const planBadge = effectivePlanKey === 'professionnel' ? '5 000 F / mois' : effectivePlanKey === 'vendeur' ? '2 000 F / mois' : '3 annonces / mois';
+              const expiryLabel = subExpiry ? subExpiry.toLocaleDateString('fr-FR') : null;
+              return (
+              /* Formule & Abonnement Card */
+              <View style={{
+                backgroundColor: isActivePro ? theme.primaryFaded : theme.surface,
+                borderRadius: RADIUS.lg,
+                padding: SPACING.lg,
+                marginBottom: SPACING.lg,
+                borderWidth: 1,
+                borderColor: isActivePro ? theme.primary : theme.borderLight,
+                ...SHADOWS.sm
+              }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name={isActivePro ? "ribbon-outline" : "person-outline"} size={20} color={theme.primary} />
+                    <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.textPrimary }}>
+                      Formule : {planLabel}
                     </Text>
-                  </TouchableOpacity>
+                  </View>
+                  <View style={{ backgroundColor: theme.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                    <Text style={{ fontSize: 10, fontWeight: FONTS.bold, color: '#fff' }}>{planBadge}</Text>
+                  </View>
                 </View>
-              )}
-            </View>
-            )}
+
+                {/* Abonnement actif : date de validité */}
+                {effectivePlanKey !== 'particulier' && expiryLabel && (
+                  <Text style={{ fontSize: FONTS.xs, color: theme.textSecondary, marginTop: 4 }}>
+                    Actif jusqu'au {expiryLabel} · à renouveler ensuite (paiement non automatique)
+                  </Text>
+                )}
+
+                {/* Abonnement expiré : invitation à renouveler */}
+                {subExpired && (
+                  <View style={{ marginTop: 8 }}>
+                    <Text style={{ fontSize: FONTS.xs, color: theme.error, marginBottom: 10, lineHeight: 18 }}>
+                      Votre abonnement a expiré{expiryLabel ? ` le ${expiryLabel}` : ''}. Renouvelez pour retrouver vos annonces illimitées, la vitrine et le badge « Vérifié ».
+                    </Text>
+                    <TouchableOpacity
+                      style={{ backgroundColor: theme.primary, paddingVertical: 10, borderRadius: RADIUS.md, alignItems: 'center' }}
+                      onPress={() => navigation.navigate('Publier')}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: '#fff' }}>Renouveler mon abonnement</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Ni PRO actif ni expiré : upsell classique */}
+                {effectivePlanKey !== 'professionnel' && !subExpired && (
+                  <View style={{ marginTop: 8 }}>
+                    <Text style={{ fontSize: FONTS.xs, color: theme.textSecondary, marginBottom: 10, lineHeight: 18 }}>
+                      Passez au Plan PRO (5 000 F/mois) pour des annonces illimitées et permanentes, la vitrine boutique et le badge « Vérifié ». L'abonnement se fait au moment de publier.
+                    </Text>
+                    <TouchableOpacity
+                      style={{ backgroundColor: theme.primary, paddingVertical: 10, borderRadius: RADIUS.md, alignItems: 'center' }}
+                      onPress={() => navigation.navigate('Publier')}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: '#fff' }}>Découvrir le PRO</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+              );
+            })()}
             {/* Barre d'onglets (Vitrine, Annonces, Avis) */}
             <View style={styles.tabsContainer}>
               <TouchableOpacity 

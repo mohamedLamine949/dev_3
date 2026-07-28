@@ -24,6 +24,7 @@ import { useLocation } from '../hooks/useLocation';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../lib/supabase';
 import { useAppConfig } from '../hooks/useAppConfig';
+import { getEffectivePlanKey } from '../lib/subscription';
 
 const MAX_IMAGES = 10;
 
@@ -64,8 +65,9 @@ export default function PostAnnonceScreen({ navigation }: any) {
   const [isFreePublish, setIsFreePublish] = useState(false); // publication gratuite (paiement désactivé)
   const isProcessingRef = React.useRef(false);
 
-  // User current plan definition
-  const currentPlanKey = user?.type_compte || 'particulier';
+  // User current plan definition — plan EFFECTIF : un abonnement expiré (J+30)
+  // retombe automatiquement sur 'particulier' → le paywall se réaffiche.
+  const currentPlanKey = getEffectivePlanKey(user);
   const currentPlan = PLANS_CONFIG[currentPlanKey as keyof typeof PLANS_CONFIG] || PLANS_CONFIG.particulier;
 
   // Pre-fill phone from user profile & check monthly posts count
