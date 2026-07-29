@@ -29,7 +29,10 @@ interface Props {
 type Step = 'init' | 'webview' | 'processing' | 'success' | 'error';
 
 /**
- * Modal de paiement Mobile Money (PaiementPro, channel OMML / Orange Money Mali).
+ * Modal de paiement (PaiementPro). On NE force AUCUN channel : la passerelle
+ * affiche alors la page avec tous les moyens disponibles (carte bancaire,
+ * Orange Money Mali, OM Côte d'Ivoire, MTN, Moov…) et le client choisit.
+ * Ainsi un utilisateur hors Mali n'est plus bloqué sur OM Mali.
  * Réutilisable : se charge de l'init, du WebView et de la détection de succès.
  * La logique métier post-paiement est déléguée à `onSuccess`.
  */
@@ -54,10 +57,13 @@ export default function PaiementProModal({ visible, amount, description, custome
   const initPayment = async () => {
     setStep('init');
     setError('');
+    // Numéro transmis à titre informatif à la passerelle. On garde les chiffres
+    // tels quels (sans tronquer aux 8 derniers, ce qui mutilait les numéros
+    // internationaux) ; le client choisira son moyen de paiement sur la page.
     let finalPhone = '00000000';
     if (customer.phone) {
       const cleaned = customer.phone.replace(/[^0-9]/g, '');
-      finalPhone = cleaned.length >= 8 ? cleaned.substring(cleaned.length - 8) : cleaned;
+      if (cleaned.length > 0) finalPhone = cleaned;
     }
     const refNum = `CC-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -74,7 +80,8 @@ export default function PaiementProModal({ visible, amount, description, custome
           customerFirstName: customer.firstName || 'Client',
           customerLastname: customer.lastName || 'Chap Chap',
           customerPhoneNumber: finalPhone,
-          channel: 'OMML',
+          // Pas de `channel` : PaiementPro affiche tous les moyens de paiement
+          // (carte, OM Mali, OM CI, MTN, Moov…) et le client choisit.
           notificationURL: 'https://app-flashmarket.com/payment/notify',
           returnURL: 'https://app-flashmarket.com/payment/success',
         }),
