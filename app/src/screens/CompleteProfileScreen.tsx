@@ -9,6 +9,13 @@ import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import CountryCodePicker from '../components/CountryCodePicker';
+import {
+  DEFAULT_COUNTRY,
+  isValidNationalNumber,
+  onlyDigits,
+  toE164,
+} from '../constants/countries';
 
 interface Props {
   navigation: any;
@@ -31,24 +38,31 @@ export default function CompleteProfileScreen({ navigation, route }: Props) {
 
   const [prenom, setPrenom] = useState(user?.prenom || meta.given_name || first || '');
   const [nom, setNom] = useState(user?.nom || meta.family_name || rest.join(' ') || '');
+  const [country, setCountry] = useState(DEFAULT_COUNTRY);
   const [telephone, setTelephone] = useState(user?.telephone || '');
   const [acceptCgv, setAcceptCgv] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
-  const phoneDigits = telephone.replace(/[^0-9]/g, '');
+  function handleCountryChange(next: typeof country) {
+    setCountry(next);
+    // Si le numéro déjà saisi dépasse le format du nouveau pays, on le tronque.
+    setTelephone((prev) => onlyDigits(prev).slice(0, next.max));
+  }
+
+  const phoneDigits = onlyDigits(telephone);
   const canSubmit =
     prenom.trim().length >= 2 &&
     nom.trim().length >= 2 &&
-    phoneDigits.length === 8 &&
+    isValidNationalNumber(phoneDigits, country) &&
     acceptCgv;
 
   async function handleSave() {
     if (!canSubmit || !session) return;
     setLoading(true);
     try {
-      const formattedPhone = '+223' + phoneDigits;
+      const formattedPhone = toE164(country, phoneDigits);
       const { error } = await supabase.from('users').upsert(
         {
           id: session.user.id,
@@ -149,16 +163,15 @@ export default function CompleteProfileScreen({ navigation, route }: Props) {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Numéro de téléphone</Text>
             <View style={styles.inputWithIcon}>
-              <Ionicons name="call-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
-              <Text style={{ fontSize: FONTS.md, fontWeight: '700', color: theme.textPrimary, marginRight: 6 }}>+223</Text>
+              <CountryCodePicker value={country} onChange={handleCountryChange} />
               <TextInput
                 style={styles.inputFlex}
                 placeholder="70 00 00 00"
                 placeholderTextColor={theme.textMuted}
                 value={telephone}
-                onChangeText={(t) => setTelephone(t.replace(/[^0-9]/g, '').slice(0, 8))}
+                onChangeText={(t) => setTelephone(onlyDigits(t).slice(0, country.max))}
                 keyboardType="number-pad"
-                maxLength={8}
+                maxLength={country.max}
               />
             </View>
             <Text style={styles.hint}>Ce numéro sera visible par les acheteurs pour vous contacter.</Text>
