@@ -8,6 +8,8 @@ import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useParrainage, FilleulRow } from '../hooks/useParrainage';
+import CountryCodePicker from '../components/CountryCodePicker';
+import { DEFAULT_COUNTRY, isValidNationalNumber, onlyDigits, toE164 } from '../constants/countries';
 
 interface Props {
   navigation: any;
@@ -33,6 +35,7 @@ export default function DevenirPartenaireScreen({ navigation }: Props) {
     campagne, parrain, filleuls, annoncesValides, loading, genererCode, refresh,
   } = useParrainage(session?.user?.id);
 
+  const [omCountry, setOmCountry] = useState(DEFAULT_COUNTRY);
   const [omNumero, setOmNumero] = useState('');
   const [omTitulaire, setOmTitulaire] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -48,14 +51,19 @@ export default function DevenirPartenaireScreen({ navigation }: Props) {
   const montantDu = nbValides * recompense;
   const montantPaye = nbPayes * recompense;
 
-  const omDigits = omNumero.replace(/[^0-9]/g, '');
-  const canGenerate = omDigits.length === 8 && omTitulaire.trim().length >= 3;
+  const omDigits = onlyDigits(omNumero);
+  const canGenerate = isValidNationalNumber(omDigits, omCountry) && omTitulaire.trim().length >= 3;
+
+  function handleOmCountryChange(next: typeof omCountry) {
+    setOmCountry(next);
+    setOmNumero((prev) => onlyDigits(prev).slice(0, next.max));
+  }
 
   async function handleGenerer() {
     if (!canGenerate || generating) return;
     setGenerating(true);
     try {
-      const res = await genererCode('+223' + omDigits, omTitulaire.trim());
+      const res = await genererCode(toE164(omCountry, omDigits), omTitulaire.trim());
       if (!res.ok) {
         Alert.alert('Impossible de générer le code', res.message || 'Réessayez plus tard.');
       }
@@ -151,16 +159,15 @@ export default function DevenirPartenaireScreen({ navigation }: Props) {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Numéro Orange Money</Text>
             <View style={styles.inputWithIcon}>
-              <Ionicons name="call-outline" size={18} color={theme.textMuted} style={{ marginRight: SPACING.sm }} />
-              <Text style={styles.prefix}>+223</Text>
+              <CountryCodePicker value={omCountry} onChange={handleOmCountryChange} />
               <TextInput
                 style={styles.inputFlex}
                 placeholder="70 00 00 00"
                 placeholderTextColor={theme.textMuted}
                 value={omNumero}
-                onChangeText={(t) => setOmNumero(t.replace(/[^0-9]/g, '').slice(0, 8))}
+                onChangeText={(t) => setOmNumero(onlyDigits(t).slice(0, omCountry.max))}
                 keyboardType="number-pad"
-                maxLength={8}
+                maxLength={omCountry.max}
               />
             </View>
           </View>
