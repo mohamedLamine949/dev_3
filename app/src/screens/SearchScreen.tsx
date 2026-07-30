@@ -276,7 +276,14 @@ export default function SearchScreen({ navigation }: Props) {
             </View>
         }
         <View style={styles.resultInfo}>
-          <Text style={styles.resultTitle} numberOfLines={2}>{item.titre}</Text>
+          <View style={styles.resultTitleRow}>
+            {item.user?.type_compte === 'professionnel' && (
+              <View style={styles.proBadge}>
+                <Text style={styles.proBadgeText}>PRO</Text>
+              </View>
+            )}
+            <Text style={[styles.resultTitle, { flex: 1 }]} numberOfLines={2}>{item.titre}</Text>
+          </View>
           <Text style={styles.resultPrice}>{formatPrix(item.prix)}</Text>
           <View style={styles.resultMeta}>
             <Ionicons name="location-outline" size={12} color={theme.textMuted} />
@@ -961,6 +968,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: theme.surfaceMuted,
   },
   resultInfo: { flex: 1, marginLeft: SPACING.md, gap: 3 },
+  resultTitleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   resultTitle: {
     fontSize: FONTS.md,
     fontWeight: FONTS.semibold,

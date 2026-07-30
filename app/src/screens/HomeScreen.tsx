@@ -149,12 +149,19 @@ export default function HomeScreen({ navigation }: Props) {
                 <Ionicons name="image-outline" size={32} color={theme.border} />
               </View>
           }
-          {/* Badge état */}
-          {item.etat_article === 'neuf' && (
-            <View style={styles.badgeNeuf}>
-              <Text style={styles.badgeText}>NEUF</Text>
-            </View>
-          )}
+          {/* Badges : PRO (compte professionnel) + état NEUF */}
+          <View style={styles.badgeStack}>
+            {(item as any).user?.type_compte === 'professionnel' && (
+              <View style={styles.badgePro}>
+                <Text style={styles.badgeProText}>PRO</Text>
+              </View>
+            )}
+            {item.etat_article === 'neuf' && (
+              <View style={styles.badgeNeuf}>
+                <Text style={styles.badgeText}>NEUF</Text>
+              </View>
+            )}
+          </View>
           {/* Bouton favori */}
           <TouchableOpacity
             style={styles.favoriteButton}
@@ -559,10 +566,14 @@ const createStyles = (theme: any) => StyleSheet.create({
     height: '100%',
     backgroundColor: theme.surfaceMuted,
   },
-  badgeNeuf: {
+  badgeStack: {
     position: 'absolute',
     top: SPACING.sm,
     left: SPACING.sm,
+    flexDirection: 'row',
+    gap: 6,
+  },
+  badgeNeuf: {
     backgroundColor: theme.secondary,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 3,
@@ -572,6 +583,18 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 10,
     fontWeight: FONTS.bold,
     color: theme.textInverse,
+    letterSpacing: 0.5,
+  },
+  badgePro: {
+    backgroundColor: theme.primary,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 3,
+    borderRadius: RADIUS.xs,
+  },
+  badgeProText: {
+    fontSize: 10,
+    fontWeight: FONTS.bold,
+    color: '#fff',
     letterSpacing: 0.5,
   },
   favoriteButton: {
