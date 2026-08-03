@@ -12,6 +12,7 @@ import { supabase, Annonce } from '../lib/supabase';
 import { useSellerAvis, Avis } from '../hooks/useAvis';
 import { useParrainage } from '../hooks/useParrainage';
 import { useAppConfig } from '../hooks/useAppConfig';
+import { useIsAdmin } from '../hooks/useIsAdmin';
 import { getEffectivePlanKey, isSubscriptionExpired, subscriptionExpiryDate } from '../lib/subscription';
 import { pickImages } from '../lib/imagePicker';
 import { decode } from 'base64-arraybuffer';
@@ -63,6 +64,7 @@ export default function ProfileScreen({ navigation }: Props) {
   const { session, user, signOut, refreshUser } = useAuth();
   const { theme, isDark } = useTheme();
   const { paymentsEnabled } = useAppConfig();
+  const { isAdmin } = useIsAdmin(session?.user?.id);
   const effectivePlanKey = getEffectivePlanKey(user);
   const subExpired = isSubscriptionExpired(user);
   const subExpiry = subscriptionExpiryDate(user);
@@ -509,6 +511,23 @@ export default function ProfileScreen({ navigation }: Props) {
         {/* Body du Profil */}
         {session ? (
           <View style={styles.body}>
+
+            {isAdmin && (
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.md, backgroundColor: theme.surface, borderRadius: RADIUS.lg, padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: theme.primary, ...SHADOWS.sm }}
+                onPress={() => navigation.navigate('AdminModeration')}
+                activeOpacity={0.85}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: theme.primaryFaded, justifyContent: 'center', alignItems: 'center' }}>
+                  <Ionicons name="shield-checkmark-outline" size={20} color={theme.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.textPrimary }}>Modération campagne</Text>
+                  <Text style={{ fontSize: FONTS.xs, color: theme.textSecondary }}>Vérifier et valider les annonces des parrains et filleuls</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
+              </TouchableOpacity>
+            )}
 
             {session && (!user?.email || user.email.endsWith('@phone.market')) && (
               <View style={{ backgroundColor: theme.surface, borderRadius: RADIUS.lg, padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: theme.borderLight, ...SHADOWS.sm }}>

@@ -39,8 +39,10 @@ import BoutiqueScreen from '../screens/BoutiqueScreen';
 import AjouterProduitScreen from '../screens/AjouterProduitScreen';
 import CommandesScreen from '../screens/CommandesScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
+import AdminModerationScreen from '../screens/AdminModerationScreen';
 import TermsModal from '../components/TermsModal';
 import NotificationManager from '../components/NotificationManager';
+import DeviceIdSync from '../components/DeviceIdSync';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -280,6 +282,7 @@ export default function AppNavigator() {
   return (
     <NavigationContainer ref={navigationRef} theme={isDark ? MyDarkTheme : MyDefaultTheme}>
       <NotificationManager />
+      <DeviceIdSync />
       <TermsModal />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {/* Pour l'instant, on affiche directement les tabs (démo) */}
@@ -359,6 +362,11 @@ export default function AppNavigator() {
           name="Subscription"
           component={SubscriptionScreen}
           options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="AdminModeration"
+          component={AdminModerationScreen}
+          options={{ animation: 'slide_from_right' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

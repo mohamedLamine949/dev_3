@@ -31,6 +31,7 @@ export interface User {
   facebook?: string;
   type_compte?: 'particulier' | 'vendeur' | 'professionnel';
   date_abonnement?: string;
+  device_id?: string | null;
   statut?: 'actif' | 'suspendu';
   banniere_url?: string;
   images_business?: string[];
