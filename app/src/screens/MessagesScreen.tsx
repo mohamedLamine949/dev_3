@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { FONTS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useConversations } from '../hooks/useChat';
@@ -25,132 +25,12 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diff / 86400)}j`;
 }
 
-const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingHorizontal: SPACING.xl,
-    paddingBottom: SPACING.lg,
-    backgroundColor: theme.background,
-  },
-  headerTitle: {
-    fontSize: FONTS.xxl,
-    fontWeight: FONTS.extrabold,
-    color: theme.textPrimary,
-  },
-  listContainer: {
-    paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.md,
-    paddingBottom: 100,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: theme.borderLight,
-    marginLeft: 76,
-  },
-  conversationCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: SPACING.lg,
-    gap: SPACING.md,
-  },
-  conversationCardUnread: {
-    borderLeftWidth: 3,
-    borderLeftColor: theme.primary,
-    paddingLeft: SPACING.md - 3,
-  },
-  conversationImage: {
-    width: 56,
-    height: 56,
-    borderRadius: RADIUS.md,
-    backgroundColor: theme.surfaceMuted,
-  },
-  conversationContent: {
-    flex: 1,
-  },
-  conversationTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  conversationTitle: {
-    flex: 1,
-    fontSize: FONTS.md,
-    fontWeight: FONTS.medium,
-    color: theme.textPrimary,
-    marginRight: SPACING.sm,
-  },
-  conversationTime: {
-    fontSize: FONTS.xs,
-    color: theme.textMuted,
-  },
-  conversationAnnonce: {
-    fontSize: FONTS.xs,
-    color: theme.textSecondary,
-    marginBottom: 2,
-  },
-  conversationBottom: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  conversationMessage: {
-    flex: 1,
-    fontSize: FONTS.sm,
-    color: theme.textMuted,
-    marginRight: SPACING.sm,
-  },
-  textBold: {
-    fontWeight: FONTS.semibold,
-    color: theme.textPrimary,
-  },
-  unreadBadge: {
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: theme.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-  },
-  unreadText: {
-    fontSize: 11,
-    fontWeight: FONTS.bold,
-    color: theme.textInverse,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.section * 2,
-    gap: SPACING.md,
-  },
-  emptyTitle: {
-    fontSize: FONTS.lg,
-    fontWeight: FONTS.bold,
-    color: theme.textPrimary,
-  },
-  emptyText: {
-    fontSize: FONTS.sm,
-    color: theme.textMuted,
-    textAlign: 'center',
-    maxWidth: 250,
-  },
-});
-
 export default function MessagesScreen({ navigation }: any) {
   const { session } = useAuth();
   const { theme, isDark } = useTheme();
   const userId = session?.user?.id;
   
   const { conversations, loading, refetch } = useConversations(userId);
-
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
   const renderConversation = ({ item }: { item: any }) => {
@@ -162,7 +42,7 @@ export default function MessagesScreen({ navigation }: any) {
     return (
       <TouchableOpacity
         style={[styles.conversationCard, hasUnread && styles.conversationCardUnread]}
-        activeOpacity={0.7}
+        activeOpacity={0.75}
         onPress={() =>
           navigation.navigate('ChatConversation', {
             conversationId: item.id,
@@ -174,7 +54,7 @@ export default function MessagesScreen({ navigation }: any) {
         {imageUrl
           ? <Image source={{ uri: imageUrl }} style={styles.conversationImage} />
           : <View style={[styles.conversationImage, { backgroundColor: theme.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
-              <Ionicons name="pricetag-outline" size={20} color={theme.border} />
+              <Ionicons name="pricetag-outline" size={22} color={theme.textMuted} />
             </View>
         }
 
@@ -183,7 +63,7 @@ export default function MessagesScreen({ navigation }: any) {
             <Text style={[styles.conversationTitle, hasUnread && styles.textBold]} numberOfLines={1}>
               {interlocuteurNom || item.annonce?.titre || 'Annonce supprimée'}
             </Text>
-            <Text style={[styles.conversationTime, hasUnread && { color: theme.primary }]}>
+            <Text style={[styles.conversationTime, hasUnread && { color: theme.primary, fontWeight: FONTS.semibold }]}>
               {timeAgo(item.date_dernier_message)}
             </Text>
           </View>
@@ -216,21 +96,24 @@ export default function MessagesScreen({ navigation }: any) {
       
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
-        <TouchableOpacity onPress={refetch}>
-          <Ionicons name="reload" size={22} color={theme.primary} />
+        <TouchableOpacity style={styles.reloadBtn} onPress={refetch} activeOpacity={0.7}>
+          <Ionicons name="reload" size={18} color={theme.primary} />
         </TouchableOpacity>
       </View>
 
       {!userId ? (
         <View style={[styles.container, styles.emptyContainer]}>
-          <Ionicons name="lock-closed-outline" size={64} color={theme.textMuted} />
+          <View style={styles.emptyIconCircle}>
+            <Ionicons name="lock-closed-outline" size={32} color={theme.textMuted} />
+          </View>
           <Text style={styles.emptyTitle}>Connexion requise</Text>
           <Text style={styles.emptyText}>Connectez-vous pour accéder à vos messages.</Text>
           <TouchableOpacity 
-            style={{ marginTop: 24, backgroundColor: theme.primary, paddingHorizontal: 32, paddingVertical: 14, borderRadius: RADIUS.lg }}
+            style={styles.connectBtn}
             onPress={() => navigation.navigate('Profil')}
+            activeOpacity={0.8}
           >
-            <Text style={{ color: '#fff', fontWeight: 'bold' }}>Se connecter</Text>
+            <Text style={styles.connectBtnText}>Se connecter</Text>
           </TouchableOpacity>
         </View>
       ) : loading && conversations.length === 0 ? (
@@ -245,23 +128,171 @@ export default function MessagesScreen({ navigation }: any) {
           onRefresh={refetch}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Ionicons name="chatbubbles-outline" size={64} color={theme.textMuted} />
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="chatbubbles-outline" size={32} color={theme.textMuted} />
+              </View>
               <Text style={styles.emptyTitle}>Pas encore de messages</Text>
-              <Text style={styles.emptyText}>Vos conversations apparaîtront ici.</Text>
+              <Text style={styles.emptyText}>Vos conversations avec les acheteurs et vendeurs apparaîtront ici.</Text>
             </View>
           }
         />
       ) : (
         <FlatList
           data={conversations}
-          renderItem={renderConversation}
           keyExtractor={(item) => item.id}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          renderItem={renderConversation}
           contentContainerStyle={styles.listContainer}
-          onRefresh={refetch}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
           refreshing={loading}
+          onRefresh={refetch}
+          showsVerticalScrollIndicator={false}
         />
       )}
     </View>
   );
 }
+
+const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING.lg,
+    backgroundColor: theme.background,
+  },
+  headerTitle: {
+    ...TYPOGRAPHY.h1,
+    color: theme.textPrimary,
+  },
+  reloadBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.primaryFaded,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  listContainer: {
+    paddingHorizontal: SPACING.xl,
+    paddingTop: SPACING.sm,
+    paddingBottom: 120,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: theme.borderLight,
+    marginLeft: 72,
+  },
+  conversationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.lg,
+    gap: SPACING.md,
+  },
+  conversationCardUnread: {
+    borderLeftWidth: 3,
+    borderLeftColor: theme.primary,
+    paddingLeft: SPACING.md - 3,
+  },
+  conversationImage: {
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS.md,
+    backgroundColor: theme.surfaceMuted,
+  },
+  conversationContent: {
+    flex: 1,
+  },
+  conversationTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 3,
+  },
+  conversationTitle: {
+    flex: 1,
+    fontSize: FONTS.md,
+    fontWeight: FONTS.medium,
+    color: theme.textPrimary,
+    marginRight: SPACING.sm,
+  },
+  conversationTime: {
+    fontSize: FONTS.xs,
+    color: theme.textMuted,
+  },
+  conversationAnnonce: {
+    fontSize: FONTS.xs,
+    color: theme.textSecondary,
+    marginBottom: 3,
+  },
+  conversationBottom: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  conversationMessage: {
+    flex: 1,
+    fontSize: FONTS.sm,
+    color: theme.textMuted,
+    marginRight: SPACING.sm,
+  },
+  textBold: {
+    fontWeight: FONTS.semibold,
+    color: theme.textPrimary,
+  },
+  unreadBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: theme.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  unreadText: {
+    fontSize: 11,
+    fontWeight: FONTS.bold,
+    color: '#FFFFFF',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING.section * 1.5,
+    gap: SPACING.md,
+  },
+  emptyIconCircle: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: theme.surfaceMuted,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  emptyTitle: {
+    ...TYPOGRAPHY.h3,
+    color: theme.textPrimary,
+  },
+  emptyText: {
+    fontSize: FONTS.sm,
+    color: theme.textMuted,
+    textAlign: 'center',
+    maxWidth: 260,
+    lineHeight: 20,
+  },
+  connectBtn: {
+    marginTop: SPACING.md,
+    backgroundColor: theme.primary,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: RADIUS.lg,
+    ...SHADOWS.colored,
+  },
+  connectBtnText: {
+    color: '#fff',
+    fontWeight: FONTS.bold,
+    fontSize: FONTS.md,
+  },
+});

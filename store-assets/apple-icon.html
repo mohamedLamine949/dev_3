@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chap Chap – Icône Apple (1024×1024)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f5f5f7;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 40px;
+            gap: 24px;
+        }
+
+        h1 { font-size: 22px; font-weight: 800; color: #1d1d1f; }
+        h1 span { color: #1a7a3a; }
+        p.info { font-size: 14px; color: #6e6e73; text-align: center; max-width: 500px; }
+        p.info strong { color: #1d1d1f; }
+
+        .icon-preview {
+            position: relative;
+            width: 256px;
+            height: 256px;
+            border-radius: 56px;
+            overflow: hidden;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+        }
+
+        .icon-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .icon-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #6e6e73;
+            margin-top: -8px;
+        }
+
+        .btn-row { display: flex; gap: 12px; }
+
+        .btn {
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-green { background: #1a7a3a; color: #fff; }
+        .btn-green:hover { background: #15632f; }
+
+        .btn-blue { background: #0066cc; color: #fff; }
+        .btn-blue:hover { background: #0055aa; }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #1d1d1f;
+            color: #fff;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 200;
+            transform: translateY(-20px);
+            opacity: 0;
+            transition: all 0.3s;
+            pointer-events: none;
+        }
+        .toast.visible { transform: translateY(0); opacity: 1; }
+
+        canvas { display: none; }
+
+        .sizes-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .size-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        .size-card .size { font-size: 16px; font-weight: 700; color: #1d1d1f; }
+        .size-card .usage { font-size: 11px; color: #6e6e73; margin-top: 4px; }
+        .size-card button { margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <h1>🍎 <span>Icône App Store</span></h1>
+    <p class="info">Apple exige une icône de <strong>1024 × 1024 px</strong> (PNG, sans transparence, sans coins arrondis — Apple les arrondit automatiquement).</p>
+
+    <div class="icon-preview">
+        <img id="iconImg" src="/store-assets/playstore-icon-512.png" alt="Chap Chap Icon">
+    </div>
+    <span class="icon-label">Aperçu (votre icône actuelle : 512×512)</span>
+
+    <div class="sizes-grid">
+        <div class="size-card">
+            <div class="size">1024²</div>
+            <div class="usage">Apple App Store</div>
+            <button class="btn btn-green" onclick="exportIcon(1024)">Exporter</button>
+        </div>
+        <div class="size-card">
+            <div class="size">512²</div>
+            <div class="usage">Google Play Store</div>
+            <button class="btn btn-green" onclick="exportIcon(512)">Exporter</button>
+        </div>
+        <div class="size-card">
+            <div class="size">192²</div>
+            <div class="usage">Android (xxxhdpi)</div>
+            <button class="btn btn-green" onclick="exportIcon(192)">Exporter</button>
+        </div>
+    </div>
+
+    <div class="btn-row">
+        <button class="btn btn-blue" onclick="exportIcon(1024)">📸 Exporter 1024×1024 pour Apple</button>
+    </div>
+
+    <p class="info">
+        💡 <strong>Note :</strong> L'icône exportée sera un carré parfait sans coins arrondis. 
+        Apple applique automatiquement le masque arrondi (superellipse) lors de l'affichage sur l'App Store.
+    </p>
+
+    <canvas id="exportCanvas"></canvas>
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const iconImg = document.getElementById('iconImg');
+
+        function exportIcon(size) {
+            const canvas = document.getElementById('exportCanvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            // Ensure image is loaded
+            if (!iconImg.complete || !iconImg.naturalWidth) {
+                showToast('⏳ Image en cours de chargement…');
+                iconImg.onload = () => exportIcon(size);
+                return;
+            }
+
+            // Draw image scaled to target size (upscale from 512 to 1024 if needed)
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(iconImg, 0, 0, size, size);
+
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `chapchap-icon-${size}x${size}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast(`✅ Icône ${size}×${size} exportée !`);
+            }, 'image/png');
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('visible');
+            setTimeout(() => t.classList.remove('visible'), 3000);
+        }
+    </script>
+</body>
+</html>

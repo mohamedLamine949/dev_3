@@ -1,0 +1,13 @@
+{
+  "name": "flashmarket-render",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Export MP4 de l'explainer Flash Market (rendu deterministe en temps virtuel)",
+  "scripts": {
+    "render": "node render-video.js"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.3.0",
+    "puppeteer-core": "^25.5.0"
+  }
+}

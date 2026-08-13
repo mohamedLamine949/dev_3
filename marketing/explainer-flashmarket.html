@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flash Market — App Explainer (9:16) — UI live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root{
+    --ink:#0B0B0C;             /* noir OLED (texte) */
+    --red:#FF2D2D;             /* rouge (accent de TEXTE uniquement) */
+    --white:#FFFFFF;
+    --muted:#9A9AA0;
+    --panel:#F4F5F7;
+    --line:#ECECEE;
+    /* Marque (logo + UI de l'app) : VERT */
+    --green:#16a34a;
+    --green-d:#1e7a3e;
+    --tile1:#22b558; --tile2:#128a3e;
+    --appbg:#F5F7F6;
+    --ease:cubic-bezier(.22,1,.36,1);
+    --spring:cubic-bezier(.34,1.56,.44,1);
+  }
+  html,body{
+    background:#212125; min-height:100vh; padding:20px 0;
+    font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+    display:flex; flex-direction:column; align-items:center; gap:16px; color:var(--ink);
+  }
+
+  /* ---- Cadre 9:16 : recadre ICI (rectangle blanc) ---- */
+  .stage{
+    position:relative; height:min(90vh,940px); aspect-ratio:9/16;
+    background:var(--white); border-radius:26px; overflow:hidden;
+    box-shadow:0 30px 80px rgba(0,0,0,.5);
+    container-type:size; isolation:isolate;
+  }
+  .prog{ position:absolute; left:0; bottom:0; height:.7cqh; width:0; background:var(--green); z-index:60; }
+
+  /* Étiquette d'étape (haut gauche) — chrome VERT */
+  .step-tag{ position:absolute; top:6cqh; left:8cqw; z-index:50; display:flex; align-items:center; gap:2cqw;
+    opacity:0; transform:translateY(-1.2cqh); }
+  .step-tag.show{ animation:fadeDown .5s var(--ease) forwards; }
+  .step-tag .num{ font-size:3.2cqw; font-weight:800; color:var(--white); background:var(--green);
+    width:6.2cqw; height:6.2cqw; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+  .step-tag .lbl{ font-size:3.6cqw; font-weight:800; letter-spacing:.1cqw; text-transform:uppercase; }
+  @keyframes fadeDown{ to{ opacity:1; transform:translateY(0);} }
+
+  /* Mini-lockup marque (coin) */
+  .mini-brand{ position:absolute; top:5.6cqh; right:8cqw; z-index:50; display:flex; align-items:center; gap:1.6cqw;
+    opacity:0; transform:translateY(-1cqh); }
+  .mini-brand.show{ animation:fadeDown .5s var(--ease) forwards; }
+  .mini-brand .tile{ width:6.2cqw; height:6.2cqw; border-radius:1.7cqw; background:linear-gradient(160deg,var(--tile1),var(--tile2));
+    display:flex; align-items:center; justify-content:center; }
+  .mini-brand .tile svg{ width:3.8cqw; height:3.8cqw; }
+  .mini-brand b{ font-size:3.6cqw; font-weight:800; letter-spacing:-.04cqw; }
+
+  /* ---- Scène générique ---- */
+  .scene{ position:absolute; inset:0; z-index:10; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; padding:0 9cqw; text-align:center; gap:4cqh;
+    opacity:0; pointer-events:none; }
+  .scene.on{ opacity:1; pointer-events:auto; }
+
+  /* ===== Typo cinétique ===== */
+  .kline{ overflow:hidden; }
+  .kline > span{ display:inline-block; transform:translateY(115%); white-space:nowrap; }
+  .scene.on .kline > span{ animation:riseIn .7s var(--ease) forwards; }
+  .scene.on .kline:nth-child(2) > span{ animation-delay:.12s; }
+  @keyframes riseIn{ to{ transform:translateY(0);} }
+  .display{ font-size:9.8cqw; font-weight:800; line-height:1.08; letter-spacing:-.35cqw; }
+  .u-red{ position:relative; color:var(--ink); }         /* surligneur rouge = accent TEXTE */
+  .u-red::after{ content:''; position:absolute; left:-.15ch; right:-.15ch; bottom:.02em; height:.14em;
+    background:var(--red); border-radius:2px; transform:scaleX(0); transform-origin:left; }
+  .scene.on .u-red::after{ animation:swipe .5s var(--ease) forwards; }
+  .scene.on .kline:nth-child(1) .u-red::after{ animation-delay:.6s; }
+  .scene.on .kline:nth-child(2) .u-red::after{ animation-delay:.85s; }
+  @keyframes swipe{ to{ transform:scaleX(1);} }
+  .redword{ color:var(--red); }
+  .sub{ font-size:4.4cqw; font-weight:700; color:var(--muted); opacity:0; }
+  .scene.on .sub{ animation:fadeUp .6s var(--ease) 1.05s forwards; }
+  @keyframes fadeUp{ from{opacity:0; transform:translateY(1.6cqh);} to{opacity:1; transform:translateY(0);} }
+
+  /* =========================================================
+     TÉLÉPHONE + UI LIVE (vraie app reconstruite, style vert)
+     ========================================================= */
+  .phone{ position:absolute; top:50%; left:50%; z-index:20;
+    height:76cqh; padding:1cqh;
+    background:linear-gradient(160deg,#26292e,#0b0c0e 60%);
+    border-radius:9cqw/4cqw; box-shadow:0 6cqh 14cqh rgba(0,0,0,.28);
+    display:flex; opacity:0; transform:translate(-50%,54%) scale(.94);
+    transition:opacity .6s var(--ease), transform .6s var(--ease); }
+  .phone.in{ opacity:1; transform:translate(-50%,-50%) scale(1); }
+  .pscreen{ position:relative; height:100%; aspect-ratio:100/216; overflow:hidden;
+    border-radius:7cqw/3.2cqw; background:var(--appbg); container-type:size; }
+  .island{ position:absolute; top:1.6%; left:50%; transform:translateX(-50%);
+    width:32%; height:2.6%; background:#050505; border-radius:40px; z-index:20; }
+
+  .app{ position:absolute; inset:0; overflow:hidden; }
+  .ascreen{ position:absolute; inset:0; display:flex; flex-direction:column; background:var(--appbg);
+    transition:transform .55s var(--ease), opacity .55s var(--ease); }
+  #scr-search{ transform:translateX(0); z-index:2; }
+  #scr-chat{ transform:translateX(100%); z-index:3; }
+
+  /* En-tête app */
+  .ahead{ padding:7cqh 5cqw 2.5cqh; }
+  .ahead .h1{ font-size:8cqw; font-weight:800; letter-spacing:-.1cqw; }
+  .ahead .loc{ display:flex; align-items:center; gap:1.4cqw; font-size:3.6cqw; font-weight:700; color:var(--green); margin-top:.6cqh; }
+  .ahead .loc svg{ width:3.4cqw; height:3.4cqw; }
+
+  /* Barre de recherche */
+  .sbar{ margin:0 5cqw; display:flex; align-items:center; gap:2.6cqw;
+    background:var(--white); border:.5cqw solid var(--line); border-radius:99cqw;
+    padding:2.8cqh 4cqw; box-shadow:0 2cqh 6cqh rgba(11,11,12,.05); }
+  .sbar .mag{ width:5cqw; height:5cqw; flex:none; }
+  .sbar .q{ font-size:5cqw; font-weight:700; color:var(--ink); white-space:nowrap; }
+  .sbar .q.empty{ color:var(--muted); }
+  .sbar .cur{ display:inline-block; width:.5cqw; height:5cqw; background:var(--green);
+    margin-left:.3cqw; vertical-align:-1cqw; animation:blink 1s steps(1) infinite; }
+  @keyframes blink{ 50%{opacity:0;} }
+
+  .rlabel{ font-size:3.8cqw; font-weight:800; color:var(--muted); margin:3cqh 5cqw 1.5cqh; text-transform:uppercase; letter-spacing:.2cqw;
+    opacity:0; }
+  .rlabel.show{ animation:fadeDown .4s var(--ease) forwards; }
+  .rlist{ padding:0 5cqw; display:flex; flex-direction:column; gap:2.2cqh; }
+
+  /* Carte annonce (style app) */
+  .acard{ display:flex; align-items:center; gap:3.4cqw; background:var(--white);
+    border:.5cqw solid var(--line); border-radius:4cqw; padding:2.4cqh 3.4cqw;
+    box-shadow:0 3cqh 9cqh rgba(11,11,12,.06);
+    opacity:0; transform:translateY(3cqh); }
+  .acard.show{ animation:cardIn .5s var(--spring) forwards; }
+  @keyframes cardIn{ to{ opacity:1; transform:translateY(0) scale(1);} }
+  .acard.pressed{ transform:scale(.97); box-shadow:0 1cqh 4cqh rgba(22,163,74,.25); border-color:var(--green); }
+  .acard .thumb{ width:15cqw; height:15cqw; flex:none; border-radius:3cqw; background:var(--panel);
+    display:flex; align-items:center; justify-content:center; font-size:8cqw; }
+  .acard .t{ font-size:4.6cqw; font-weight:800; }
+  .acard .m{ display:flex; align-items:center; gap:1cqw; font-size:3.4cqw; font-weight:600; color:var(--muted); margin-top:.4cqh; }
+  .acard .m svg{ width:3cqw; height:3cqw; }
+  .acard .price{ margin-left:auto; font-size:5cqw; font-weight:800; color:var(--green); white-space:nowrap; font-variant-numeric:tabular-nums; }
+
+  /* ----- Écran chat ----- */
+  .chead{ display:flex; align-items:center; gap:3cqw; padding:7cqh 5cqw 2.5cqh; background:var(--white); border-bottom:.5cqw solid var(--line); }
+  .chead .back{ font-size:6cqw; font-weight:800; color:var(--ink); }
+  .chead .who .n{ font-size:5.2cqw; font-weight:800; }
+  .chead .who .s{ font-size:3.4cqw; font-weight:700; color:var(--green); }
+  .cmsgs{ flex:1; overflow:hidden; padding:3cqh 4cqw; display:flex; flex-direction:column; gap:1.8cqh; justify-content:flex-end; }
+  .msg{ max-width:80%; padding:2.2cqh 3.6cqw; font-size:4.6cqw; font-weight:600; line-height:1.25;
+    border-radius:4.5cqw; opacity:0; transform:translateY(2cqh) scale(.96); }
+  .msg.show{ animation:cardIn .45s var(--spring) forwards; }
+  .msg.them{ align-self:flex-start; background:var(--white); color:var(--ink); border:.5cqw solid var(--line); border-bottom-left-radius:1.2cqw; }
+  .msg.me{ align-self:flex-end; background:var(--green-d); color:#fff; border-bottom-right-radius:1.2cqw; }
+  .msg.me .amount{ font-weight:800; }
+  .msg.ok{ color:#eafff1; }
+  .typing{ align-self:flex-start; background:var(--white); border:.5cqw solid var(--line);
+    border-radius:4.5cqw; border-bottom-left-radius:1.2cqw; padding:2.6cqh 4cqw; display:none; gap:1.4cqw; }
+  .typing.show{ display:flex; }
+  .typing i{ width:2cqw; height:2cqw; border-radius:50%; background:var(--muted); animation:td 1s infinite; }
+  .typing i:nth-child(2){ animation-delay:.15s; } .typing i:nth-child(3){ animation-delay:.3s; }
+  @keyframes td{ 0%,60%,100%{ transform:translateY(0); opacity:.4; } 30%{ transform:translateY(-1.4cqh); opacity:1; } }
+  .cinput{ display:flex; align-items:center; gap:2.4cqw; padding:2.4cqh 4cqw; background:var(--white); border-top:.5cqw solid var(--line); }
+  .cinput .field{ flex:1; background:var(--panel); border-radius:99cqw; padding:2.4cqh 4cqw; font-size:4cqw; font-weight:600; color:var(--muted); }
+  .cinput .send{ width:9cqw; height:9cqw; border-radius:50%; background:var(--green); flex:none; display:flex; align-items:center; justify-content:center; }
+  .cinput .send svg{ width:4.6cqw; height:4.6cqw; fill:#fff; }
+
+  /* Barre de navigation basse (commune) */
+  .anav{ display:flex; align-items:center; justify-content:space-around; padding:2cqh 4cqw 3cqh;
+    background:var(--white); border-top:.5cqw solid var(--line); position:relative; }
+  .anav .tab{ display:flex; flex-direction:column; align-items:center; gap:.5cqh; font-size:2.8cqw; font-weight:700; color:var(--muted); }
+  .anav .tab.act{ color:var(--green); }
+  .anav .tab svg{ width:5cqw; height:5cqw; }
+  .anav .fab{ width:11cqw; height:11cqw; border-radius:50%; background:var(--green); display:flex; align-items:center; justify-content:center;
+    margin-top:-4cqh; box-shadow:0 3cqh 8cqh rgba(22,163,74,.4); }
+  .anav .fab svg{ width:6cqw; height:6cqw; stroke:#fff; }
+
+  /* Curseur (tap) — VERT (chrome) */
+  .cursor,.cring{ position:absolute; z-index:40; border-radius:50%; pointer-events:none;
+    transform:translate(-50%,-50%) scale(0); opacity:0; }
+  .cursor{ width:6cqw; height:6cqw; background:rgba(22,163,74,.9); box-shadow:0 1cqh 3cqh rgba(22,163,74,.5); }
+  .cursor.tap{ animation:curtap .6s var(--spring) forwards; }
+  @keyframes curtap{ 0%{opacity:0; transform:translate(-50%,-50%) scale(0);} 45%{opacity:.95; transform:translate(-50%,-50%) scale(1);} 100%{opacity:0; transform:translate(-50%,-50%) scale(.7);} }
+  .cring{ width:6cqw; height:6cqw; border:.5cqw solid var(--green); }
+  .cring.tap{ animation:curring .6s var(--ease) forwards; }
+  @keyframes curring{ 0%{opacity:.8; transform:translate(-50%,-50%) scale(.4);} 100%{opacity:0; transform:translate(-50%,-50%) scale(2.4);} }
+
+  /* Légende (bas) */
+  .cap{ position:absolute; left:0; right:0; bottom:5cqh; z-index:45; text-align:center; padding:0 9cqw;
+    font-size:4.6cqw; font-weight:800; opacity:0; transform:translateY(1.6cqh); }
+  .cap.show{ animation:fadeUp .5s var(--ease) forwards; }
+  .cap .redword{ color:var(--red); }
+
+  /* ===== Brand (intro) — logo VERT ===== */
+  #s-brand .logo-tile{ width:26cqw; height:26cqw; border-radius:7cqw; background:linear-gradient(160deg,var(--tile1),var(--tile2));
+    display:flex; align-items:center; justify-content:center; box-shadow:0 8cqh 20cqh rgba(22,163,74,.3);
+    opacity:0; transform:scale(.4) rotate(-12deg); }
+  #s-brand.on .logo-tile{ animation:logopop .7s var(--spring) forwards; }
+  #s-brand .logo-tile svg{ width:14cqw; height:14cqw; }
+  @keyframes logopop{ to{ opacity:1; transform:scale(1) rotate(0);} }
+  #s-brand .wm{ font-size:10cqw; font-weight:800; letter-spacing:-.3cqw; overflow:hidden; }
+  #s-brand .wm > span{ display:inline-block; transform:translateY(115%); }
+  #s-brand.on .wm > span{ animation:riseIn .6s var(--ease) .35s forwards; }
+  #s-brand .tl{ font-size:4.4cqw; font-weight:700; color:var(--muted); opacity:0; }
+  #s-brand.on .tl{ animation:fadeUp .6s var(--ease) .7s forwards; }
+  #s-brand .tl .redword{ color:var(--red); }
+
+  /* ===== Valeur ===== */
+  .values{ display:flex; flex-direction:column; gap:3cqh; width:80cqw; }
+  .val{ display:flex; align-items:center; gap:4cqw; background:var(--white); border:.4cqw solid var(--line);
+    border-radius:4.5cqw; padding:3cqh 5cqw; box-shadow:0 5cqh 12cqh rgba(11,11,12,.06);
+    opacity:0; transform:translateX(-4cqw); }
+  .scene.on .val{ animation:slideIn .5s var(--spring) forwards; }
+  .scene.on .val:nth-child(2){ animation-delay:.16s; } .scene.on .val:nth-child(3){ animation-delay:.32s; }
+  @keyframes slideIn{ to{ opacity:1; transform:translateX(0);} }
+  .val .vico{ width:11cqw; height:11cqw; flex:none; border-radius:3cqw; background:#E7F6EC;
+    display:flex; align-items:center; justify-content:center; }
+  .val .vico svg{ width:6cqw; height:6cqw; }
+  .val b{ font-size:5.4cqw; font-weight:800; } .val span{ display:block; font-size:3.4cqw; font-weight:600; color:var(--muted); }
+
+  /* ===== CTA ===== */
+  #s-cta{ gap:3.4cqh; }
+  #s-cta .logo-tile{ width:22cqw; height:22cqw; border-radius:6cqw; background:linear-gradient(160deg,var(--tile1),var(--tile2));
+    display:flex; align-items:center; justify-content:center; box-shadow:0 8cqh 20cqh rgba(22,163,74,.3);
+    opacity:0; transform:scale(.4); }
+  #s-cta.on .logo-tile{ animation:logopop .6s var(--spring) forwards; }
+  #s-cta .logo-tile svg{ width:12cqw; height:12cqw; }
+  #s-cta h2{ font-size:8.4cqw; font-weight:800; line-height:1.05; letter-spacing:-.3cqw; opacity:0; }
+  #s-cta.on h2{ animation:fadeUp .55s var(--ease) .2s forwards; }
+  #s-cta h2 .redword{ color:var(--red); }
+  #s-cta .dl{ background:var(--green); color:var(--white); font-size:5.4cqw; font-weight:800;
+    padding:2.8cqh 8cqw; border-radius:99cqw; box-shadow:0 6cqh 16cqh rgba(22,163,74,.35);
+    opacity:0; transform:scale(.9); }
+  #s-cta.on .dl{ animation:cardIn .5s var(--spring) .4s forwards; }
+  #s-cta .stores{ display:flex; gap:3cqw; opacity:0; }
+  #s-cta.on .stores{ animation:fadeUp .5s var(--ease) .6s forwards; }
+  #s-cta .badge{ display:flex; align-items:center; gap:2cqw; background:var(--ink); color:var(--white); border-radius:3cqw; padding:1.8cqh 3.4cqw; }
+  #s-cta .badge svg{ width:5cqw; height:5cqw; fill:var(--white); }
+  #s-cta .badge span{ text-align:left; line-height:1.1; }
+  #s-cta .badge small{ display:block; font-size:2.4cqw; opacity:.85; } #s-cta .badge b{ font-size:3.6cqw; }
+  #s-cta .url{ font-size:4cqw; font-weight:800; color:var(--green); opacity:0; }
+  #s-cta.on .url{ animation:fadeUp .5s var(--ease) .8s forwards; }
+  .confetti{ position:absolute; width:1.6cqw; height:2.4cqw; border-radius:.4cqw; top:-4cqh; z-index:55; opacity:0; }
+
+  /* Contrôles (hors cadre) */
+  .controls{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:center; max-width:92vw; }
+  .controls button{ font:inherit; font-weight:700; font-size:14px; color:#fff; background:var(--green); border:none; border-radius:10px; padding:10px 18px; cursor:pointer; }
+  .controls .hint{ font-size:12.5px; color:#b8b8be; max-width:520px; line-height:1.5; text-align:center; }
+  .controls code{ background:rgba(22,163,74,.15); color:#7ee2a3; padding:1px 6px; border-radius:6px; }
+</style>
+</head>
+<body>
+
+  <div class="stage" id="stage">
+    <div class="prog" id="prog"></div>
+    <div class="step-tag" id="stepTag"><span class="num" id="stepNum">1</span><span class="lbl" id="stepLbl"></span></div>
+    <div class="mini-brand" id="miniBrand">
+      <span class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l1 13H5L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/><path d="m12.6 10-2.1 3.4h1.7l-.7 3.2 2.9-4h-1.7l.9-2.6Z" fill="#fff" stroke="none"/></svg></span>
+      <b>Flash Market</b>
+    </div>
+
+    <!-- ===== Téléphone + UI live ===== -->
+    <div class="phone" id="phone">
+      <div class="pscreen">
+        <div class="island"></div>
+        <div class="app">
+
+          <!-- Écran RECHERCHE -->
+          <div class="ascreen" id="scr-search">
+            <div class="ahead">
+              <div class="h1">Recherche</div>
+              <div class="loc"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z"/></svg> Bamako, Mali</div>
+            </div>
+            <div class="sbar">
+              <svg class="mag" viewBox="0 0 24 24" fill="none" stroke="#0B0B0C" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+              <span class="q empty" id="searchQ">Que cherchez-vous ?</span>
+            </div>
+            <div class="rlabel" id="rlabel">Résultats près de toi</div>
+            <div class="rlist" id="rlist">
+              <div class="acard" id="cardPhone"><div class="thumb">📱</div><div><div class="t">iPhone 13 Pro</div><div class="m"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7Z"/></svg> Hamdallaye · 2 km</div></div><div class="price">285 000 F</div></div>
+              <div class="acard"><div class="thumb">📱</div><div><div class="t">iPhone 13 · 128 Go</div><div class="m"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7Z"/></svg> ACI 2000 · 4 km</div></div><div class="price">230 000 F</div></div>
+              <div class="acard"><div class="thumb">📱</div><div><div class="t">iPhone 13 Pro Max</div><div class="m"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7Z"/></svg> Badalabougou · 6 km</div></div><div class="price">360 000 F</div></div>
+            </div>
+            <div style="flex:1"></div>
+            <div class="anav">
+              <span class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11 12 4l8 7"/><path d="M6 10v9h12v-9"/></svg>Accueil</span>
+              <span class="tab act"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>Recherche</span>
+              <span class="fab"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+              <span class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H8l-4 4V5Z"/></svg>Messages</span>
+              <span class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Profil</span>
+            </div>
+          </div>
+
+          <!-- Écran CHAT -->
+          <div class="ascreen" id="scr-chat">
+            <div class="chead">
+              <span class="back">‹</span>
+              <div class="who"><div class="n">iPhone 13 Pro</div><div class="s">● En ligne</div></div>
+            </div>
+            <div class="cmsgs" id="cmsgs">
+              <div class="typing" id="typing"><i></i><i></i><i></i></div>
+            </div>
+            <div class="cinput"><div class="field">Écrire un message…</div><span class="send"><svg viewBox="0 0 24 24"><path d="M3 20 21 12 3 4l3 8-3 8Z"/></svg></span></div>
+            <div class="anav">
+              <span class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11 12 4l8 7"/><path d="M6 10v9h12v-9"/></svg>Accueil</span>
+              <span class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>Recherche</span>
+              <span class="fab"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+              <span class="tab act"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v11H8l-4 4V5Z"/></svg>Messages</span>
+              <span class="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Profil</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Légende bas (scènes app) -->
+    <div class="cap" id="cap"></div>
+
+    <!-- ===== 1 · MARQUE ===== -->
+    <div class="scene" id="s-brand">
+      <div class="logo-tile"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l1 13H5L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/><path d="m12.6 10-2.1 3.4h1.7l-.7 3.2 2.9-4h-1.7l.9-2.6Z" fill="#fff" stroke="none"/></svg></div>
+      <div class="wm"><span>Flash Market</span></div>
+      <div class="tl">Le marché du Mali, <span class="redword">dans ta poche.</span></div>
+    </div>
+
+    <!-- ===== 2 · HOOK ===== -->
+    <div class="scene" id="s-hook">
+      <div>
+        <div class="kline display"><span>TOUT <span class="u-red">S'ACHÈTE.</span></span></div>
+        <div class="kline display"><span>TOUT <span class="u-red">SE VEND.</span></span></div>
+      </div>
+      <div class="sub">Sur une seule appli. 🇲🇱</div>
+    </div>
+
+    <!-- 3 · CHERCHE + 4 · NÉGOCIE : voir le téléphone (scènes s-search / s-chat) -->
+    <div class="scene" id="s-search"></div>
+    <div class="scene" id="s-chat"></div>
+
+    <!-- ===== 5 · VALEUR ===== -->
+    <div class="scene" id="s-value">
+      <div class="values">
+        <div class="val"><span class="vico"><svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><div><b>100 % gratuit</b><span>publie autant que tu veux</span></div></div>
+        <div class="val"><span class="vico"><svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7Z"/><circle cx="12" cy="9" r="2.2"/></svg></span><div><b>Près de toi</b><span>partout au Mali</span></div></div>
+        <div class="val"><span class="vico"><svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></svg></span><div><b>Simple &amp; rapide</b><span>une annonce en 2 minutes</span></div></div>
+      </div>
+    </div>
+
+    <!-- ===== 6 · CTA ===== -->
+    <div class="scene" id="s-cta">
+      <div class="logo-tile"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7h12l1 13H5L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/><path d="m12.6 10-2.1 3.4h1.7l-.7 3.2 2.9-4h-1.7l.9-2.6Z" fill="#fff" stroke="none"/></svg></div>
+      <h2>Achète. Vends.<br><span class="redword">Près de toi.</span></h2>
+      <div class="dl">Télécharger — c'est gratuit</div>
+      <div class="stores">
+        <span class="badge"><svg viewBox="0 0 24 24"><path d="M16.4 1.4c0 1.1-.5 2.3-1.2 3.1-.7.9-2 1.6-3 1.5-.1-1.1.5-2.3 1.2-3 .8-.9 2.1-1.6 3-1.6Zm4.5 15.7c-.5 1.2-1 1.9-1.7 2.9-1 1.4-2.4 3.2-4 3.2-1.5 0-1.9-.9-3.6-.9s-2.3.9-3.7.9c-1.6 0-2.8-1.6-3.8-3-2.1-3-3.4-7.5-1.4-10.6 1-1.5 2.7-2.5 4.3-2.5 1.5 0 2.5 1 3.6 1 1.1 0 1.9-1 3.7-1 1.4 0 2.9.8 3.9 2.1-3.4 1.9-2.9 6.8.7 7.9Z"/></svg><span><small>Disponible sur</small><b>App Store</b></span></span>
+        <span class="badge"><svg viewBox="0 0 24 24"><path d="M3.6 2.3 13 12 3.6 21.7c-.4-.2-.6-.6-.6-1.1V3.4c0-.5.2-.9.6-1.1Zm10.9 8.9 2.9 2.9-3.4 1.9-2.4-2.4 2.9-2.4Zm-2.9-.2L8.7 8.1l6.1-3.5 1.9 1.1-4.2 5.3Zm0 2.4 1.8 2.3-6.2 3.5-1.8-1 6.2-4.8Z"/></svg><span><small>Disponible sur</small><b>Google Play</b></span></span>
+      </div>
+      <div class="url">app-flashmarket.com</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="replay">▶ Lancer / Rejouer</button>
+    <span class="hint">App explainer · UI live · 9:16 · ~26 s · avec <b>SFX</b> (clique Lancer pour le son).
+      Recadre le rectangle blanc. <code>?clean</code> masque les textes · <code>?mute</code> coupe les SFX.</span>
+  </div>
+
+<script>
+/* ============================================================
+   FLASH MARKET — App explainer, UI reconstruite en direct
+   Blanc / noir+rouge (texte) / VERT (logo + app). 9:16, ~26 s.
+   ============================================================ */
+const params=new URLSearchParams(location.search);
+const CLEAN=params.has('clean'), MUTE=params.has('mute');
+
+/* ---------- SFX WebAudio ---------- */
+const Sfx=(()=>{ let ctx=null;
+  const ac=()=>{ if(!ctx) ctx=new (window.AudioContext||window.webkitAudioContext)(); return ctx; };
+  const master=g=>{ const m=ac().createGain(); m.gain.value=MUTE?0:g; m.connect(ac().destination); return m; };
+  const env=(n,t,a,d,p)=>{ n.gain.setValueAtTime(.0001,t); n.gain.exponentialRampToValueAtTime(p,t+a); n.gain.exponentialRampToValueAtTime(.0001,t+a+d); };
+  const nbuf=d=>{ const n=Math.floor(ac().sampleRate*d),b=ac().createBuffer(1,n,ac().sampleRate),c=b.getChannelData(0); for(let i=0;i<n;i++)c[i]=Math.random()*2-1; return b; };
+  const tone=(f,d,type='sine',g=.25,glide=null,when=0)=>{ const t=ac().currentTime+when,o=ac().createOscillator(),ga=ac().createGain(); o.type=type; o.frequency.setValueAtTime(f,t); if(glide)o.frequency.exponentialRampToValueAtTime(glide,t+d); env(ga,t,.01,d,g); o.connect(ga); ga.connect(master(1)); o.start(t); o.stop(t+d+.05); };
+  const noise=(d,f0,f1,g=.2,q=1,when=0)=>{ const t=ac().currentTime+when,s=ac().createBufferSource(); s.buffer=nbuf(d+.05); const bp=ac().createBiquadFilter(); bp.type='bandpass'; bp.Q.value=q; bp.frequency.setValueAtTime(f0,t); bp.frequency.exponentialRampToValueAtTime(f1,t+d); const ga=ac().createGain(); env(ga,t,.008,d,g); s.connect(bp); bp.connect(ga); ga.connect(master(1)); s.start(t); s.stop(t+d+.05); };
+  return {
+    resume(){ try{ac().resume();}catch(e){} },
+    tick(){ tone(2200,.028,'square',.05); },
+    pop(p=520){ tone(p*1.5,.11,'sine',.18,p); },
+    soft(){ tone(660,.13,'sine',.13,880); },
+    whoosh(){ noise(.3,400,2000,.13,.8); },
+    swipe(){ noise(.24,1800,500,.12,.9); },
+    deal(){ tone(784,.28,'triangle',.2); tone(1175,.32,'triangle',.18,null,.08); },
+    chime(){ [880,1175,1568].forEach((f,i)=>tone(f,.7,'triangle',.15,null,i*.06)); },
+    tada(){ [523,659,784,1046].forEach((f,i)=>tone(f,.3,'triangle',.15,null,i*.08)); },
+  };
+})();
+
+const $=s=>document.querySelector(s);
+const stage=$('#stage'), prog=$('#prog'), phone=$('#phone'),
+      stepTag=$('#stepTag'), stepNum=$('#stepNum'), stepLbl=$('#stepLbl'),
+      miniBrand=$('#miniBrand'), cap=$('#cap');
+
+const scenes=[
+  { id:'s-brand',  dur:2600 },
+  { id:'s-hook',   dur:3600 },
+  { id:'s-search', dur:6600, step:['1','Cherche'], cap:'Cherche ce que tu veux, <span class="redword">près de toi</span>' },
+  { id:'s-chat',   dur:6600, step:['2','Négocie'], cap:'Contacte le vendeur et <span class="redword">négocie</span>' },
+  { id:'s-value',  dur:3400 },
+  { id:'s-cta',    dur:3800 },
+];
+const TOTAL=scenes.reduce((s,x)=>s+x.dur,0);
+
+let timers=[];
+const clearTimers=()=>{ timers.forEach(t=>clearTimeout(t)); timers=[]; };
+const later=(fn,ms)=>{ const to=setTimeout(fn,ms); timers.push(to); return to; };
+
+/* Curseur (tap) à x%,y% du cadre */
+function tapAt(x,y,delay=0,cb){
+  later(()=>{
+    ['cursor','cring'].forEach(cls=>{ const e=document.createElement('div'); e.className=cls;
+      e.style.left=x+'%'; e.style.top=y+'%'; stage.appendChild(e); void e.offsetWidth; e.classList.add('tap');
+      later(()=>e.remove(),700); });
+    Sfx.pop(600); if(cb) later(cb,240);
+  },delay);
+}
+
+/* Frappe humaine (cadence irrégulière) */
+function typeHuman(el,text,startDelay,done){
+  el.classList.remove('empty'); el.innerHTML='<span class="cur"></span>';
+  const CUR='<span class="cur"></span>'; let i=0;
+  const step=()=>{
+    el.innerHTML=text.slice(0,i)+CUR;
+    if(i>0 && text[i-1]!==' ') Sfx.tick();
+    i++;
+    if(i<=text.length){ const base=text[i-2]===' '?150:70; later(step, base+Math.random()*70); }
+    else if(done) later(done,250);
+  };
+  later(step,startDelay);
+}
+
+/* Reset écran app (recherche visible, chat hors champ) */
+function resetApp(){
+  $('#scr-search').style.transition='none'; $('#scr-search').style.transform='translateX(0)'; $('#scr-search').style.opacity='1';
+  $('#scr-chat').style.transition='none';   $('#scr-chat').style.transform='translateX(100%)';
+  const q=$('#searchQ'); q.classList.add('empty'); q.textContent='Que cherchez-vous ?';
+  $('#rlabel').classList.remove('show');
+  document.querySelectorAll('#rlist .acard').forEach(c=>{ c.classList.remove('show','pressed'); });
+  $('#cmsgs').querySelectorAll('.msg').forEach(m=>m.remove());
+  $('#typing').classList.remove('show');
+  void $('#scr-search').offsetWidth;
+}
+
+/* Scène 3 : recherche live */
+function runSearch(){
+  Sfx.whoosh();
+  typeHuman($('#searchQ'),'iPhone 13 Pro',400,()=>{
+    $('#rlabel').classList.add('show');
+    const cards=[...document.querySelectorAll('#rlist .acard')];
+    cards.forEach((c,i)=>later(()=>{ c.classList.add('show'); Sfx.pop(500+i*60); }, i*180));
+    // tap sur LA carte iPhone (la première, la bonne)
+    tapAt(50,44,1500,()=>{ $('#cardPhone').classList.add('pressed'); Sfx.soft(); });
+  });
+}
+
+/* Push recherche -> chat */
+function pushToChat(){
+  Sfx.swipe();
+  const se=$('#scr-search'), ce=$('#scr-chat');
+  se.style.transition='transform .55s var(--ease), opacity .55s var(--ease)';
+  ce.style.transition='transform .55s var(--ease)';
+  void se.offsetWidth;
+  se.style.transform='translateX(-26%)'; se.style.opacity='.4';
+  ce.style.transform='translateX(0)';
+}
+
+/* Scène 4 : chat live (frappe/typing/deal) */
+const chatFlow=[
+  { side:'them', text:'Bonjour 👋 il est toujours dispo ?' },
+  { side:'me',   text:'Oui, comme neuf 👍' },
+  { side:'them', text:'Vous pouvez faire un petit prix ?' },
+  { side:'me',   text:'Ok, <span class="amount">270 000 F</span> — dernier prix' },
+  { side:'them', text:'<span>Ça marche ✓ On se voit demain.</span>', ok:true },
+];
+function addMsg(m){
+  const box=$('#cmsgs'), typing=$('#typing');
+  const d=document.createElement('div'); d.className='msg '+m.side+(m.ok?' ok':''); d.innerHTML=m.text;
+  box.insertBefore(d, typing); void d.offsetWidth; d.classList.add('show');
+}
+function runChat(){
+  const typing=$('#typing');
+  let t=500;
+  chatFlow.forEach((m,idx)=>{
+    if(m.side==='them'){
+      later(()=>typing.classList.add('show'), t); t+=800;
+      later(()=>{ typing.classList.remove('show'); addMsg(m); idx===chatFlow.length-1?Sfx.deal():Sfx.pop(460); }, t); t+=650;
+    } else {
+      later(()=>{ addMsg(m); Sfx.soft(); }, t); t+=1050;
+    }
+  });
+}
+
+function setCap(html){ if(CLEAN||!html){ cap.classList.remove('show'); cap.innerHTML=''; return; } cap.innerHTML=html; void cap.offsetWidth; cap.classList.add('show'); }
+
+function runScene(idx){
+  const s=scenes[idx];
+  // progression cumulée
+  let before=0; for(let k=0;k<idx;k++) before+=scenes[k].dur;
+  prog.style.transition='none'; prog.style.width=(before/TOTAL*100)+'%'; void prog.offsetWidth;
+  prog.style.transition=`width ${s.dur}ms linear`; prog.style.width=((before+s.dur)/TOTAL*100)+'%';
+
+  document.querySelectorAll('.scene').forEach(el=>el.classList.remove('on'));
+  document.querySelectorAll('.cursor,.cring,.confetti').forEach(e=>e.remove());
+
+  const appScene = s.id==='s-search'||s.id==='s-chat';
+  phone.classList.toggle('in', appScene);
+  miniBrand.classList.toggle('show', appScene || s.id==='s-value');
+  if(s.step){ stepNum.textContent=s.step[0]; stepLbl.textContent=s.step[1]; stepTag.classList.add('show'); }
+  else stepTag.classList.remove('show');
+  setCap(s.cap);
+
+  const el=document.getElementById(s.id); void el.offsetWidth; el.classList.add('on');
+
+  if(s.id==='s-brand'){ Sfx.whoosh(); later(()=>Sfx.chime(),350); }
+  if(s.id==='s-hook'){ later(()=>Sfx.soft(),120); later(()=>Sfx.pop(700),720); later(()=>Sfx.pop(560),980); }
+  if(s.id==='s-search'){ resetApp(); runSearch(); }
+  if(s.id==='s-chat'){ pushToChat(); later(runChat,560); }
+  if(s.id==='s-value'){ [0,1,2].forEach(i=>later(()=>Sfx.pop(500+i*110),150+i*170)); }
+  if(s.id==='s-cta'){ Sfx.chime(); later(()=>Sfx.tada(),260); confetti(); }
+
+  later(()=>runScene((idx+1)%scenes.length), s.dur);
+}
+
+function confetti(){
+  const cols=['#16a34a','#0B0B0C','#FF2D2D','#22b558','#0B0B0C'];
+  for(let i=0;i<40;i++){ const c=document.createElement('div'); c.className='confetti';
+    c.style.left=Math.random()*100+'%'; c.style.background=cols[i%cols.length]; stage.appendChild(c);
+    const dx=(Math.random()-.5)*40, dur=1900+Math.random()*1300, delay=Math.random()*350;
+    c.animate([{transform:'translate(0,0) rotate(0)',opacity:1,offset:0},
+               {transform:`translate(${dx}cqw,${stage.clientHeight+40}px) rotate(${Math.random()*720}deg)`,opacity:1,offset:1}],
+      {duration:dur,delay,easing:'cubic-bezier(.3,.6,.4,1)',fill:'forwards'});
+    later(()=>c.remove(),dur+delay+200);
+  }
+}
+
+if(CLEAN){ const css=document.createElement('style');
+  css.textContent='.display,.sub,.tl,.wm,#s-cta h2,.step-tag .lbl,.cap,.acard .t,.acard .m,.acard .price,.msg,.val b,.val span,.ahead .h1,.sbar .q,.chead .who{visibility:hidden!important;}';
+  document.head.appendChild(css); }
+
+function start(){ clearTimers(); Sfx.resume(); document.querySelectorAll('.confetti,.cursor,.cring').forEach(e=>e.remove()); runScene(0); }
+$('#replay').addEventListener('click',start);
+document.getElementById('s-brand').classList.add('on'); // rendu figé au chargement
+</script>
+</body>
+</html>

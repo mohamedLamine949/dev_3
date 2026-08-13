@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,11 +11,10 @@ import {
   Dimensions,
   Animated,
   StatusBar,
-  ActivityIndicator,
   Platform,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, SUBCATEGORIES } from '../constants/theme';
+import { FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, SUBCATEGORIES, TYPOGRAPHY } from '../constants/theme';
 import { useAnnonces } from '../hooks/useAnnonces';
 import { Annonce } from '../lib/supabase';
 import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
@@ -23,10 +22,15 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useFavoris, toggleFavori } from '../hooks/useFavoris';
 import { getRecentAnnonces } from '../lib/recentStorage';
+import { SkeletonCard, SkeletonCategories } from '../components/SkeletonLoader';
 
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - SPACING.lg * 2 - SPACING.md) / 2;
+
+// ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
 
 function formatPrix(prix: number): string {
   if (prix >= 1000000) {
@@ -46,6 +50,110 @@ function timeAgo(dateStr: string): string {
   if (diff < 604800) return `${Math.floor(diff / 86400)}j`;
   return `${Math.floor(diff / 604800)}sem`;
 }
+
+// Couleur de fond pour les cercles catégorie
+const CAT_CIRCLE_COLORS: Record<string, string> = {
+  telephonie_electronique: '#3B82F6',
+  mode_beaute:             '#EC4899',
+  maison_electromenager:   '#06B6D4',
+  voitures:                '#F59E0B',
+  motos:                   '#F97316',
+  immobilier:              '#8B5CF6',
+  alimentation:            '#EF4444',
+  animaux:                 '#A16207',
+  services:                '#059669',
+};
+
+// ─────────────────────────────────────────────
+// Animated Card Wrapper
+// ─────────────────────────────────────────────
+
+function PressableCard({ children, style, onPress }: { children: React.ReactNode; style?: any; onPress: () => void }) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.96,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 8,
+    }).start();
+  };
+
+  return (
+    <Animated.View style={[style, { transform: [{ scale: scaleAnim }] }]}>
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={{ flex: 1 }}
+      >
+        {children}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+// ─────────────────────────────────────────────
+// Animated Favorite Button
+// ─────────────────────────────────────────────
+
+function FavoriteButton({ isFavorite, onPress }: { isFavorite: boolean; onPress: () => void }) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const { theme } = useTheme();
+
+  const handlePress = () => {
+    Animated.sequence([
+      Animated.spring(scaleAnim, { toValue: 1.35, useNativeDriver: true, speed: 50, bounciness: 12 }),
+      Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 8 }),
+    ]).start();
+    onPress();
+  };
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={handlePress}
+      style={favStyles.button}
+    >
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+        <Ionicons
+          name={isFavorite ? 'heart' : 'heart-outline'}
+          size={18}
+          color={isFavorite ? '#EF4444' : '#FFFFFF'}
+        />
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
+const favStyles = StyleSheet.create({
+  button: {
+    position: 'absolute',
+    top: SPACING.sm,
+    right: SPACING.sm,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
+
+// ─────────────────────────────────────────────
+// Main Screen
+// ─────────────────────────────────────────────
 
 interface Props {
   navigation: any;
@@ -95,36 +203,56 @@ export default function HomeScreen({ navigation }: Props) {
     refetchFavoris();
   };
 
-  const renderCategoryItem = ({ item }: { item: typeof CATEGORIES[0] }) => {
+  // ─────────────────────────────────────────────
+  // Render: Category Circles
+  // ─────────────────────────────────────────────
+
+  const renderCategoryCircle = ({ item }: { item: typeof CATEGORIES[0] }) => {
     const isSelected = selectedCategory === item.id;
+    const circleColor = CAT_CIRCLE_COLORS[item.id] || theme.primary;
+    // Raccourcir le label pour les cercles
+    const shortLabel = item.label.split(' & ')[0].split(' ')[0];
+
     return (
       <TouchableOpacity
         activeOpacity={0.7}
-        style={[
-          styles.categoryChip,
-          isSelected && styles.categoryChipSelected,
-        ]}
+        style={styles.categoryCircleWrapper}
         onPress={() => {
           setSelectedSousCategorie(null);
           setSelectedCategory(isSelected ? null : item.id);
         }}
       >
-        <Ionicons
-          name={item.icon as any}
-          size={16}
-          color={isSelected ? theme.textInverse : theme.textSecondary}
-        />
-        <Text
+        <View
           style={[
-            styles.categoryLabel,
-            isSelected && styles.categoryLabelSelected,
+            styles.categoryCircle,
+            {
+              backgroundColor: isSelected ? circleColor : (isDark ? theme.surfaceElevated : theme.surfaceMuted),
+              borderColor: isSelected ? circleColor : 'transparent',
+            },
           ]}
         >
-          {item.label}
+          <Ionicons
+            name={item.icon as any}
+            size={22}
+            color={isSelected ? '#FFFFFF' : circleColor}
+          />
+        </View>
+        <Text
+          style={[
+            styles.categoryCircleLabel,
+            { color: isSelected ? theme.textPrimary : theme.textSecondary },
+          ]}
+          numberOfLines={1}
+        >
+          {shortLabel}
         </Text>
       </TouchableOpacity>
     );
   };
+
+  // ─────────────────────────────────────────────
+  // Render: Annonce Card (Premium)
+  // ─────────────────────────────────────────────
 
   const renderAnnonceCard = ({ item, index }: { item: Annonce; index: number }) => {
     const imageUrl = item.images?.[0]?.image_url || null;
@@ -132,9 +260,9 @@ export default function HomeScreen({ navigation }: Props) {
       location && (item as any).latitude && (item as any).longitude
         ? getDistance(location.latitude, location.longitude, (item as any).latitude, (item as any).longitude)
         : null;
+
     return (
-      <TouchableOpacity
-        activeOpacity={0.85}
+      <PressableCard
         style={[
           styles.card,
           { marginLeft: index % 2 === 0 ? 0 : SPACING.md },
@@ -149,31 +277,25 @@ export default function HomeScreen({ navigation }: Props) {
                 <Ionicons name="image-outline" size={32} color={theme.border} />
               </View>
           }
-          {/* Badges : PRO (compte professionnel) + état NEUF */}
+          {/* Badges : PRO + NEUF */}
           <View style={styles.badgeStack}>
             {(item as any).user?.type_compte === 'professionnel' && (
-              <View style={styles.badgePro}>
-                <Text style={styles.badgeProText}>PRO</Text>
+              <View style={[styles.badge, { backgroundColor: theme.primary }]}>
+                <Ionicons name="checkmark-circle" size={10} color="#fff" style={{ marginRight: 2 }} />
+                <Text style={styles.badgeText}>PRO</Text>
               </View>
             )}
             {item.etat_article === 'neuf' && (
-              <View style={styles.badgeNeuf}>
+              <View style={[styles.badge, { backgroundColor: theme.secondary }]}>
                 <Text style={styles.badgeText}>NEUF</Text>
               </View>
             )}
           </View>
-          {/* Bouton favori */}
-          <TouchableOpacity
-            style={styles.favoriteButton}
-            activeOpacity={0.7}
+          {/* Bouton favori animé */}
+          <FavoriteButton
+            isFavorite={favorisIds.has(item.id)}
             onPress={() => handleToggleFavori(item.id)}
-          >
-            <Ionicons
-              name={favorisIds.has(item.id) ? 'heart' : 'heart-outline'}
-              size={18}
-              color={favorisIds.has(item.id) ? '#ef4444' : theme.textInverse}
-            />
-          </TouchableOpacity>
+          />
         </View>
 
         {/* Infos */}
@@ -181,7 +303,7 @@ export default function HomeScreen({ navigation }: Props) {
           <Text style={styles.cardTitle} numberOfLines={2}>{item.titre}</Text>
           <Text style={styles.cardPrice}>{formatPrix(item.prix)}</Text>
           <View style={styles.cardMeta}>
-            <Ionicons name="location-outline" size={12} color={theme.textMuted} />
+            <Ionicons name="location-outline" size={11} color={theme.textMuted} />
             <Text style={styles.cardMetaText} numberOfLines={1}>
               {(item as any).quartier || item.ville}
             </Text>
@@ -195,15 +317,18 @@ export default function HomeScreen({ navigation }: Props) {
             )}
           </View>
         </View>
-      </TouchableOpacity>
+      </PressableCard>
     );
   };
+
+  // ─────────────────────────────────────────────
+  // Render: Recent Card
+  // ─────────────────────────────────────────────
 
   const renderRecentCard = ({ item }: { item: Annonce }) => {
     const imageUrl = item.images?.[0]?.image_url || null;
     return (
-      <TouchableOpacity
-        activeOpacity={0.8}
+      <PressableCard
         style={styles.recentCard}
         onPress={() => navigation.navigate('AnnonceDetail', { annonce: item })}
       >
@@ -222,11 +347,47 @@ export default function HomeScreen({ navigation }: Props) {
         <Text style={styles.recentCardPrice} numberOfLines={1}>
           {formatPrix(item.prix)}
         </Text>
-      </TouchableOpacity>
+      </PressableCard>
     );
   };
 
-  const styles = React.useMemo(() => createStyles(theme), [theme]);
+  const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+
+  // ─────────────────────────────────────────────
+  // Skeleton Loading
+  // ─────────────────────────────────────────────
+
+  const renderSkeleton = () => (
+    <View style={styles.skeletonContainer}>
+      {/* Header skeleton */}
+      <View style={[styles.heroSection, { gap: SPACING.lg }]}>
+        <View style={styles.heroHeader}>
+          <View style={{ flex: 1, gap: SPACING.sm }}>
+            <View style={{ width: 180, height: 24, borderRadius: RADIUS.sm, backgroundColor: theme.surfaceMuted }} />
+            <View style={{ width: 220, height: 14, borderRadius: RADIUS.xs, backgroundColor: theme.surfaceMuted }} />
+          </View>
+          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: theme.surfaceMuted }} />
+        </View>
+      </View>
+      {/* Search skeleton */}
+      <View style={{ height: 50, borderRadius: RADIUS.lg, backgroundColor: theme.surfaceMuted, marginBottom: SPACING.lg }} />
+      {/* Categories skeleton */}
+      <SkeletonCategories />
+      {/* Cards skeleton */}
+      <View style={{ flexDirection: 'row', gap: SPACING.md }}>
+        <SkeletonCard cardWidth={CARD_WIDTH} />
+        <SkeletonCard cardWidth={CARD_WIDTH} />
+      </View>
+      <View style={{ flexDirection: 'row', gap: SPACING.md, marginTop: SPACING.lg }}>
+        <SkeletonCard cardWidth={CARD_WIDTH} />
+        <SkeletonCard cardWidth={CARD_WIDTH} />
+      </View>
+    </View>
+  );
+
+  // ─────────────────────────────────────────────
+  // List Header
+  // ─────────────────────────────────────────────
 
   // Rendu comme ÉLÉMENT (et non comme composant inline) : un composant défini
   // ici serait recréé à chaque frappe dans la barre de recherche, ce qui
@@ -276,10 +437,10 @@ export default function HomeScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* Catégories */}
+        {/* Catégories en cercles */}
         <FlatList
           data={CATEGORIES}
-          renderItem={renderCategoryItem}
+          renderItem={renderCategoryCircle}
           keyExtractor={(item) => item.id}
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -293,17 +454,17 @@ export default function HomeScreen({ navigation }: Props) {
             keyExtractor={(item) => item.id}
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesContainer}
+            contentContainerStyle={styles.subcategoriesContainer}
             renderItem={({ item }) => {
               const isTout = item.id === '__tout__';
               const isSelected = isTout ? selectedSousCategorie === null : selectedSousCategorie === item.id;
               return (
                 <TouchableOpacity
                   activeOpacity={0.7}
-                  style={[styles.subcategoryChip, isSelected && styles.categoryChipSelected]}
+                  style={[styles.subcategoryChip, isSelected && styles.subcategoryChipSelected]}
                   onPress={() => setSelectedSousCategorie(isTout ? null : (isSelected ? null : item.id))}
                 >
-                  <Text style={[styles.subcategoryLabel, isSelected && styles.categoryLabelSelected]}>
+                  <Text style={[styles.subcategoryLabel, isSelected && styles.subcategoryLabelSelected]}>
                     {item.label}
                   </Text>
                 </TouchableOpacity>
@@ -312,11 +473,11 @@ export default function HomeScreen({ navigation }: Props) {
           />
         )}
 
-        {/* Bannière astuce sécurité / info */}
+        {/* Bannière sécurité */}
         <View style={styles.bannerContainer}>
           <View style={styles.bannerCard}>
             <View style={styles.bannerIconContainer}>
-              <Ionicons name="shield-checkmark" size={24} color="#fff" />
+              <Ionicons name="shield-checkmark" size={22} color="#fff" />
             </View>
             <View style={styles.bannerTextContainer}>
               <Text style={styles.bannerTitle}>Achetez en toute sécurité 🛡️</Text>
@@ -361,29 +522,30 @@ export default function HomeScreen({ navigation }: Props) {
       </View>
   );
 
+  // ─────────────────────────────────────────────
+  // Main Render
+  // ─────────────────────────────────────────────
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={theme.background} />
       {loading && annonces.length === 0 ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16 }}>
-          <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={{ fontSize: FONTS.sm, color: theme.textMuted }}>Chargement des annonces…</Text>
-        </View>
+        renderSkeleton()
       ) : error && annonces.length === 0 ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: SPACING.xxl, gap: 16 }}>
-          <Feather name="wifi-off" size={48} color={theme.textMuted} />
-          <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.semibold, color: theme.textPrimary, textAlign: 'center' }}>
-            Connexion impossible
-          </Text>
-          <Text style={{ fontSize: FONTS.sm, color: theme.textMuted, textAlign: 'center' }}>
+        <View style={styles.errorContainer}>
+          <View style={styles.errorIconCircle}>
+            <Feather name="wifi-off" size={32} color={theme.textMuted} />
+          </View>
+          <Text style={styles.errorTitle}>Connexion impossible</Text>
+          <Text style={styles.errorSubtitle}>
             {error || 'Vérifiez votre connexion internet ou réessayez dans quelques instants.'}
           </Text>
           <TouchableOpacity
-            style={{ backgroundColor: theme.primary, paddingHorizontal: 28, paddingVertical: 13, borderRadius: RADIUS.lg }}
+            style={styles.retryButton}
             onPress={refetch}
             activeOpacity={0.8}
           >
-            <Text style={{ color: '#fff', fontWeight: FONTS.bold, fontSize: FONTS.md }}>Réessayer</Text>
+            <Text style={styles.retryButtonText}>Réessayer</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -406,8 +568,13 @@ export default function HomeScreen({ navigation }: Props) {
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Feather name="inbox" size={48} color={theme.textMuted} />
-              <Text style={styles.emptyText}>Aucune annonce trouvée</Text>
+              <View style={styles.emptyIconCircle}>
+                <Feather name="inbox" size={32} color={theme.textMuted} />
+              </View>
+              <Text style={styles.emptyTitle}>Aucune annonce trouvée</Text>
+              <Text style={styles.emptySubtitle}>
+                Essayez de modifier vos critères de recherche
+              </Text>
             </View>
           }
         />
@@ -416,20 +583,24 @@ export default function HomeScreen({ navigation }: Props) {
   );
 }
 
-const createStyles = (theme: any) => StyleSheet.create({
+// ─────────────────────────────────────────────
+// 🎨 Styles
+// ─────────────────────────────────────────────
+
+const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
   },
   listContainer: {
     paddingHorizontal: SPACING.lg,
-    paddingBottom: 100,
+    paddingBottom: 120,  // Extra space for floating tab bar
   },
 
   // Hero
   heroSection: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: SPACING.lg,
+    paddingTop: Platform.OS === 'ios' ? 60 : 44,
+    paddingBottom: SPACING.xl,
   },
   heroHeader: {
     flexDirection: 'row',
@@ -437,22 +608,21 @@ const createStyles = (theme: any) => StyleSheet.create({
     justifyContent: 'space-between',
   },
   heroWelcome: {
-    fontSize: FONTS.xxl,
-    fontWeight: FONTS.extrabold,
+    ...TYPOGRAPHY.h1,
     color: theme.textPrimary,
-    letterSpacing: -0.5,
   },
   heroSubtitle: {
     fontSize: FONTS.sm,
+    fontWeight: FONTS.regular,
     color: theme.textSecondary,
-    marginTop: 2,
+    marginTop: 4,
   },
   profileIndicator: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     overflow: 'hidden',
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: theme.primary,
     ...SHADOWS.sm,
   },
@@ -462,14 +632,14 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   profileAvatarPlaceholder: {
     flex: 1,
-    backgroundColor: theme.surfaceMuted,
+    backgroundColor: theme.primaryFaded,
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   // Recherche
   searchContainer: {
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
   },
   searchBar: {
     flexDirection: 'row',
@@ -479,6 +649,8 @@ const createStyles = (theme: any) => StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: 14,
     gap: SPACING.sm,
+    borderWidth: 1,
+    borderColor: theme.borderLight,
   },
   searchInput: {
     flex: 1,
@@ -487,49 +659,57 @@ const createStyles = (theme: any) => StyleSheet.create({
     padding: 0,
   },
 
-  // Catégories
+  // Catégories — cercles colorés
   categoriesContainer: {
-    paddingBottom: SPACING.xl,
+    paddingBottom: SPACING.lg,
+    gap: SPACING.lg,
+  },
+  categoryCircleWrapper: {
+    alignItems: 'center',
+    width: 64,
+  },
+  categoryCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    marginBottom: SPACING.xs,
+  },
+  categoryCircleLabel: {
+    fontSize: 10,
+    fontWeight: FONTS.semibold,
+    textAlign: 'center',
+  },
+
+  // Sous-catégories
+  subcategoriesContainer: {
+    paddingBottom: SPACING.lg,
     gap: SPACING.sm,
   },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  subcategoryChip: {
     paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm + 2,
+    paddingVertical: SPACING.sm + 1,
     borderRadius: RADIUS.full,
     backgroundColor: theme.surfaceMuted,
     borderWidth: 1,
     borderColor: theme.borderLight,
   },
-  categoryChipSelected: {
+  subcategoryChipSelected: {
     backgroundColor: theme.primary,
     borderColor: theme.primary,
-  },
-  categoryLabel: {
-    fontSize: FONTS.sm,
-    fontWeight: FONTS.medium,
-    color: theme.textSecondary,
-  },
-  categoryLabelSelected: {
-    color: theme.textInverse,
-  },
-  subcategoryChip: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.full,
-    backgroundColor: theme.surfaceMuted,
-    borderWidth: 1,
-    borderColor: theme.borderLight,
   },
   subcategoryLabel: {
     fontSize: FONTS.xs,
     fontWeight: FONTS.medium,
     color: theme.textSecondary,
   },
+  subcategoryLabelSelected: {
+    color: theme.textInverse,
+  },
 
-  // Section
+  // Section headers
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -537,8 +717,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   sectionTitle: {
-    fontSize: FONTS.lg,
-    fontWeight: FONTS.bold,
+    ...TYPOGRAPHY.h3,
     color: theme.textPrimary,
   },
   sectionLink: {
@@ -547,18 +726,20 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: theme.primary,
   },
 
-  // Card annonce
+  // Card annonce — premium
   card: {
     width: CARD_WIDTH,
     marginBottom: SPACING.lg,
     borderRadius: RADIUS.lg,
     backgroundColor: theme.surface,
     overflow: 'hidden',
+    borderWidth: isDark ? 1 : 0,
+    borderColor: theme.borderLight,
     ...SHADOWS.md,
   },
   cardImageContainer: {
     width: '100%',
-    height: CARD_WIDTH,
+    height: CARD_WIDTH * 0.85,  // Aspect ratio 4:3ish — plus de contenu visible
     position: 'relative',
   },
   cardImage: {
@@ -571,63 +752,42 @@ const createStyles = (theme: any) => StyleSheet.create({
     top: SPACING.sm,
     left: SPACING.sm,
     flexDirection: 'row',
-    gap: 6,
+    gap: 4,
   },
-  badgeNeuf: {
-    backgroundColor: theme.secondary,
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: SPACING.sm,
     paddingVertical: 3,
     borderRadius: RADIUS.xs,
   },
   badgeText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: FONTS.bold,
-    color: theme.textInverse,
+    color: '#FFFFFF',
     letterSpacing: 0.5,
-  },
-  badgePro: {
-    backgroundColor: theme.primary,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 3,
-    borderRadius: RADIUS.xs,
-  },
-  badgeProText: {
-    fontSize: 10,
-    fontWeight: FONTS.bold,
-    color: '#fff',
-    letterSpacing: 0.5,
-  },
-  favoriteButton: {
-    position: 'absolute',
-    top: SPACING.sm,
-    right: SPACING.sm,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    textTransform: 'uppercase',
   },
   cardInfo: {
     padding: SPACING.md,
+    gap: 3,
   },
   cardTitle: {
     fontSize: FONTS.sm,
     fontWeight: FONTS.semibold,
     color: theme.textPrimary,
     lineHeight: 18,
-    marginBottom: SPACING.xs,
   },
   cardPrice: {
+    ...TYPOGRAPHY.price,
     fontSize: FONTS.md,
-    fontWeight: FONTS.bold,
     color: theme.primary,
-    marginBottom: SPACING.xs,
   },
   cardMeta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
+    marginTop: 2,
   },
   cardMetaText: {
     fontSize: FONTS.xs,
@@ -644,30 +804,92 @@ const createStyles = (theme: any) => StyleSheet.create({
     marginHorizontal: 2,
   },
 
-  // Empty
+  // Empty state
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.section * 2,
+    paddingVertical: SPACING.section * 1.5,
     gap: SPACING.md,
   },
-  emptyText: {
-    fontSize: FONTS.md,
+  emptyIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: theme.surfaceMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  emptyTitle: {
+    ...TYPOGRAPHY.h3,
+    color: theme.textPrimary,
+  },
+  emptySubtitle: {
+    fontSize: FONTS.sm,
     color: theme.textMuted,
+    textAlign: 'center',
+  },
+
+  // Error state
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING.xxl,
+    gap: SPACING.md,
+  },
+  errorIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: theme.surfaceMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  errorTitle: {
+    ...TYPOGRAPHY.h3,
+    color: theme.textPrimary,
+    textAlign: 'center',
+  },
+  errorSubtitle: {
+    fontSize: FONTS.sm,
+    color: theme.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  retryButton: {
+    backgroundColor: theme.primary,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: RADIUS.lg,
+    marginTop: SPACING.sm,
+    ...SHADOWS.colored,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontWeight: FONTS.bold,
+    fontSize: FONTS.md,
+  },
+
+  // Skeleton
+  skeletonContainer: {
+    flex: 1,
+    paddingHorizontal: SPACING.lg,
   },
 
   // Bannière
   bannerContainer: {
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
   },
   bannerCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.primary,
     borderRadius: RADIUS.lg,
-    padding: SPACING.md,
+    padding: SPACING.lg,
     gap: SPACING.md,
-    ...SHADOWS.md,
+    ...SHADOWS.colored,
   },
   bannerIconContainer: {
     width: 44,
@@ -684,17 +906,17 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: FONTS.sm + 1,
     fontWeight: FONTS.bold,
     color: '#fff',
-    marginBottom: 2,
+    marginBottom: 3,
   },
   bannerSubtitle: {
     fontSize: 11,
     color: 'rgba(255,255,255,0.9)',
-    lineHeight: 15,
+    lineHeight: 16,
   },
 
   // Récemment vus
   recentSection: {
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
   },
   clearRecentLink: {
     fontSize: FONTS.xs,
@@ -706,7 +928,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     paddingRight: SPACING.lg,
   },
   recentCard: {
-    width: 130,
+    width: 140,
     backgroundColor: theme.surface,
     borderRadius: RADIUS.md,
     overflow: 'hidden',
@@ -717,7 +939,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   recentImageContainer: {
     width: '100%',
-    height: 90,
+    height: 95,
   },
   recentImage: {
     width: '100%',

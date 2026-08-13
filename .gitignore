@@ -25,3 +25,6 @@ Thumbs.db
 # Build
 app/dist/
 app/web-build/
+
+# Rendus video (fichiers lourds, regenerables via marketing/tools)
+marketing/export/

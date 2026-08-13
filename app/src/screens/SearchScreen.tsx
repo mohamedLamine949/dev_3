@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,15 +12,17 @@ import {
   ActivityIndicator,
   Dimensions,
   Platform,
+  Animated,
+  Modal,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, RADIUS, CATEGORIES, SUBCATEGORIES, getSousCategorieLabel, SHADOWS, ETAT_ARTICLE } from '../constants/theme';
+import { FONTS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, CATEGORIES, SUBCATEGORIES, getSousCategorieLabel, ETAT_ARTICLE } from '../constants/theme';
 import { scoreAnnonce, scoreUser } from '../lib/relevance';
 import { supabase, Annonce, User } from '../lib/supabase';
 import { useAnnonces } from '../hooks/useAnnonces';
 import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
 import { useTheme } from '../contexts/ThemeContext';
-import { Modal } from 'react-native';
+import { SkeletonCard } from '../components/SkeletonLoader';
 
 const { width: W } = Dimensions.get('window');
 const TILE_SIZE = (W - SPACING.lg * 2 - SPACING.md) / 2;
@@ -30,17 +32,16 @@ function formatPrix(prix: number): string {
   return prix.toLocaleString('fr-FR') + ' FCFA';
 }
 
-// Couleur par catégorie
 const CAT_COLORS: Record<string, string> = {
-  telephonie_electronique: '#2563eb',
-  mode_beaute:             '#db2777',
-  maison_electromenager:   '#0284c7',
-  voitures:                '#d97706',
-  motos:                   '#ea580c',
-  immobilier:              '#0891b2',
-  alimentation:            '#dc2626',
-  animaux:                 '#854d0e',
-  services:                '#15803d',
+  telephonie_electronique: '#3B82F6',
+  mode_beaute:             '#EC4899',
+  maison_electromenager:   '#06B6D4',
+  voitures:                '#F59E0B',
+  motos:                   '#F97316',
+  immobilier:              '#8B5CF6',
+  alimentation:            '#EF4444',
+  animaux:                 '#A16207',
+  services:                '#059669',
 };
 
 const CAT_EMOJIS: Record<string, string> = {
@@ -55,16 +56,12 @@ const CAT_EMOJIS: Record<string, string> = {
   services:                '🔧',
 };
 
-// Scoring de pertinence : voir src/lib/relevance.ts (scoreAnnonce / scoreUser),
-// partagé avec l'écran d'accueil. Score 0 = résultat exclu (filtre strict).
-
 function mergeResults(posts: any[], users: any[]): any[] {
   const merged: any[] = [];
   let postIndex = 0;
   let userIndex = 0;
   
   while (postIndex < posts.length || userIndex < users.length) {
-    // Add up to 3 posts
     let postsAdded = 0;
     while (postsAdded < 3 && postIndex < posts.length) {
       merged.push(posts[postIndex]);
@@ -72,7 +69,6 @@ function mergeResults(posts: any[], users: any[]): any[] {
       postsAdded++;
     }
     
-    // Add 1 user profile
     if (userIndex < users.length) {
       merged.push(users[userIndex]);
       userIndex++;
@@ -92,7 +88,6 @@ export default function SearchScreen({ navigation }: Props) {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSousCategorie, setSelectedSousCategorie] = useState<string | null>(null);
-  // Catégorie dont le panneau de sous-catégories (entonnoir) est ouvert
   const [subcatPickerCat, setSubcatPickerCat] = useState<string | null>(null);
 
   // Filtres avancés
@@ -102,7 +97,7 @@ export default function SearchScreen({ navigation }: Props) {
   const [selectedEtat, setSelectedEtat] = useState<string | null>(null);
   const [orderBy, setOrderBy] = useState<'newest' | 'price_asc' | 'price_desc'>('newest');
 
-  // Nouvelle recherche par pertinence
+  // Recherche par pertinence
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -115,7 +110,6 @@ export default function SearchScreen({ navigation }: Props) {
     return () => clearTimeout(t);
   }, [searchQuery]);
 
-  // Fetch les annonces correspondant aux critères
   const { annonces, loading: loadingAnnonces } = useAnnonces({
     categorie: selectedCategory,
     sousCategorie: selectedSousCategorie,
@@ -126,8 +120,6 @@ export default function SearchScreen({ navigation }: Props) {
     orderBy: orderBy,
   });
 
-  // Fetch les utilisateurs en parallèle quand une requête texte ou une
-  // catégorie est présente (profils dans les résultats + carrousel boutiques)
   useEffect(() => {
     const cleanSearch = debouncedSearch.trim();
     if (cleanSearch.length > 0 || selectedCategory) {
@@ -152,7 +144,6 @@ export default function SearchScreen({ navigation }: Props) {
     }
   }, [debouncedSearch, selectedCategory]);
 
-  // Calcul de la pertinence et entrelacement (Ratio 3/4 posts, 1/4 profils)
   useEffect(() => {
     const query = debouncedSearch.trim();
     if (!query) {
@@ -160,8 +151,6 @@ export default function SearchScreen({ navigation }: Props) {
       return;
     }
 
-    // 1. Noter les posts — bonus modéré (+12 %) pour les produits de
-    //    boutiques PRO : un départage, jamais une domination (spec refonte PRO)
     const proIds = new Set(users.filter(u => u.type_compte === 'professionnel').map(u => u.id));
     const scoredAnnonces = annonces
       .map(annonce => {
@@ -174,7 +163,6 @@ export default function SearchScreen({ navigation }: Props) {
       })
       .filter(a => a.searchScore > 0);
 
-    // 2. Noter les utilisateurs
     const scoredUsers = users
       .map(user => {
         const score = scoreUser(query, user);
@@ -182,19 +170,15 @@ export default function SearchScreen({ navigation }: Props) {
       })
       .filter(u => u.searchScore > 0);
 
-    // 3. Trier par pertinence décroissante
     scoredAnnonces.sort((a, b) => b.searchScore - a.searchScore);
     scoredUsers.sort((a, b) => b.searchScore - a.searchScore);
 
-    // 4. Fusionner avec le ratio
     const merged = mergeResults(scoredAnnonces, scoredUsers);
     setSearchResults(merged);
   }, [annonces, users, debouncedSearch]);
 
   const loading = loadingAnnonces || loadingUsers;
 
-  // Boutiques PRO présentes dans les résultats (carrousel « Boutiques ») :
-  // triées par nombre de produits correspondants, 8 max.
   const boutiquesMatch = React.useMemo(() => {
     if (users.length === 0) return [] as (User & { nbProduits: number })[];
     const counts: Record<string, number> = {};
@@ -214,7 +198,6 @@ export default function SearchScreen({ navigation }: Props) {
     setSelectedSousCategorie(null);
   };
 
-  // ---- Rendu carte résultat ----
   const renderResult = ({ item }: { item: any }) => {
     if (item.isUserProfile) {
       const authorName = `${item.prenom || ''} ${item.nom || ''}`.trim() || 'Utilisateur';
@@ -238,6 +221,7 @@ export default function SearchScreen({ navigation }: Props) {
               <Text style={styles.profileName} numberOfLines={1}>{authorName}</Text>
               {isPro ? (
                 <View style={styles.proBadge}>
+                  <Ionicons name="checkmark-circle" size={10} color="#fff" style={{ marginRight: 2 }} />
                   <Text style={styles.proBadgeText}>PRO</Text>
                 </View>
               ) : (
@@ -266,7 +250,7 @@ export default function SearchScreen({ navigation }: Props) {
     return (
       <TouchableOpacity
         style={styles.resultCard}
-        activeOpacity={0.75}
+        activeOpacity={0.8}
         onPress={() => navigation.navigate('AnnonceDetail', { annonce: item })}
       >
         {imageUrl
@@ -279,6 +263,7 @@ export default function SearchScreen({ navigation }: Props) {
           <View style={styles.resultTitleRow}>
             {item.user?.type_compte === 'professionnel' && (
               <View style={styles.proBadge}>
+                <Ionicons name="checkmark-circle" size={10} color="#fff" style={{ marginRight: 2 }} />
                 <Text style={styles.proBadgeText}>PRO</Text>
               </View>
             )}
@@ -301,12 +286,11 @@ export default function SearchScreen({ navigation }: Props) {
             )}
           </View>
         </View>
-        <Ionicons name="chevron-forward" size={18} color={theme.borderLight} />
+        <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
       </TouchableOpacity>
     );
   };
 
-  // ---- Rendu tuile catégorie ----
   const renderCategoryTile = (cat: typeof CATEGORIES[0]) => {
     const color = CAT_COLORS[cat.id] || theme.primary;
     const emoji = CAT_EMOJIS[cat.id] || '📦';
@@ -316,8 +300,6 @@ export default function SearchScreen({ navigation }: Props) {
         style={[styles.tile, { backgroundColor: color }]}
         activeOpacity={0.8}
         onPress={() => {
-          // Entonnoir : si la catégorie a des sous-catégories, on propose
-          // d'abord de préciser ; sinon on filtre directement.
           if (SUBCATEGORIES[cat.id]?.length > 0) {
             setSubcatPickerCat(cat.id);
           } else {
@@ -394,12 +376,12 @@ export default function SearchScreen({ navigation }: Props) {
         {/* Chip catégorie active */}
         {selectedCategory && (
           <View style={styles.activeFilter}>
-            <View style={[styles.activeCatChip, { backgroundColor: CAT_COLORS[selectedCategory] + '22', borderColor: CAT_COLORS[selectedCategory] }]}>
-              <Text style={[styles.activeCatText, { color: CAT_COLORS[selectedCategory] }]}>
+            <View style={[styles.activeCatChip, { backgroundColor: (CAT_COLORS[selectedCategory] || theme.primary) + '22', borderColor: CAT_COLORS[selectedCategory] || theme.primary }]}>
+              <Text style={[styles.activeCatText, { color: CAT_COLORS[selectedCategory] || theme.primary }]}>
                 {CAT_EMOJIS[selectedCategory]} {activeCatLabel}{activeSousCatLabel ? ` · ${activeSousCatLabel}` : ''}
               </Text>
               <TouchableOpacity onPress={() => { setSelectedCategory(null); setSelectedSousCategorie(null); }}>
-                <Ionicons name="close" size={15} color={CAT_COLORS[selectedCategory]} />
+                <Ionicons name="close" size={15} color={CAT_COLORS[selectedCategory] || theme.primary} />
               </TouchableOpacity>
             </View>
             {!inResultsMode || (
@@ -468,7 +450,7 @@ export default function SearchScreen({ navigation }: Props) {
             </View>
           )}
 
-          <View style={{ height: 100 }} />
+          <View style={{ height: 120 }} />
         </ScrollView>
       ) : (
         /* MODE RÉSULTATS */
@@ -486,55 +468,40 @@ export default function SearchScreen({ navigation }: Props) {
             ListHeaderComponent={
               searchResults.length > 0 ? (
                 <View>
-                  {/* Carrousel Boutiques : la visibilité PRO, sans polluer la liste */}
+                  {/* Carrousel Boutiques */}
                   {boutiquesMatch.length > 0 && (
                     <View style={{ marginBottom: SPACING.md }}>
-                      <Text style={{
-                        fontSize: FONTS.xs, fontWeight: FONTS.bold, color: theme.textSecondary,
-                        textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: SPACING.sm,
-                      }}>
-                        🏪 Boutiques
+                      <Text style={styles.sectionSubHeaderTitle}>
+                        🏪 Boutiques PRO
                       </Text>
                       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                         <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
                           {boutiquesMatch.map(b => (
                             <TouchableOpacity
                               key={b.id}
-                              style={{
-                                width: 128, alignItems: 'center',
-                                backgroundColor: theme.surface, borderRadius: RADIUS.lg,
-                                paddingVertical: SPACING.md, paddingHorizontal: SPACING.sm,
-                                borderWidth: 1, borderColor: theme.borderLight,
-                              }}
+                              style={styles.boutiqueCard}
                               onPress={() => navigation.navigate('Boutique', { vendeurId: b.id })}
                               activeOpacity={0.85}
                             >
                               {b.avatar_url ? (
-                                <Image source={{ uri: b.avatar_url }} style={{ width: 48, height: 48, borderRadius: 24 }} />
+                                <Image source={{ uri: b.avatar_url }} style={styles.boutiqueAvatar} />
                               ) : (
-                                <View style={{
-                                  width: 48, height: 48, borderRadius: 24,
-                                  backgroundColor: theme.primaryFaded,
-                                  justifyContent: 'center', alignItems: 'center',
-                                }}>
-                                  <Text style={{ fontSize: FONTS.lg, fontWeight: FONTS.extrabold, color: theme.primary }}>
+                                <View style={styles.boutiqueAvatarPlaceholder}>
+                                  <Text style={styles.boutiqueAvatarText}>
                                     {(b.nom_boutique || b.prenom || '?').charAt(0).toUpperCase()}
                                   </Text>
                                 </View>
                               )}
                               <Text
                                 numberOfLines={1}
-                                style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.textPrimary, marginTop: 6, maxWidth: 112 }}
+                                style={styles.boutiqueName}
                               >
                                 {b.nom_boutique || `${b.prenom || ''} ${b.nom || ''}`.trim()}
                               </Text>
-                              <View style={{
-                                backgroundColor: theme.primary, paddingHorizontal: 6, paddingVertical: 1,
-                                borderRadius: RADIUS.xs, marginTop: 3,
-                              }}>
-                                <Text style={{ fontSize: 9, fontWeight: FONTS.bold, color: '#fff' }}>PRO</Text>
+                              <View style={styles.boutiqueBadge}>
+                                <Text style={styles.boutiqueBadgeText}>PRO</Text>
                               </View>
-                              <Text style={{ fontSize: FONTS.xs, color: theme.textMuted, marginTop: 3 }}>
+                              <Text style={styles.boutiqueCount}>
                                 {b.nbProduits} produit{b.nbProduits > 1 ? 's' : ''}
                               </Text>
                             </TouchableOpacity>
@@ -552,12 +519,14 @@ export default function SearchScreen({ navigation }: Props) {
             }
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Feather name="search" size={48} color={theme.border} />
+                <View style={styles.emptyIconCircle}>
+                  <Feather name="search" size={32} color={theme.textMuted} />
+                </View>
                 <Text style={styles.emptyTitle}>Aucun résultat</Text>
                 <Text style={styles.emptyText}>
                   Essayez avec d'autres mots-clés ou une autre catégorie.
                 </Text>
-                <TouchableOpacity style={styles.emptyBackBtn} onPress={clearFilters}>
+                <TouchableOpacity style={styles.emptyBackBtn} onPress={clearFilters} activeOpacity={0.8}>
                   <Text style={styles.emptyBackText}>Retour aux catégories</Text>
                 </TouchableOpacity>
               </View>
@@ -661,7 +630,7 @@ export default function SearchScreen({ navigation }: Props) {
         </View>
       </Modal>
 
-      {/* Bottom sheet entonnoir : sous-catégories de la catégorie tapée */}
+      {/* Bottom sheet entonnoir : sous-catégories */}
       <Modal
         visible={subcatPickerCat !== null}
         transparent
@@ -724,8 +693,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: theme.background,
   },
   title: {
-    fontSize: FONTS.xxl,
-    fontWeight: FONTS.extrabold,
+    ...TYPOGRAPHY.h1,
     color: theme.textPrimary,
   },
   locationBadge: {
@@ -799,7 +767,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     fontWeight: FONTS.medium,
   },
 
-  // Chips de sous-catégories (affinage dans les résultats)
+  // Subcategories
   subcatRow: {
     gap: SPACING.sm,
     paddingVertical: 2,
@@ -825,7 +793,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     color: '#fff',
   },
 
-  // Bottom sheet sous-catégories (entonnoir)
+  // Sheet
   sheetContainer: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -859,8 +827,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   sheetTitle: {
-    fontSize: FONTS.lg,
-    fontWeight: FONTS.bold,
+    ...TYPOGRAPHY.h2,
     color: theme.textPrimary,
   },
   sheetRow: {
@@ -876,14 +843,13 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     color: theme.textPrimary,
   },
 
-  // Grille catégories
+  // Category tiles
   gridContainer: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.lg,
   },
   browseTitle: {
-    fontSize: FONTS.md,
-    fontWeight: FONTS.semibold,
+    ...TYPOGRAPHY.h3,
     color: theme.textSecondary,
     marginBottom: SPACING.lg,
   },
@@ -908,7 +874,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     color: '#fff',
   },
 
-  // Nearby section
+  // Nearby
   nearbySection: {
     marginTop: SPACING.xxl,
     backgroundColor: isDark ? theme.surface : theme.primaryFaded,
@@ -937,8 +903,9 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     gap: SPACING.sm,
     backgroundColor: theme.primary,
     borderRadius: RADIUS.lg,
-    paddingVertical: 12,
+    paddingVertical: 13,
     marginTop: SPACING.sm,
+    ...SHADOWS.colored,
   },
   nearbyBtnText: {
     fontSize: FONTS.sm,
@@ -946,11 +913,11 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     color: '#fff',
   },
 
-  // Résultats
+  // Results
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   resultsList: {
     padding: SPACING.lg,
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
   resultCard: {
     flexDirection: 'row',
@@ -959,6 +926,8 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
     marginBottom: SPACING.md,
+    borderWidth: isDark ? 1 : 0,
+    borderColor: theme.borderLight,
     ...SHADOWS.sm,
   },
   resultImage: {
@@ -975,8 +944,8 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     color: theme.textPrimary,
   },
   resultPrice: {
+    ...TYPOGRAPHY.price,
     fontSize: FONTS.md,
-    fontWeight: FONTS.bold,
     color: theme.primary,
   },
   resultMeta: { flexDirection: 'row', alignItems: 'center', gap: 3 },
@@ -1005,13 +974,15 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     flexShrink: 1,
   },
   proBadge: {
-    backgroundColor: theme.primaryFaded,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.primary,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: RADIUS.xs,
   },
   proBadgeText: {
-    color: theme.primary,
+    color: '#fff',
     fontSize: 9,
     fontWeight: 'bold',
   },
@@ -1019,7 +990,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: theme.surfaceMuted,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: RADIUS.xs,
   },
   particulierBadgeText: {
     color: theme.textMuted,
@@ -1033,14 +1004,46 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     marginBottom: 4,
   },
 
-  // Empty
-  emptyContainer: { paddingVertical: 80, alignItems: 'center' },
-  emptyTitle: {
-    fontSize: FONTS.lg,
-    fontWeight: FONTS.bold,
-    color: theme.textPrimary,
-    marginTop: SPACING.lg,
+  // Boutiques
+  sectionSubHeaderTitle: {
+    ...TYPOGRAPHY.overline,
+    color: theme.textSecondary,
     marginBottom: SPACING.sm,
+  },
+  boutiqueCard: {
+    width: 128, alignItems: 'center',
+    backgroundColor: theme.surface, borderRadius: RADIUS.lg,
+    paddingVertical: SPACING.md, paddingHorizontal: SPACING.sm,
+    borderWidth: 1, borderColor: theme.borderLight,
+    ...SHADOWS.sm,
+  },
+  boutiqueAvatar: { width: 48, height: 48, borderRadius: 24 },
+  boutiqueAvatarPlaceholder: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: theme.primaryFaded,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  boutiqueAvatarText: { fontSize: FONTS.lg, fontWeight: FONTS.extrabold, color: theme.primary },
+  boutiqueName: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.textPrimary, marginTop: 6, maxWidth: 112 },
+  boutiqueBadge: {
+    backgroundColor: theme.primary, paddingHorizontal: 6, paddingVertical: 1,
+    borderRadius: RADIUS.xs, marginTop: 3,
+  },
+  boutiqueBadgeText: { fontSize: 9, fontWeight: FONTS.bold, color: '#fff' },
+  boutiqueCount: { fontSize: FONTS.xs, color: theme.textMuted, marginTop: 3 },
+
+  // Empty state
+  emptyContainer: { paddingVertical: 80, alignItems: 'center' },
+  emptyIconCircle: {
+    width: 72, height: 72, borderRadius: 36,
+    backgroundColor: theme.surfaceMuted,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  emptyTitle: {
+    ...TYPOGRAPHY.h3,
+    color: theme.textPrimary,
+    marginBottom: SPACING.xs,
   },
   emptyText: {
     fontSize: FONTS.sm,
@@ -1052,13 +1055,13 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   emptyBackBtn: {
     paddingHorizontal: SPACING.xxl,
-    paddingVertical: SPACING.md,
+    paddingVertical: 12,
     backgroundColor: theme.primaryFaded,
     borderRadius: RADIUS.lg,
   },
   emptyBackText: {
     fontSize: FONTS.sm,
-    fontWeight: FONTS.semibold,
+    fontWeight: FONTS.bold,
     color: theme.primary,
   },
 
@@ -1071,11 +1074,11 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: theme.surface,
     borderBottomWidth: 1, borderBottomColor: theme.borderLight,
   },
-  modalTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.textPrimary },
+  modalTitle: { ...TYPOGRAPHY.h2, color: theme.textPrimary },
   modalReset: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.error },
   modalBody: { padding: SPACING.xl },
   filterSection: { marginBottom: SPACING.xxl },
-  filterLabel: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.textSecondary, textTransform: 'uppercase', marginBottom: SPACING.lg },
+  filterLabel: { ...TYPOGRAPHY.overline, color: theme.textSecondary, marginBottom: SPACING.md },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   priceInput: {
     flex: 1,

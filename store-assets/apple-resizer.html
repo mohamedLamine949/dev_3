@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chap Chap – Redimensionneur Apple App Store</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #f5f5f7;
+            color: #1d1d1f;
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        /* ============================================
+           HEADER
+           ============================================ */
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .header h1 span { color: #1a7a3a; }
+
+        .header p {
+            font-size: 14px;
+            color: #6e6e73;
+            margin-top: 6px;
+        }
+
+        /* ============================================
+           CONTROLS
+           ============================================ */
+        .controls {
+            max-width: 900px;
+            margin: 0 auto 32px;
+            background: #fff;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 16px;
+            align-items: end;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .controls-row:last-child { margin-bottom: 0; }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .control-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6e6e73;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-group select,
+        .control-group input[type="text"],
+        .control-group input[type="color"] {
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            padding: 10px 14px;
+            border: 1.5px solid #e0e0e5;
+            border-radius: 10px;
+            background: #fafafa;
+            color: #1d1d1f;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .control-group select:focus,
+        .control-group input:focus {
+            border-color: #1a7a3a;
+        }
+
+        .control-group select { cursor: pointer; min-width: 200px; }
+        .control-group input[type="text"] { min-width: 260px; }
+        .control-group input[type="color"] { width: 50px; height: 42px; padding: 4px; cursor: pointer; }
+
+        .btn {
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-export {
+            background: #1a7a3a;
+            color: #fff;
+        }
+
+        .btn-export:hover { background: #15632f; }
+
+        .btn-export-all {
+            background: #0066cc;
+            color: #fff;
+        }
+
+        .btn-export-all:hover { background: #0055aa; }
+
+        .btn-secondary {
+            background: #e8e8ed;
+            color: #1d1d1f;
+        }
+
+        .btn-secondary:hover { background: #d2d2d7; }
+
+        .dimensions-info {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #e8f5e9;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1a7a3a;
+        }
+
+        /* ============================================
+           PREVIEW GRID
+           ============================================ */
+        .preview-section {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .preview-section h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .preview-grid {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            padding-bottom: 16px;
+        }
+
+        .preview-card {
+            flex-shrink: 0;
+            background: #fff;
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            text-align: center;
+        }
+
+        .preview-card .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #6e6e73;
+            margin-bottom: 12px;
+        }
+
+        .preview-card canvas {
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .preview-card .card-actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .btn-small {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 14px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-small.green { background: #1a7a3a; color: #fff; }
+        .btn-small.green:hover { background: #15632f; }
+
+        /* ============================================
+           STATUS BAR
+           ============================================ */
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(0,0,0,0.08);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            z-index: 50;
+        }
+
+        .status-text {
+            font-size: 13px;
+            color: #6e6e73;
+        }
+
+        .status-text strong { color: #1d1d1f; }
+
+        /* Hidden canvases for full-res export */
+        .hidden-canvas { display: none; }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #1d1d1f;
+            color: #fff;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 200;
+            transform: translateY(-20px);
+            opacity: 0;
+            transition: all 0.3s;
+            pointer-events: none;
+        }
+
+        .toast.visible {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <h1>⚡ <span>Apple App Store</span> – Redimensionneur de captures</h1>
+        <p>Redimensionne automatiquement vos captures au format exact exigé par Apple</p>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+        <div class="controls-row">
+            <div class="control-group">
+                <label>Appareil cible</label>
+                <select id="deviceSelect" onchange="updateConfig()">
+                    <option value="6.7">iPhone 6,7" (1290 × 2796)</option>
+                    <option value="6.5" selected>iPhone 6,5" (1242 × 2688)</option>
+                    <option value="6.1">iPhone 6,1" (1284 × 2778)</option>
+                    <option value="5.5">iPhone 5,5" (1242 × 2208)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Mode d'affichage</label>
+                <select id="modeSelect" onchange="updateConfig()">
+                    <option value="fullscreen" selected>Plein écran (redimensionné)</option>
+                    <option value="mockup">Mockup avec texte</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Couleur de fond</label>
+                <input type="color" id="bgColor" value="#ffffff" onchange="updateConfig()">
+            </div>
+
+            <div class="control-group">
+                <label>Accroche (mode mockup)</label>
+                <input type="text" id="headlineInput" value="Trouvez la bonne affaire près de chez vous" onchange="updateConfig()">
+            </div>
+        </div>
+
+        <div class="controls-row">
+            <span class="dimensions-info" id="dimInfo">📐 1242 × 2688 px</span>
+
+            <div style="flex:1"></div>
+
+            <button class="btn btn-export-all" onclick="exportAll()">📦 Exporter tout (ZIP)</button>
+        </div>
+    </div>
+
+    <!-- Preview -->
+    <div class="preview-section">
+        <h2>📱 Aperçu des captures</h2>
+        <div class="preview-grid" id="previewGrid"></div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Status bar -->
+    <div class="status-bar">
+        <span class="status-text">Dimensions Apple : <strong id="statusDim">1242 × 2688px</strong></span>
+        <span class="status-text">|</span>
+        <span class="status-text">Captures : <strong>5</strong></span>
+        <span class="status-text">|</span>
+        <span class="status-text">Format : <strong>PNG</strong></span>
+    </div>
+
+    <!-- JSZip for ZIP export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" 
+            crossorigin="anonymous" referrerpolicy="no-referrer"
+            onerror="console.log('JSZip not loaded')"></script>
+
+    <script>
+        // ============================================
+        // CONFIGURATION
+        // ============================================
+        const DEVICE_SIZES = {
+            '6.7': { w: 1290, h: 2796, label: '1290 × 2796' },
+            '6.5': { w: 1242, h: 2688, label: '1242 × 2688' },
+            '6.1': { w: 1284, h: 2778, label: '1284 × 2778' },
+            '5.5': { w: 1242, h: 2208, label: '1242 × 2208' }
+        };
+
+        const SCREENSHOTS = [
+            { src: '/images%20stores/IMG_0539.png', name: 'accueil',       title: '🏠 Accueil',       headline: 'Trouvez la bonne affaire\nprès de chez vous' },
+            { src: '/images%20stores/IMG_0529.png', name: 'recherche',     title: '🔍 Recherche',     headline: 'Recherchez par catégorie\nen un clic' },
+            { src: '/images%20stores/IMG_0538.png', name: 'profil',        title: '👤 Profil',        headline: 'Des vendeurs pros\nprès de chez vous' },
+            { src: '/images%20stores/IMG_0540.png', name: 'messages',      title: '💬 Messages',      headline: 'Négociez en direct\navec le vendeur' },
+            { src: '/images%20stores/IMG_0541.png', name: 'conversation',  title: '💬 Conversation',  headline: 'Discutez et concluez\nla bonne affaire' }
+        ];
+
+        let loadedImages = [];
+        const PREVIEW_SCALE = 0.15;
+
+        // ============================================
+        // LOAD IMAGES
+        // ============================================
+        async function loadAllImages() {
+            const promises = SCREENSHOTS.map((s, i) => {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    img.onload = () => {
+                        loadedImages[i] = img;
+                        resolve();
+                    };
+                    img.onerror = () => {
+                        console.error('Failed to load:', s.src);
+                        loadedImages[i] = null;
+                        resolve();
+                    };
+                    img.src = s.src;
+                });
+            });
+            await Promise.all(promises);
+        }
+
+        // ============================================
+        // RENDER SINGLE SCREENSHOT
+        // ============================================
+        function renderScreenshot(canvas, imgIndex, targetW, targetH, mode, bgColor, headline) {
+            const ctx = canvas.getContext('2d');
+            canvas.width = targetW;
+            canvas.height = targetH;
+
+            // Background
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, targetW, targetH);
+
+            const img = loadedImages[imgIndex];
+            if (!img) {
+                ctx.fillStyle = '#ccc';
+                ctx.font = '48px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Image non chargée', targetW / 2, targetH / 2);
+                return;
+            }
+
+            if (mode === 'fullscreen') {
+                // Scale image to fill the canvas (cover)
+                const imgRatio = img.naturalWidth / img.naturalHeight;
+                const canvasRatio = targetW / targetH;
+
+                let drawW, drawH, drawX, drawY;
+
+                if (imgRatio > canvasRatio) {
+                    // Image is wider — fit by height
+                    drawH = targetH;
+                    drawW = drawH * imgRatio;
+                    drawX = (targetW - drawW) / 2;
+                    drawY = 0;
+                } else {
+                    // Image is taller — fit by width
+                    drawW = targetW;
+                    drawH = drawW / imgRatio;
+                    drawX = 0;
+                    drawY = 0; // Align to top
+                }
+
+                ctx.drawImage(img, drawX, drawY, drawW, drawH);
+
+            } else if (mode === 'mockup') {
+                // Draw headline text at top
+                const headlineText = headline || SCREENSHOTS[imgIndex].headline;
+                const lines = headlineText.split('\n');
+
+                const fontSize = Math.round(targetW * 0.058);
+                ctx.font = `800 ${fontSize}px Inter, sans-serif`;
+                ctx.textAlign = 'center';
+
+                // Determine text color based on background brightness
+                const r = parseInt(bgColor.slice(1, 3), 16);
+                const g = parseInt(bgColor.slice(3, 5), 16);
+                const b = parseInt(bgColor.slice(5, 7), 16);
+                const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                ctx.fillStyle = brightness > 128 ? '#1d1d1f' : '#ffffff';
+
+                const textStartY = targetH * 0.08;
+                const lineHeight = fontSize * 1.2;
+
+                lines.forEach((line, i) => {
+                    ctx.fillText(line, targetW / 2, textStartY + fontSize + (i * lineHeight));
+                });
+
+                // Draw phone mockup
+                const phonePadding = targetW * 0.12;
+                const phoneW = targetW - (phonePadding * 2);
+                const phoneH = phoneW * (img.naturalHeight / img.naturalWidth);
+                const phoneX = phonePadding;
+                const phoneY = textStartY + (lines.length * lineHeight) + fontSize * 0.8;
+
+                const phoneRadius = phoneW * 0.06;
+                const frameSize = phoneW * 0.015;
+
+                // Phone frame shadow
+                ctx.shadowColor = 'rgba(0,0,0,0.15)';
+                ctx.shadowBlur = 40;
+                ctx.shadowOffsetY = 15;
+
+                // Phone frame (dark border)
+                ctx.fillStyle = '#1d1d1f';
+                roundRect(ctx, phoneX - frameSize, phoneY - frameSize, phoneW + frameSize * 2, phoneH + frameSize * 2, phoneRadius + frameSize);
+                ctx.fill();
+
+                // Reset shadow
+                ctx.shadowColor = 'transparent';
+                ctx.shadowBlur = 0;
+                ctx.shadowOffsetY = 0;
+
+                // Phone screen (clipped image)
+                ctx.save();
+                roundRect(ctx, phoneX, phoneY, phoneW, phoneH, phoneRadius);
+                ctx.clip();
+                ctx.drawImage(img, phoneX, phoneY, phoneW, phoneH);
+                ctx.restore();
+
+                // Dynamic Island
+                const islandW = phoneW * 0.22;
+                const islandH = phoneW * 0.045;
+                const islandX = phoneX + (phoneW - islandW) / 2;
+                const islandY = phoneY + phoneW * 0.015;
+                ctx.fillStyle = '#000';
+                roundRect(ctx, islandX, islandY, islandW, islandH, islandH / 2);
+                ctx.fill();
+            }
+        }
+
+        // Rounded rect helper
+        function roundRect(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+        }
+
+        // ============================================
+        // UPDATE ALL PREVIEWS
+        // ============================================
+        function updateConfig() {
+            const device = document.getElementById('deviceSelect').value;
+            const size = DEVICE_SIZES[device];
+            const mode = document.getElementById('modeSelect').value;
+            const bgColor = document.getElementById('bgColor').value;
+            const headline = document.getElementById('headlineInput').value;
+
+            // Update info displays
+            document.getElementById('dimInfo').textContent = `📐 ${size.label} px`;
+            document.getElementById('statusDim').textContent = `${size.label}px`;
+
+            // Render all previews
+            renderAllPreviews(size.w, size.h, mode, bgColor, headline);
+        }
+
+        function renderAllPreviews(targetW, targetH, mode, bgColor, headline) {
+            const grid = document.getElementById('previewGrid');
+            grid.innerHTML = '';
+
+            const previewW = Math.round(targetW * PREVIEW_SCALE);
+            const previewH = Math.round(targetH * PREVIEW_SCALE);
+
+            SCREENSHOTS.forEach((s, i) => {
+                // Card
+                const card = document.createElement('div');
+                card.className = 'preview-card';
+
+                // Title
+                const title = document.createElement('div');
+                title.className = 'card-title';
+                title.textContent = s.title;
+                card.appendChild(title);
+
+                // Preview canvas (small)
+                const previewCanvas = document.createElement('canvas');
+                previewCanvas.style.width = previewW + 'px';
+                previewCanvas.style.height = previewH + 'px';
+
+                // Render at full res then scale down via CSS
+                renderScreenshot(previewCanvas, i, targetW, targetH, mode, bgColor, s.headline);
+                previewCanvas.style.width = previewW + 'px';
+                previewCanvas.style.height = previewH + 'px';
+
+                card.appendChild(previewCanvas);
+
+                // Actions
+                const actions = document.createElement('div');
+                actions.className = 'card-actions';
+
+                const exportBtn = document.createElement('button');
+                exportBtn.className = 'btn-small green';
+                exportBtn.textContent = '📸 Exporter PNG';
+                exportBtn.onclick = () => exportSingle(i, targetW, targetH, mode, bgColor);
+                actions.appendChild(exportBtn);
+
+                card.appendChild(actions);
+                grid.appendChild(card);
+            });
+        }
+
+        // ============================================
+        // EXPORT FUNCTIONS
+        // ============================================
+        function exportSingle(index, targetW, targetH, mode, bgColor) {
+            const canvas = document.createElement('canvas');
+            renderScreenshot(canvas, index, targetW, targetH, mode, bgColor, SCREENSHOTS[index].headline);
+
+            canvas.toBlob((blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `chapchap-apple-${SCREENSHOTS[index].name}-${targetW}x${targetH}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast(`✅ ${SCREENSHOTS[index].title} exporté (${targetW}×${targetH})`);
+            }, 'image/png');
+        }
+
+        async function exportAll() {
+            const device = document.getElementById('deviceSelect').value;
+            const size = DEVICE_SIZES[device];
+            const mode = document.getElementById('modeSelect').value;
+            const bgColor = document.getElementById('bgColor').value;
+
+            if (typeof JSZip === 'undefined') {
+                // Fallback: export one by one
+                showToast('⏳ Export un par un…');
+                for (let i = 0; i < SCREENSHOTS.length; i++) {
+                    await new Promise(r => setTimeout(r, 500));
+                    exportSingle(i, size.w, size.h, mode, bgColor);
+                }
+                return;
+            }
+
+            showToast('⏳ Préparation du ZIP…');
+
+            const zip = new JSZip();
+            const folder = zip.folder(`chapchap-apple-${size.w}x${size.h}`);
+
+            for (let i = 0; i < SCREENSHOTS.length; i++) {
+                const canvas = document.createElement('canvas');
+                renderScreenshot(canvas, i, size.w, size.h, mode, bgColor, SCREENSHOTS[i].headline);
+
+                const dataUrl = canvas.toDataURL('image/png');
+                const base64 = dataUrl.split(',')[1];
+                folder.file(`${(i + 1)}-${SCREENSHOTS[i].name}.png`, base64, { base64: true });
+            }
+
+            const blob = await zip.generateAsync({ type: 'blob' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `chapchap-apple-screenshots-${size.w}x${size.h}.zip`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showToast('✅ ZIP exporté avec les 5 captures !');
+        }
+
+        // ============================================
+        // TOAST
+        // ============================================
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('visible');
+            setTimeout(() => toast.classList.remove('visible'), 3000);
+        }
+
+        // ============================================
+        // INIT
+        // ============================================
+        (async function init() {
+            showToast('⏳ Chargement des images…');
+            await loadAllImages();
+            showToast('✅ Images chargées !');
+            updateConfig();
+        })();
+    </script>
+</body>
+</html>

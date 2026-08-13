@@ -1,86 +1,115 @@
 /**
- * Chap Chap - Design System & Theme
- * Palette vibrante, moderne, avec support Mode Sombre
+ * Flash Market — Premium Design System
+ * Palette émeraude premium avec support Mode Sombre avancé.
+ * Inspiré des design systems d'Uber (Base), Bolt, et Material Design 3.
+ *
+ * Principes :
+ * - Tokens sémantiques (pas de couleurs hardcodées dans les composants)
+ * - Élévation par surface en dark mode (pas d'ombres)
+ * - Hiérarchie typographique complète
+ * - Grille de spacing 4px
  */
 
+// ─────────────────────────────────────────────
+// 🎨 Palettes
+// ─────────────────────────────────────────────
+
 export const LIGHT_COLORS = {
-  primary: '#15803d',
-  primaryLight: '#16a34a',
-  primaryDark: '#166534',
-  primaryFaded: 'rgba(21, 128, 61, 0.12)',
+  // Brand
+  primary: '#059669',
+  primaryLight: '#10B981',
+  primaryDark: '#047857',
+  primaryFaded: 'rgba(5, 150, 105, 0.08)',
 
-  secondary: '#ca8a04',
-  secondaryLight: '#eab308',
-  secondaryDark: '#a16207',
+  secondary: '#F59E0B',
+  secondaryLight: '#FBBF24',
+  secondaryDark: '#D97706',
 
-  accent: '#34d399',
-  accentDark: '#10b981',
+  accent: '#34D399',
+  accentDark: '#10B981',
 
-  background: '#FAFBFD',
+  // Surfaces
+  background: '#FAFBFC',
   surface: '#FFFFFF',
   surfaceElevated: '#FFFFFF',
-  surfaceMuted: '#F4F5F7',
+  surfaceMuted: '#F5F7FA',
 
-  textPrimary: '#1A1D26',
+  // Texte
+  textPrimary: '#111827',
   textSecondary: '#6B7280',
   textMuted: '#9CA3AF',
   textInverse: '#FFFFFF',
 
-  success: '#00B894',
-  warning: '#FDCB6E',
-  error: '#FF6B6B',
-  info: '#74B9FF',
+  // Feedback
+  success: '#10B981',
+  warning: '#F59E0B',
+  error: '#EF4444',
+  info: '#3B82F6',
 
-  border: '#E8ECF1',
-  borderLight: '#F0F2F5',
-  divider: '#F0F2F5',
+  // Bordures
+  border: '#E5E7EB',
+  borderLight: '#F3F4F6',
+  divider: '#F3F4F6',
 
+  // Overlays
   overlay: 'rgba(0, 0, 0, 0.5)',
   overlayLight: 'rgba(0, 0, 0, 0.2)',
 };
 
 export const DARK_COLORS = {
-  primary: '#16a34a', // Slightly brighter in dark mode
-  primaryLight: '#22c55e',
-  primaryDark: '#15803d',
-  primaryFaded: 'rgba(22, 163, 74, 0.15)',
+  // Brand — plus lumineux sur fond sombre
+  primary: '#34D399',
+  primaryLight: '#6EE7B7',
+  primaryDark: '#10B981',
+  primaryFaded: 'rgba(52, 211, 153, 0.12)',
 
-  secondary: '#eab308',
-  secondaryLight: '#facc15',
-  secondaryDark: '#ca8a04',
+  secondary: '#FBBF24',
+  secondaryLight: '#FCD34D',
+  secondaryDark: '#F59E0B',
 
-  accent: '#34d399',
-  accentDark: '#10b981',
+  accent: '#6EE7B7',
+  accentDark: '#34D399',
 
-  background: '#0F172A',
-  surface: '#1E293B',
-  surfaceElevated: '#334155',
-  surfaceMuted: '#1E293B',
+  // Surfaces — élévation par luminosité progressive
+  background: '#0A0F1A',
+  surface: '#141B2D',
+  surfaceElevated: '#1C2438',
+  surfaceMuted: '#141B2D',
 
-  textPrimary: '#F8FAFC',
+  // Texte — pas de blanc pur pour éviter la fatigue
+  textPrimary: '#F9FAFB',
   textSecondary: '#94A3B8',
   textMuted: '#64748B',
   textInverse: '#FFFFFF',
 
-  success: '#00B894',
-  warning: '#FDCB6E',
-  error: '#FF6B6B',
-  info: '#74B9FF',
+  // Feedback
+  success: '#34D399',
+  warning: '#FBBF24',
+  error: '#F87171',
+  info: '#60A5FA',
 
-  border: '#334155',
-  borderLight: '#1E293B',
-  divider: '#334155',
+  // Bordures
+  border: '#1E293B',
+  borderLight: '#1C2438',
+  divider: '#1E293B',
 
+  // Overlays
   overlay: 'rgba(0, 0, 0, 0.7)',
   overlayLight: 'rgba(0, 0, 0, 0.4)',
 };
 
 export type ThemeColors = typeof LIGHT_COLORS;
 
-// Par défaut pour la compatibilité
+// Compatibilité : les écrans qui importent `COLORS` directement
+// continuent de fonctionner. Sera progressivement remplacé par `theme.*`
 export const COLORS = LIGHT_COLORS;
 
+// ─────────────────────────────────────────────
+// 🔤 Typographie
+// ─────────────────────────────────────────────
+
 export const FONTS = {
+  // Tailles — hiérarchie claire
   xs: 11,
   sm: 13,
   md: 15,
@@ -89,12 +118,86 @@ export const FONTS = {
   xxl: 24,
   xxxl: 32,
   hero: 40,
+
+  // Poids
   regular: '400' as const,
   medium: '500' as const,
   semibold: '600' as const,
   bold: '700' as const,
   extrabold: '800' as const,
 };
+
+/**
+ * Tokens typographiques sémantiques.
+ * Utilisation : `style={[TYPOGRAPHY.h1, { color: theme.textPrimary }]}`
+ */
+export const TYPOGRAPHY = {
+  display: {
+    fontSize: 32,
+    fontWeight: '800' as const,
+    lineHeight: 40,
+    letterSpacing: -0.5,
+  },
+  h1: {
+    fontSize: 26,
+    fontWeight: '700' as const,
+    lineHeight: 34,
+    letterSpacing: -0.3,
+  },
+  h2: {
+    fontSize: 22,
+    fontWeight: '700' as const,
+    lineHeight: 30,
+    letterSpacing: -0.3,
+  },
+  h3: {
+    fontSize: 18,
+    fontWeight: '600' as const,
+    lineHeight: 26,
+    letterSpacing: -0.2,
+  },
+  bodyLarge: {
+    fontSize: 16,
+    fontWeight: '400' as const,
+    lineHeight: 24,
+    letterSpacing: 0,
+  },
+  body: {
+    fontSize: 14,
+    fontWeight: '400' as const,
+    lineHeight: 22,
+    letterSpacing: 0,
+  },
+  bodySemibold: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    lineHeight: 22,
+    letterSpacing: 0,
+  },
+  caption: {
+    fontSize: 12,
+    fontWeight: '500' as const,
+    lineHeight: 18,
+    letterSpacing: 0.1,
+  },
+  overline: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    lineHeight: 16,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase' as const,
+  },
+  price: {
+    fontSize: 18,
+    fontWeight: '800' as const,
+    lineHeight: 24,
+    letterSpacing: -0.3,
+  },
+};
+
+// ─────────────────────────────────────────────
+// 📏 Spacing (grille 4px)
+// ─────────────────────────────────────────────
 
 export const SPACING = {
   xs: 4,
@@ -104,49 +207,61 @@ export const SPACING = {
   xl: 20,
   xxl: 24,
   xxxl: 32,
-  section: 40,
+  section: 48,
 };
 
+// ─────────────────────────────────────────────
+// 🔘 Border Radius — plus doux, plus premium
+// ─────────────────────────────────────────────
+
 export const RADIUS = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  xxl: 24,
-  full: 999,
+  xs: 6,
+  sm: 10,
+  md: 14,
+  lg: 18,
+  xl: 24,
+  xxl: 28,
+  full: 9999,
 };
+
+// ─────────────────────────────────────────────
+// 🌗 Shadows (light mode seulement — dark mode utilise l'élévation)
+// ─────────────────────────────────────────────
 
 export const SHADOWS = {
   sm: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
     elevation: 2,
   },
   md: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
     elevation: 4,
   },
   lg: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.10,
+    shadowRadius: 24,
     elevation: 8,
   },
   colored: {
-    shadowColor: '#15803d',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
   },
 };
+
+// ─────────────────────────────────────────────
+// 📂 Catégories & Sous-catégories
+// ─────────────────────────────────────────────
 
 export const CATEGORIES = [
   { id: 'telephonie_electronique', label: 'Téléphonie & Électronique', icon: 'phone-portrait-outline' },
@@ -264,6 +379,10 @@ export function getSousCategorieSearchText(id?: string | null): string {
   return '';
 }
 
+// ─────────────────────────────────────────────
+// 💰 Prix par catégorie
+// ─────────────────────────────────────────────
+
 export const CATEGORY_PRICES: Record<string, number> = {
   telephonie_electronique: 250,
   mode_beaute:             250,
@@ -276,6 +395,10 @@ export const CATEGORY_PRICES: Record<string, number> = {
   animaux:                 250,
 };
 
+// ─────────────────────────────────────────────
+// 📦 État article
+// ─────────────────────────────────────────────
+
 export const ETAT_ARTICLE = [
   { id: 'neuf', label: 'Neuf' },
   { id: 'comme_neuf', label: 'Comme neuf' },
@@ -283,6 +406,10 @@ export const ETAT_ARTICLE = [
   { id: 'etat_moyen', label: 'État moyen' },
   { id: 'non_specifie', label: 'Non précisé' },
 ];
+
+// ─────────────────────────────────────────────
+// 📊 Plans d'abonnement
+// ─────────────────────────────────────────────
 
 export const PLANS_CONFIG = {
   particulier: {
@@ -322,4 +449,3 @@ export const PLANS_CONFIG = {
     stats: true,
   },
 } as const;
-

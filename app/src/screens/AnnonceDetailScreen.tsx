@@ -19,17 +19,15 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, getSousCategorieLabel, ETAT_ARTICLE } from '../constants/theme';
+import { FONTS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, CATEGORIES, getSousCategorieLabel, ETAT_ARTICLE } from '../constants/theme';
 import { Annonce } from '../lib/supabase';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { submitAvis } from '../hooks/useAvis';
 import { toggleFavori } from '../hooks/useFavoris';
 import ReportModal from '../components/ReportModal';
-
 import { useTheme } from '../contexts/ThemeContext';
 import { addToRecent } from '../lib/recentStorage';
-
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -56,10 +54,12 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
 
-  // Visionneuse d'images plein écran (comme la vitrine du profil)
+  // Visionneuse d'images plein écran
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
   const viewerScrollRef = useRef<ScrollView>(null);
+
+  const favScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (viewerVisible) {
@@ -94,7 +94,6 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (annonce) {
       addToRecent(annonce);
-      // Incrémenter le nombre de vues via la fonction RPC
       supabase.rpc('increment_views', { annonce_id: annonce.id })
         .then(({ error }) => {
           if (error) console.log("Failed to increment views:", error.message);
@@ -104,6 +103,10 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
 
   const handleToggleFavori = async () => {
     if (!session) { navigation.navigate('Login'); return; }
+    Animated.sequence([
+      Animated.spring(favScale, { toValue: 1.4, useNativeDriver: true, speed: 50, bounciness: 12 }),
+      Animated.spring(favScale, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 8 }),
+    ]).start();
     const nowFav = await toggleFavori(session.user.id, annonce.id);
     setIsFavorite(nowFav);
   };
@@ -178,7 +181,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
         {/* Carrousel d'images */}
@@ -188,33 +191,35 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
               <Ionicons name="image-outline" size={64} color={theme.border} />
               <Text style={styles.imagePlaceholderText}>Aucune photo</Text>
             </View>
-          ) : null}
-          <FlatList
-            data={images}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-              { useNativeDriver: false }
-            )}
-            onMomentumScrollEnd={(e) => {
-              const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-              setCurrentImageIndex(index);
-            }}
-            renderItem={({ item, index }) => (
-              <TouchableOpacity
-                activeOpacity={0.95}
-                onPress={() => {
-                  setViewerIndex(index);
-                  setViewerVisible(true);
-                }}
-              >
-                <Image source={{ uri: item }} style={styles.carouselImage} />
-              </TouchableOpacity>
-            )}
-            keyExtractor={(_, i) => String(i)}
-          />
+          ) : (
+            <FlatList
+              data={images}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+                { useNativeDriver: false }
+              )}
+              onMomentumScrollEnd={(e) => {
+                const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+                setCurrentImageIndex(index);
+              }}
+              renderItem={({ item, index }) => (
+                <TouchableOpacity
+                  activeOpacity={0.95}
+                  onPress={() => {
+                    setViewerIndex(index);
+                    setViewerVisible(true);
+                  }}
+                >
+                  <Image source={{ uri: item }} style={styles.carouselImage} />
+                </TouchableOpacity>
+              )}
+              keyExtractor={(_, i) => String(i)}
+            />
+          )}
+
           {/* Dots indicateur */}
           {images.length > 1 && (
             <View style={styles.dotsContainer}>
@@ -229,13 +234,16 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
               ))}
             </View>
           )}
+
           {/* Photo count badge */}
-          <View style={styles.photoCountBadge}>
-            <Ionicons name="camera-outline" size={14} color="#fff" />
-            <Text style={styles.photoCountText}>
-              {currentImageIndex + 1}/{images.length}
-            </Text>
-          </View>
+          {images.length > 0 && (
+            <View style={styles.photoCountBadge}>
+              <Ionicons name="camera-outline" size={13} color="#fff" />
+              <Text style={styles.photoCountText}>
+                {currentImageIndex + 1}/{images.length}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Boutons retour / partage / favori - flottants */}
@@ -253,18 +261,20 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
               onPress={handleShare}
               activeOpacity={0.8}
             >
-              <Ionicons name="share-outline" size={22} color="#fff" />
+              <Ionicons name="share-outline" size={20} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.floatingButton}
               onPress={handleToggleFavori}
               activeOpacity={0.8}
             >
-              <Ionicons
-                name={isFavorite ? 'heart' : 'heart-outline'}
-                size={22}
-                color={isFavorite ? theme.error : '#fff'}
-              />
+              <Animated.View style={{ transform: [{ scale: favScale }] }}>
+                <Ionicons
+                  name={isFavorite ? 'heart' : 'heart-outline'}
+                  size={22}
+                  color={isFavorite ? '#EF4444' : '#fff'}
+                />
+              </Animated.View>
             </TouchableOpacity>
           </View>
         </View>
@@ -331,8 +341,9 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Text style={styles.sellerName}>{sellerName}</Text>
                       {seller?.type_compte === 'professionnel' && (
-                        <View style={{ backgroundColor: theme.primaryFaded, paddingHorizontal: 6, paddingVertical: 2, borderRadius: RADIUS.xs }}>
-                          <Text style={{ fontSize: 9, fontWeight: FONTS.bold, color: theme.primary }}>PRO</Text>
+                        <View style={styles.badgePro}>
+                          <Ionicons name="checkmark-circle" size={10} color="#fff" style={{ marginRight: 2 }} />
+                          <Text style={styles.badgeProText}>PRO</Text>
                         </View>
                       )}
                     </View>
@@ -342,14 +353,14 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
                       <Text style={styles.sellerMeta}>Vendeur sur Flash Market</Text>
                     )}
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={theme.borderLight} />
+                  <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
                 </TouchableOpacity>
 
-                {/* Boutons de contact */}
+                {/* Boutons de contact rapides */}
                 <View style={styles.contactButtons}>
                   {seller?.telephone && (
                     <TouchableOpacity
-                      style={[styles.contactBtn, { backgroundColor: isDark ? 'rgba(0, 184, 148, 0.1)' : '#15803d15', borderColor: theme.primary }]}
+                      style={[styles.contactBtn, { backgroundColor: theme.primaryFaded, borderColor: theme.primary }]}
                       onPress={() => Linking.openURL(`tel:${seller.telephone}`)}
                       activeOpacity={0.8}
                     >
@@ -379,8 +390,8 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
                       </TouchableOpacity>
                     )}
                     {seller.tiktok && (
-                      <TouchableOpacity onPress={() => Linking.openURL(`https://tiktok.com/@${seller.tiktok.replace('@','')}`)} style={[styles.socialChip, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(1, 1, 1, 0.1)' }]}>
-                        <Ionicons name="musical-notes-outline" size={14} color={isDark ? '#fff' : '#010101'} />
+                      <TouchableOpacity onPress={() => Linking.openURL(`https://tiktok.com/@${seller.tiktok.replace('@','')}`)} style={[styles.socialChip, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(1, 1, 1, 0.08)' }]}>
+                        <Ionicons name="musical-notes-outline" size={14} color={theme.textPrimary} />
                         <Text style={[styles.socialChipText, { color: theme.textPrimary }]}>{seller.tiktok}</Text>
                       </TouchableOpacity>
                     )}
@@ -411,11 +422,11 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
 
           {/* Sécurité */}
           <View style={styles.securityCard}>
-            <Ionicons name="shield-checkmark" size={20} color={theme.secondary} />
+            <Ionicons name="shield-checkmark" size={22} color={theme.secondary} />
             <View style={styles.securityInfo}>
-              <Text style={styles.securityTitle}>Conseils de sécurité</Text>
+              <Text style={styles.securityTitle}>Conseils de sécurité 🛡️</Text>
               <Text style={styles.securityText}>
-                Rencontrez le vendeur dans un lieu public. Ne payez jamais avant d'avoir vu l'article.
+                Rencontrez le vendeur dans un lieu public. Ne payez jamais avant d'avoir vérifié l'article.
               </Text>
             </View>
           </View>
@@ -430,8 +441,8 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
             <Text style={styles.reportBtnText}>Signaler cette annonce</Text>
           </TouchableOpacity>
 
-          {/* Espacement pour le CTA */}
-          <View style={{ height: 100 }} />
+          {/* Espacement pour le CTA sticky */}
+          <View style={{ height: 120 }} />
         </View>
       </ScrollView>
 
@@ -455,7 +466,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
                     <Ionicons
                       name={i <= reviewNote ? 'star' : 'star-outline'}
                       size={38}
-                      color={i <= reviewNote ? '#f59e0b' : theme.border}
+                      color={i <= reviewNote ? '#F59E0B' : theme.border}
                     />
                   </TouchableOpacity>
                 ))}
@@ -527,7 +538,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
         </View>
       </Modal>
 
-      {/* CTA fixe en bas */}
+      {/* STICKY CTA FIXE EN BAS */}
       <View style={styles.ctaContainer}>
         <TouchableOpacity
           style={styles.ctaPhoneButton}
@@ -549,7 +560,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
           onPress={handleContact}
           activeOpacity={0.8}
         >
-          <Ionicons name="chatbubble-outline" size={20} color={theme.textInverse} />
+          <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
           <Text style={styles.ctaMessageText}>Contacter le vendeur</Text>
         </TouchableOpacity>
       </View>
@@ -565,6 +576,11 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
 }
 
 const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+
   // Visionneuse d'images plein écran
   viewerContainer: { flex: 1, backgroundColor: '#000' },
   viewerHeader: {
@@ -585,10 +601,6 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   viewerImage: { width: SCREEN_WIDTH, height: '100%' },
-  container: {
-    flex: 1,
-    backgroundColor: theme.background,
-  },
 
   // Image carousel
   imageCarousel: {
@@ -604,7 +616,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   dotsContainer: {
     flexDirection: 'row',
     position: 'absolute',
-    bottom: SPACING.lg,
+    bottom: SPACING.lg + 10,
     alignSelf: 'center',
     gap: 6,
   },
@@ -616,18 +628,18 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   dotActive: {
     backgroundColor: '#fff',
-    width: 20,
+    width: 22,
   },
   photoCountBadge: {
     position: 'absolute',
-    bottom: SPACING.lg,
+    bottom: SPACING.lg + 10,
     right: SPACING.lg,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: SPACING.sm + 2,
-    paddingVertical: 4,
+    paddingHorizontal: SPACING.sm + 4,
+    paddingVertical: 5,
     borderRadius: RADIUS.full,
   },
   photoCountText: {
@@ -652,7 +664,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   // Floating header
   floatingHeader: {
     position: 'absolute',
-    top: 50,
+    top: Platform.OS === 'ios' ? 54 : 36,
     left: SPACING.lg,
     right: SPACING.lg,
     flexDirection: 'row',
@@ -664,18 +676,19 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     gap: SPACING.sm,
   },
   floatingButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
+    ...SHADOWS.sm,
   },
 
-  // Detail
+  // Detail container
   detailContainer: {
     paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.xl,
+    paddingTop: SPACING.xxl,
     backgroundColor: theme.background,
     borderTopLeftRadius: RADIUS.xxl,
     borderTopRightRadius: RADIUS.xxl,
@@ -686,17 +699,17 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.md,
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs,
   },
   price: {
-    fontSize: FONTS.xxl,
-    fontWeight: FONTS.extrabold,
+    ...TYPOGRAPHY.display,
+    fontSize: 28,
     color: theme.primary,
   },
   negotiableBadge: {
-    backgroundColor: isDark ? 'rgba(0, 184, 148, 0.15)' : theme.primaryFaded,
-    paddingHorizontal: SPACING.sm + 2,
-    paddingVertical: 3,
+    backgroundColor: theme.primaryFaded,
+    paddingHorizontal: SPACING.sm + 4,
+    paddingVertical: 4,
     borderRadius: RADIUS.full,
   },
   negotiableText: {
@@ -706,10 +719,9 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
 
   title: {
-    fontSize: FONTS.xl,
-    fontWeight: FONTS.bold,
+    ...TYPOGRAPHY.h2,
     color: theme.textPrimary,
-    lineHeight: 26,
+    lineHeight: 28,
     marginBottom: SPACING.lg,
   },
 
@@ -717,7 +729,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: SPACING.sm,
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.lg,
   },
   tag: {
     flexDirection: 'row',
@@ -727,6 +739,8 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: theme.borderLight,
   },
   tagText: {
     fontSize: FONTS.xs,
@@ -741,8 +755,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
 
   sectionTitle: {
-    fontSize: FONTS.lg,
-    fontWeight: FONTS.bold,
+    ...TYPOGRAPHY.h3,
     color: theme.textPrimary,
     marginBottom: SPACING.md,
   },
@@ -760,32 +773,44 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: theme.surface,
     padding: SPACING.lg,
     borderRadius: RADIUS.lg,
+    borderWidth: isDark ? 1 : 0,
+    borderColor: theme.borderLight,
     ...SHADOWS.sm,
   },
   sellerAvatarImg: {
-    width: 48, height: 48, borderRadius: 24, marginRight: SPACING.md,
+    width: 50, height: 50, borderRadius: 25, marginRight: SPACING.md,
   },
   sellerAvatar: {
-    width: 48, height: 48, borderRadius: 24,
+    width: 50, height: 50, borderRadius: 25,
     backgroundColor: theme.primaryFaded,
     justifyContent: 'center', alignItems: 'center',
     marginRight: SPACING.md,
   },
   sellerAvatarText: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.primary },
   sellerInfo: { flex: 1 },
-  sellerName: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: theme.textPrimary },
+  sellerName: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.textPrimary },
   sellerBio: { fontSize: FONTS.sm, color: theme.textSecondary, marginTop: 2, lineHeight: 18 },
   sellerMeta: { fontSize: FONTS.sm, color: theme.textMuted, marginTop: 2 },
+  badgePro: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.primary,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: RADIUS.xs,
+  },
+  badgeProText: { fontSize: 9, fontWeight: FONTS.bold, color: '#fff' },
+
   contactButtons: { flexDirection: 'row', gap: SPACING.md },
   contactBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 7, paddingVertical: 12, borderRadius: RADIUS.lg, borderWidth: 1.5,
+    gap: 8, paddingVertical: 13, borderRadius: RADIUS.lg, borderWidth: 1.5,
   },
   contactBtnText: { fontSize: FONTS.sm, fontWeight: FONTS.bold },
   sellerSocials: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
   socialChip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: SPACING.md, paddingVertical: 6,
+    paddingHorizontal: SPACING.md, paddingVertical: 7,
     borderRadius: RADIUS.full,
   },
   socialChipText: { fontSize: FONTS.xs, fontWeight: FONTS.semibold },
@@ -793,18 +818,20 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   // Sécurité
   securityCard: {
     flexDirection: 'row',
-    backgroundColor: isDark ? 'rgba(0, 184, 148, 0.1)' : 'rgba(0, 184, 148, 0.08)',
+    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.08)',
     padding: SPACING.lg,
     borderRadius: RADIUS.lg,
     marginTop: SPACING.xl,
     gap: SPACING.md,
+    borderWidth: 1,
+    borderColor: isDark ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
   },
   securityInfo: {
     flex: 1,
   },
   securityTitle: {
     fontSize: FONTS.sm,
-    fontWeight: FONTS.semibold,
+    fontWeight: FONTS.bold,
     color: theme.textPrimary,
     marginBottom: 4,
   },
@@ -817,8 +844,8 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   // Bouton avis
   reviewBtn: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
-    backgroundColor: isDark ? 'rgba(202, 138, 4, 0.1)' : 'rgba(202, 138, 4, 0.08)',
-    borderWidth: 1, borderColor: isDark ? 'rgba(202, 138, 4, 0.4)' : 'rgba(202, 138, 4, 0.3)',
+    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.08)',
+    borderWidth: 1, borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : 'rgba(245, 158, 11, 0.2)',
     borderRadius: RADIUS.lg, paddingHorizontal: SPACING.lg, paddingVertical: 14,
     marginTop: SPACING.lg,
   },
@@ -855,7 +882,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: theme.border, marginBottom: SPACING.xl,
   },
   modalTitle: {
-    fontSize: FONTS.xl, fontWeight: FONTS.bold,
+    ...TYPOGRAPHY.h2,
     color: theme.textPrimary, marginBottom: 4,
   },
   modalSubtitle: {
@@ -866,7 +893,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   noteLabel: {
     fontSize: FONTS.sm, fontWeight: FONTS.semibold,
-    color: '#f59e0b', marginBottom: SPACING.xl,
+    color: theme.secondary, marginBottom: SPACING.xl,
   },
   reviewInput: {
     width: '100%', height: 90,
@@ -890,7 +917,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   modalSubmitText: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
 
-  // CTA
+  // STICKY CTA FIXE EN BAS
   ctaContainer: {
     position: 'absolute',
     bottom: 0,
@@ -899,7 +926,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.lg,
+    paddingTop: SPACING.md,
     paddingBottom: Platform.OS === 'ios' ? 34 : 14,
     backgroundColor: theme.surface,
     borderTopWidth: 1,
@@ -913,6 +940,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     borderRadius: RADIUS.lg,
     borderWidth: 2,
     borderColor: theme.primary,
+    backgroundColor: theme.primaryFaded,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -930,343 +958,6 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   ctaMessageText: {
     fontSize: FONTS.md,
     fontWeight: FONTS.bold,
-    color: theme.textInverse,
-  },
-});
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-
-  // Image carousel
-  imageCarousel: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH * 0.85,
-    backgroundColor: COLORS.surfaceMuted,
-    position: 'relative',
-  },
-  carouselImage: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH * 0.85,
-  },
-  dotsContainer: {
-    flexDirection: 'row',
-    position: 'absolute',
-    bottom: SPACING.lg,
-    alignSelf: 'center',
-    gap: 6,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.4)',
-  },
-  dotActive: {
-    backgroundColor: '#fff',
-    width: 20,
-  },
-  photoCountBadge: {
-    position: 'absolute',
-    bottom: SPACING.lg,
-    right: SPACING.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: SPACING.sm + 2,
-    paddingVertical: 4,
-    borderRadius: RADIUS.full,
-  },
-  photoCountText: {
-    color: '#fff',
-    fontSize: FONTS.xs,
-    fontWeight: FONTS.semibold,
-  },
-
-  imagePlaceholder: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH * 0.85,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.surfaceMuted,
-    gap: SPACING.sm,
-  },
-  imagePlaceholderText: {
-    fontSize: FONTS.sm,
-    color: COLORS.textMuted,
-  },
-
-  // Floating header
-  floatingHeader: {
-    position: 'absolute',
-    top: 50,
-    left: SPACING.lg,
-    right: SPACING.lg,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    zIndex: 10,
-  },
-  floatingRight: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-  },
-  floatingButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  // Detail
-  detailContainer: {
-    paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.xl,
-    backgroundColor: COLORS.background,
-    borderTopLeftRadius: RADIUS.xxl,
-    borderTopRightRadius: RADIUS.xxl,
-    marginTop: -SPACING.xl,
-  },
-
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-    marginBottom: SPACING.sm,
-  },
-  price: {
-    fontSize: FONTS.xxl,
-    fontWeight: FONTS.extrabold,
-    color: COLORS.primary,
-  },
-  negotiableBadge: {
-    backgroundColor: COLORS.primaryFaded,
-    paddingHorizontal: SPACING.sm + 2,
-    paddingVertical: 3,
-    borderRadius: RADIUS.full,
-  },
-  negotiableText: {
-    fontSize: FONTS.xs,
-    fontWeight: FONTS.semibold,
-    color: COLORS.primary,
-  },
-
-  title: {
-    fontSize: FONTS.xl,
-    fontWeight: FONTS.bold,
-    color: COLORS.textPrimary,
-    lineHeight: 26,
-    marginBottom: SPACING.lg,
-  },
-
-  tagsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-    marginBottom: SPACING.xl,
-  },
-  tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: COLORS.surfaceMuted,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: RADIUS.full,
-  },
-  tagText: {
-    fontSize: FONTS.xs,
-    fontWeight: FONTS.medium,
-    color: COLORS.textSecondary,
-  },
-
-  divider: {
-    height: 1,
-    backgroundColor: COLORS.divider,
-    marginVertical: SPACING.xl,
-  },
-
-  sectionTitle: {
-    fontSize: FONTS.lg,
-    fontWeight: FONTS.bold,
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.md,
-  },
-  description: {
-    fontSize: FONTS.md,
-    color: COLORS.textSecondary,
-    lineHeight: 24,
-  },
-
-  // Vendeur
-  sellerSection: { gap: SPACING.md },
-  sellerCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    padding: SPACING.lg,
-    borderRadius: RADIUS.lg,
-    ...SHADOWS.sm,
-  },
-  sellerAvatarImg: {
-    width: 48, height: 48, borderRadius: 24, marginRight: SPACING.md,
-  },
-  sellerAvatar: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: COLORS.primaryFaded,
-    justifyContent: 'center', alignItems: 'center',
-    marginRight: SPACING.md,
-  },
-  sellerAvatarText: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: COLORS.primary },
-  sellerInfo: { flex: 1 },
-  sellerName: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: COLORS.textPrimary },
-  sellerBio: { fontSize: FONTS.sm, color: COLORS.textSecondary, marginTop: 2, lineHeight: 18 },
-  sellerMeta: { fontSize: FONTS.sm, color: COLORS.textMuted, marginTop: 2 },
-  contactButtons: { flexDirection: 'row', gap: SPACING.md },
-  contactBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: 7, paddingVertical: 12, borderRadius: RADIUS.lg, borderWidth: 1.5,
-  },
-  contactBtnText: { fontSize: FONTS.sm, fontWeight: FONTS.bold },
-  sellerSocials: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
-  socialChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: SPACING.md, paddingVertical: 6,
-    borderRadius: RADIUS.full,
-  },
-  socialChipText: { fontSize: FONTS.xs, fontWeight: FONTS.semibold },
-
-  // Sécurité
-  securityCard: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(0, 184, 148, 0.08)',
-    padding: SPACING.lg,
-    borderRadius: RADIUS.lg,
-    marginTop: SPACING.xl,
-    gap: SPACING.md,
-  },
-  securityInfo: {
-    flex: 1,
-  },
-  securityTitle: {
-    fontSize: FONTS.sm,
-    fontWeight: FONTS.semibold,
-    color: COLORS.textPrimary,
-    marginBottom: 4,
-  },
-  securityText: {
-    fontSize: FONTS.sm,
-    color: COLORS.textSecondary,
-    lineHeight: 20,
-  },
-
-  // Bouton avis
-  reviewBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
-    backgroundColor: 'rgba(202, 138, 4, 0.08)',
-    borderWidth: 1, borderColor: 'rgba(202, 138, 4, 0.3)',
-    borderRadius: RADIUS.lg, paddingHorizontal: SPACING.lg, paddingVertical: 14,
-    marginTop: SPACING.lg,
-  },
-  reviewBtnText: {
-    flex: 1, fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: COLORS.secondary,
-  },
-
-  // Modal avis
-  modalOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    backgroundColor: COLORS.surface,
-    borderTopLeftRadius: RADIUS.xxl, borderTopRightRadius: RADIUS.xxl,
-    paddingHorizontal: SPACING.xl, paddingBottom: 40, paddingTop: SPACING.lg,
-    alignItems: 'center',
-  },
-  modalHandle: {
-    width: 40, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.border, marginBottom: SPACING.xl,
-  },
-  modalTitle: {
-    fontSize: FONTS.xl, fontWeight: FONTS.bold,
-    color: COLORS.textPrimary, marginBottom: 4,
-  },
-  modalSubtitle: {
-    fontSize: FONTS.sm, color: COLORS.textMuted, marginBottom: SPACING.xl,
-  },
-  starsRow: {
-    flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.sm,
-  },
-  noteLabel: {
-    fontSize: FONTS.sm, fontWeight: FONTS.semibold,
-    color: '#f59e0b', marginBottom: SPACING.xl,
-  },
-  reviewInput: {
-    width: '100%', height: 90,
-    backgroundColor: COLORS.surfaceMuted,
-    borderWidth: 1, borderColor: COLORS.borderLight,
-    borderRadius: RADIUS.lg, padding: SPACING.md,
-    fontSize: FONTS.md, color: COLORS.textPrimary,
-    marginBottom: SPACING.xl,
-  },
-  modalActions: {
-    flexDirection: 'row', gap: SPACING.md, width: '100%',
-  },
-  modalCancelBtn: {
-    flex: 1, paddingVertical: 14, borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.surfaceMuted, alignItems: 'center',
-  },
-  modalCancelText: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: COLORS.textSecondary },
-  modalSubmitBtn: {
-    flex: 2, paddingVertical: 14, borderRadius: RADIUS.lg,
-    backgroundColor: COLORS.secondary, alignItems: 'center',
-  },
-  modalSubmitText: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
-
-  // CTA
-  ctaContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.xl,
-    paddingTop: SPACING.lg,
-    paddingBottom: 34,
-    backgroundColor: COLORS.surface,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-    gap: SPACING.md,
-    ...SHADOWS.lg,
-  },
-  ctaPhoneButton: {
-    width: 52,
-    height: 52,
-    borderRadius: RADIUS.lg,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  ctaMessageButton: {
-    flex: 1,
-    height: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.lg,
-    gap: SPACING.sm,
-    ...SHADOWS.colored,
-  },
-  ctaMessageText: {
-    fontSize: FONTS.md,
-    fontWeight: FONTS.bold,
-    color: COLORS.textInverse,
+    color: '#FFFFFF',
   },
 });

@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   StatusBar, ScrollView, Alert, ActivityIndicator, Image, Platform,
-  KeyboardAvoidingView,
+  KeyboardAvoidingView, Animated, Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { FONTS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '../constants/theme';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../contexts/ThemeContext';
 import {
@@ -16,6 +16,8 @@ import {
   verifyEmailOtp,
   UserCancelledError,
 } from '../lib/socialAuth';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // Validation stricte du format e-mail (rejette les saisies fantaisistes)
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -33,6 +35,26 @@ export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [pendingEmail, setPendingEmail] = useState('');
   const [code, setCode] = useState('');
+
+  // Animations d'entrée
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const logoScale = useRef(new Animated.Value(0.8)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, speed: 12, bounciness: 6 }),
+      Animated.spring(logoScale, { toValue: 1, useNativeDriver: true, speed: 10, bounciness: 8 }),
+    ]).start();
+  }, []);
+
+  // Re-animate on step change
+  const contentFade = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    contentFade.setValue(0);
+    Animated.timing(contentFade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+  }, [step]);
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
@@ -122,19 +144,21 @@ export default function LoginScreen({ navigation }: Props) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={theme.primary} />
 
-      <View style={styles.header}>
+      {/* Header avec gradient simulé */}
+      <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
         {navigation.canGoBack() && step === 'choice' && (
           <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
         )}
-        <View style={styles.logoContainer}>
+        <Animated.View style={[styles.logoContainer, { transform: [{ scale: logoScale }] }]}>
           <Image source={require('../../assets/icon.png')} style={styles.logoImage} />
-        </View>
+        </Animated.View>
         <Text style={styles.appName}>Flash Market</Text>
         <Text style={styles.tagline}>Achetez & Vendez en toute confiance</Text>
-      </View>
+      </Animated.View>
 
+      {/* Card content */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.cardWrapper}>
         <ScrollView
           style={styles.card}
@@ -142,164 +166,174 @@ export default function LoginScreen({ navigation }: Props) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {step === 'choice' ? (
-            <>
-              <View style={{ marginBottom: SPACING.md }}>
-                <Text style={styles.title}>Bienvenue</Text>
-                <Text style={styles.subtitle}>Connectez-vous ou créez un compte en un instant</Text>
-              </View>
+          <Animated.View style={{ opacity: contentFade }}>
+            {step === 'choice' ? (
+              <>
+                <View style={{ marginBottom: SPACING.xl, alignItems: 'center' }}>
+                  <Text style={styles.title}>Bienvenue</Text>
+                  <Text style={styles.subtitle}>Connectez-vous ou créez un compte en un instant</Text>
+                </View>
 
-              {/* Google */}
-              <TouchableOpacity
-                style={[styles.socialBtn, styles.googleBtn]}
-                onPress={handleGoogle}
-                disabled={busy}
-                activeOpacity={0.85}
-              >
-                {loadingProvider === 'google' ? (
-                  <ActivityIndicator color="#1F1F1F" />
-                ) : (
-                  <>
-                    <Ionicons name="logo-google" size={20} color="#4285F4" style={{ marginRight: 10 }} />
-                    <Text style={styles.googleBtnText}>Continuer avec Google</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              {/* Apple (iOS uniquement) */}
-              {isAppleAuthSupported && (
+                {/* Google */}
                 <TouchableOpacity
-                  style={[styles.socialBtn, styles.appleBtn]}
-                  onPress={handleApple}
+                  style={[styles.socialBtn, styles.googleBtn]}
+                  onPress={handleGoogle}
                   disabled={busy}
                   activeOpacity={0.85}
                 >
-                  {loadingProvider === 'apple' ? (
-                    <ActivityIndicator color="#fff" />
+                  {loadingProvider === 'google' ? (
+                    <ActivityIndicator color="#1F1F1F" />
                   ) : (
                     <>
-                      <Ionicons name="logo-apple" size={20} color="#fff" style={{ marginRight: 10 }} />
-                      <Text style={styles.appleBtnText}>Continuer avec Apple</Text>
+                      <Ionicons name="logo-google" size={20} color="#4285F4" style={{ marginRight: 10 }} />
+                      <Text style={styles.googleBtnText}>Continuer avec Google</Text>
                     </>
                   )}
                 </TouchableOpacity>
-              )}
 
-              {/* Séparateur */}
-              <View style={styles.dividerRow}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>ou</Text>
-                <View style={styles.dividerLine} />
-              </View>
+                {/* Apple (iOS uniquement) */}
+                {isAppleAuthSupported && (
+                  <TouchableOpacity
+                    style={[styles.socialBtn, styles.appleBtn]}
+                    onPress={handleApple}
+                    disabled={busy}
+                    activeOpacity={0.85}
+                  >
+                    {loadingProvider === 'apple' ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <>
+                        <Ionicons name="logo-apple" size={20} color="#fff" style={{ marginRight: 10 }} />
+                        <Text style={styles.appleBtnText}>Continuer avec Apple</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
 
-              {/* E-mail */}
-              <TouchableOpacity
-                style={[styles.socialBtn, styles.emailBtn]}
-                onPress={() => setStep('email')}
-                disabled={busy}
-                activeOpacity={0.85}
-              >
-                <Ionicons name="mail-outline" size={20} color={theme.primary} style={{ marginRight: 10 }} />
-                <Text style={[styles.emailBtnText, { color: theme.primary }]}>Continuer avec un e-mail</Text>
-              </TouchableOpacity>
-
-              <Text style={styles.consentText}>
-                En continuant, vous acceptez nos{' '}
-                <Text style={styles.consentLink} onPress={() => navigation.navigate('Legal', { type: 'cgu' })}>
-                  CGU
-                </Text>
-                ,{' '}
-                <Text style={styles.consentLink} onPress={() => navigation.navigate('Legal', { type: 'cgv' })}>
-                  CGV
-                </Text>{' '}
-                et notre{' '}
-                <Text style={styles.consentLink} onPress={() => navigation.navigate('Legal', { type: 'privacy' })}>
-                  politique de confidentialité
-                </Text>
-                .
-              </Text>
-
-              <Text style={styles.footerCopyright}>© 2026 Flash Market. Tous droits réservés.</Text>
-            </>
-          ) : step === 'email' ? (
-            <>
-              <View style={{ marginBottom: SPACING.md }}>
-                <Text style={styles.title}>Votre e-mail</Text>
-                <Text style={styles.subtitle}>Nous vous enverrons un code à 6 chiffres pour vous connecter.</Text>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Adresse e-mail</Text>
-                <View style={styles.inputWithIcon}>
-                  <Ionicons name="mail-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.inputFlex}
-                    placeholder="exemple@gmail.com"
-                    placeholderTextColor={theme.textMuted}
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    autoFocus
-                  />
+                {/* Séparateur */}
+                <View style={styles.dividerRow}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>ou</Text>
+                  <View style={styles.dividerLine} />
                 </View>
-              </View>
 
-              <TouchableOpacity
-                style={[styles.ctaBtn, !isEmailValid && styles.ctaBtnDisabled]}
-                onPress={handleSendCode}
-                disabled={!isEmailValid || busy}
-                activeOpacity={0.85}
-              >
-                {loadingProvider === 'email' ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Recevoir le code</Text>}
-              </TouchableOpacity>
+                {/* E-mail */}
+                <TouchableOpacity
+                  style={[styles.socialBtn, styles.emailBtn]}
+                  onPress={() => setStep('email')}
+                  disabled={busy}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="mail-outline" size={20} color={theme.primary} style={{ marginRight: 10 }} />
+                  <Text style={[styles.emailBtnText, { color: theme.primary }]}>Continuer avec un e-mail</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity style={styles.backLink} onPress={() => setStep('choice')} disabled={busy}>
-                <Text style={styles.backLinkText}>Autres méthodes de connexion</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <View style={{ marginBottom: SPACING.md }}>
-                <Text style={styles.title}>Code de vérification</Text>
-                <Text style={styles.subtitle}>Un code à 6 chiffres a été envoyé à {pendingEmail}.</Text>
-              </View>
+                <Text style={styles.consentText}>
+                  En continuant, vous acceptez nos{' '}
+                  <Text style={styles.consentLink} onPress={() => navigation.navigate('Legal', { type: 'cgu' })}>
+                    CGU
+                  </Text>
+                  ,{' '}
+                  <Text style={styles.consentLink} onPress={() => navigation.navigate('Legal', { type: 'cgv' })}>
+                    CGV
+                  </Text>{' '}
+                  et notre{' '}
+                  <Text style={styles.consentLink} onPress={() => navigation.navigate('Legal', { type: 'privacy' })}>
+                    politique de confidentialité
+                  </Text>
+                  .
+                </Text>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Code reçu par e-mail</Text>
-                <View style={styles.inputWithIcon}>
-                  <Ionicons name="key-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.inputFlex}
-                    placeholder="123456"
-                    placeholderTextColor={theme.textMuted}
-                    value={code}
-                    onChangeText={(t) => setCode(t.replace(/[^0-9]/g, '').slice(0, 10))}
-                    keyboardType="number-pad"
-                    maxLength={10}
-                    autoFocus
-                  />
+                <Text style={styles.footerCopyright}>© 2026 Flash Market. Tous droits réservés.</Text>
+              </>
+            ) : step === 'email' ? (
+              <>
+                <View style={{ marginBottom: SPACING.xl, alignItems: 'center' }}>
+                  <View style={styles.stepIconCircle}>
+                    <Ionicons name="mail" size={28} color={theme.primary} />
+                  </View>
+                  <Text style={styles.title}>Votre e-mail</Text>
+                  <Text style={styles.subtitle}>Nous vous enverrons un code à 6 chiffres pour vous connecter.</Text>
                 </View>
-              </View>
 
-              <TouchableOpacity
-                style={[styles.ctaBtn, code.length < 6 && styles.ctaBtnDisabled]}
-                onPress={handleVerifyCode}
-                disabled={code.length < 6 || busy}
-                activeOpacity={0.85}
-              >
-                {loadingProvider === 'email' ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Se connecter</Text>}
-              </TouchableOpacity>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Adresse e-mail</Text>
+                  <View style={styles.inputWithIcon}>
+                    <Ionicons name="mail-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.inputFlex}
+                      placeholder="exemple@gmail.com"
+                      placeholderTextColor={theme.textMuted}
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      autoFocus
+                    />
+                  </View>
+                </View>
 
-              <TouchableOpacity style={styles.backLink} onPress={handleSendCode} disabled={busy}>
-                <Text style={[styles.backLinkText, { color: theme.primary }]}>Renvoyer le code</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.backLink} onPress={() => { setStep('email'); setCode(''); }} disabled={busy}>
-                <Text style={styles.backLinkText}>Modifier l'adresse</Text>
-              </TouchableOpacity>
-            </>
-          )}
+                <TouchableOpacity
+                  style={[styles.ctaBtn, !isEmailValid && styles.ctaBtnDisabled]}
+                  onPress={handleSendCode}
+                  disabled={!isEmailValid || busy}
+                  activeOpacity={0.85}
+                >
+                  {loadingProvider === 'email' ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Recevoir le code</Text>}
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.backLink} onPress={() => setStep('choice')} disabled={busy}>
+                  <Ionicons name="arrow-back" size={16} color={theme.textMuted} style={{ marginRight: 4 }} />
+                  <Text style={styles.backLinkText}>Autres méthodes de connexion</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <View style={{ marginBottom: SPACING.xl, alignItems: 'center' }}>
+                  <View style={styles.stepIconCircle}>
+                    <Ionicons name="key" size={28} color={theme.primary} />
+                  </View>
+                  <Text style={styles.title}>Code de vérification</Text>
+                  <Text style={styles.subtitle}>Un code à 6 chiffres a été envoyé à {pendingEmail}.</Text>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Code reçu par e-mail</Text>
+                  <View style={styles.inputWithIcon}>
+                    <Ionicons name="key-outline" size={18} color={theme.textMuted} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.inputFlex}
+                      placeholder="123456"
+                      placeholderTextColor={theme.textMuted}
+                      value={code}
+                      onChangeText={(t) => setCode(t.replace(/[^0-9]/g, '').slice(0, 10))}
+                      keyboardType="number-pad"
+                      maxLength={10}
+                      autoFocus
+                    />
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.ctaBtn, code.length < 6 && styles.ctaBtnDisabled]}
+                  onPress={handleVerifyCode}
+                  disabled={code.length < 6 || busy}
+                  activeOpacity={0.85}
+                >
+                  {loadingProvider === 'email' ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaText}>Se connecter</Text>}
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.backLink} onPress={handleSendCode} disabled={busy}>
+                  <Text style={[styles.backLinkText, { color: theme.primary }]}>Renvoyer le code</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.backLink} onPress={() => { setStep('email'); setCode(''); }} disabled={busy}>
+                  <Ionicons name="arrow-back" size={16} color={theme.textMuted} style={{ marginRight: 4 }} />
+                  <Text style={styles.backLinkText}>Modifier l'adresse</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -308,24 +342,58 @@ export default function LoginScreen({ navigation }: Props) {
 
 const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.primary },
-  header: { alignItems: 'center', paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingBottom: SPACING.xxl },
+  header: {
+    alignItems: 'center',
+    paddingTop: Platform.OS === 'ios' ? 70 : 50,
+    paddingBottom: SPACING.xxxl,
+  },
   backBtn: {
     position: 'absolute', top: Platform.OS === 'ios' ? 70 : 50, left: SPACING.lg,
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center', alignItems: 'center',
   },
-  logoContainer: { width: 80, height: 80, borderRadius: RADIUS.xxl, overflow: 'hidden', marginBottom: SPACING.lg },
-  logoImage: { width: 80, height: 80 },
-  appName: { fontSize: FONTS.xxxl, fontWeight: FONTS.extrabold, color: '#fff', letterSpacing: -0.5 },
-  tagline: { fontSize: FONTS.sm, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
+  logoContainer: {
+    width: 84, height: 84, borderRadius: 42, overflow: 'hidden',
+    marginBottom: SPACING.lg,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.25)',
+    ...SHADOWS.lg,
+  },
+  logoImage: { width: 84, height: 84 },
+  appName: {
+    ...TYPOGRAPHY.display,
+    fontSize: 30,
+    color: '#fff',
+  },
+  tagline: { fontSize: FONTS.sm, color: 'rgba(255,255,255,0.75)', marginTop: 6 },
   cardWrapper: { flex: 1 },
-  card: { flex: 1, backgroundColor: theme.background, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
+  card: {
+    flex: 1, backgroundColor: theme.background,
+    borderTopLeftRadius: RADIUS.xxl, borderTopRightRadius: RADIUS.xxl,
+  },
   cardContent: { padding: SPACING.xxl, paddingBottom: 40, gap: SPACING.lg },
-  title: { fontSize: FONTS.lg + 2, fontWeight: FONTS.extrabold, color: theme.textPrimary, textAlign: 'center' },
-  subtitle: { fontSize: FONTS.sm, color: theme.textMuted, textAlign: 'center', marginTop: 4, paddingHorizontal: SPACING.md },
+  title: {
+    ...TYPOGRAPHY.h2,
+    color: theme.textPrimary,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: FONTS.sm, color: theme.textMuted, textAlign: 'center',
+    marginTop: 6, paddingHorizontal: SPACING.md, lineHeight: 20,
+  },
+
+  // Step icon circle
+  stepIconCircle: {
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: theme.primaryFaded,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: SPACING.lg,
+  },
+
+  // Social buttons
   socialBtn: {
-    height: 54, borderRadius: RADIUS.lg,
+    height: 56, borderRadius: RADIUS.lg,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     ...SHADOWS.sm,
   },
@@ -333,22 +401,50 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   googleBtnText: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#1F1F1F' },
   appleBtn: { backgroundColor: '#000' },
   appleBtnText: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
-  emailBtn: { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.primary },
+  emailBtn: { backgroundColor: theme.surface, borderWidth: 1.5, borderColor: theme.primary },
   emailBtnText: { fontSize: FONTS.md, fontWeight: FONTS.bold },
+
+  // Divider
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, marginVertical: SPACING.xs },
   dividerLine: { flex: 1, height: 1, backgroundColor: theme.borderLight },
   dividerText: { fontSize: FONTS.xs, color: theme.textMuted, fontWeight: FONTS.semibold },
-  inputGroup: { gap: 6 },
-  label: { fontSize: FONTS.xs, fontWeight: FONTS.semibold, color: theme.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
-  inputWithIcon: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.surfaceMuted, borderRadius: RADIUS.md, borderWidth: 1, borderColor: theme.borderLight, paddingHorizontal: SPACING.lg },
+
+  // Input
+  inputGroup: { gap: 8 },
+  label: {
+    ...TYPOGRAPHY.overline,
+    color: theme.textSecondary,
+  },
+  inputWithIcon: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: theme.surfaceMuted,
+    borderRadius: RADIUS.md,
+    borderWidth: 1, borderColor: theme.borderLight,
+    paddingHorizontal: SPACING.lg,
+  },
   inputIcon: { marginRight: SPACING.sm },
-  inputFlex: { flex: 1, paddingVertical: 13, fontSize: FONTS.md, color: theme.textPrimary },
-  ctaBtn: { height: 54, backgroundColor: theme.primary, borderRadius: RADIUS.lg, justifyContent: 'center', alignItems: 'center', marginTop: SPACING.sm, ...SHADOWS.colored },
+  inputFlex: { flex: 1, paddingVertical: 14, fontSize: FONTS.md, color: theme.textPrimary },
+
+  // CTA
+  ctaBtn: {
+    height: 56, backgroundColor: theme.primary,
+    borderRadius: RADIUS.lg,
+    justifyContent: 'center', alignItems: 'center',
+    marginTop: SPACING.sm,
+    ...SHADOWS.colored,
+  },
   ctaBtnDisabled: { backgroundColor: theme.textMuted, shadowOpacity: 0, elevation: 0 },
   ctaText: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
-  backLink: { alignItems: 'center', paddingVertical: SPACING.sm },
+
+  // Links
+  backLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: SPACING.sm },
   backLinkText: { fontSize: FONTS.sm, color: theme.textMuted, fontWeight: FONTS.semibold },
-  consentText: { fontSize: FONTS.xs, color: theme.textMuted, textAlign: 'center', lineHeight: 18, marginTop: SPACING.sm },
+
+  // Consent
+  consentText: {
+    fontSize: FONTS.xs, color: theme.textMuted, textAlign: 'center',
+    lineHeight: 18, marginTop: SPACING.md,
+  },
   consentLink: { color: theme.primary, fontWeight: FONTS.semibold },
   footerCopyright: { fontSize: 10, color: theme.textMuted, textAlign: 'center', marginTop: SPACING.xl },
 });

@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flash Market — Vitrine (9:16, ~28 s, avec SFX)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --green: #16a34a;
+    --green-l: #22c55e;
+    --mint: #7cf0a8;
+    --gold: #fbbf24;
+    --gold-d: #d97706;
+    --ink: #0b0f0d;
+  }
+  html, body {
+    background: #050706;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    color: #fff;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 16px;
+    min-height: 100vh; padding: 20px 0;
+  }
+
+  /* ---- Scène 9:16 : recadre ICI pour le screen-record ---- */
+  .stage {
+    position: relative;
+    height: min(90vh, 940px);
+    aspect-ratio: 9 / 16;
+    border-radius: 26px;
+    overflow: hidden;
+    background: radial-gradient(120% 90% at 50% -8%, #1f7a43 0%, #0d4423 42%, #05190d 100%);
+    box-shadow: 0 30px 80px rgba(0,0,0,.6);
+    isolation: isolate;
+  }
+
+  /* Ambiance : orbes + grille + poussière */
+  .orb { position: absolute; border-radius: 50%; filter: blur(34px); opacity: .5; z-index: 0; will-change: transform; }
+  .orb.a { width: 55%; aspect-ratio: 1; background: #22c55e; top: -12%; left: -20%; animation: drift1 10s ease-in-out infinite; }
+  .orb.b { width: 48%; aspect-ratio: 1; background: #0891b2; bottom: -16%; right: -18%; animation: drift2 12s ease-in-out infinite; }
+  .orb.c { width: 38%; aspect-ratio: 1; background: #eab308; top: 44%; left: 34%; opacity: .18; animation: drift1 14s ease-in-out infinite reverse; }
+  @keyframes drift1 { 0%,100%{ transform: translate(0,0) scale(1);} 50%{ transform: translate(8%,6%) scale(1.12);} }
+  @keyframes drift2 { 0%,100%{ transform: translate(0,0) scale(1);} 50%{ transform: translate(-7%,-5%) scale(1.1);} }
+  .grid {
+    position: absolute; inset: 0; z-index: 0; opacity: .10;
+    background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(72% 62% at 50% 42%, #000 30%, transparent 78%);
+  }
+
+  /* ---- Barre de progression "stories" ---- */
+  .progress { position: absolute; top: 16px; left: 16px; right: 16px; display: flex; gap: 5px; z-index: 30; }
+  .progress .seg { flex: 1; height: 3.5px; border-radius: 4px; background: rgba(255,255,255,.26); overflow: hidden; }
+  .progress .seg > i { display: block; height: 100%; width: 0; background: #fff; border-radius: 4px; }
+
+  /* ---- Mini-lockup marque (scènes centrales) ---- */
+  .brand { position: absolute; top: 30px; left: 0; right: 0; z-index: 25;
+    display: flex; align-items: center; justify-content: center; gap: 9px;
+    opacity: 0; transform: translateY(-8px); transition: opacity .5s, transform .5s; }
+  .brand.show { opacity: 1; transform: translateY(0); }
+  .brand .logo { width: 30px; height: 30px; border-radius: 8px;
+    background: linear-gradient(160deg, #22b558, #128a3e);
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+  .brand .logo svg { width: 18px; height: 18px; }
+  .brand b { font-size: 18px; font-weight: 800; letter-spacing: -.3px; }
+
+  /* ===================== TÉLÉPHONE ===================== */
+  .phone {
+    position: absolute; top: 50%; left: 50%; z-index: 10;
+    height: 74%; padding: 1.1%;
+    background: linear-gradient(160deg, #23262b, #0a0b0d 60%);
+    border-radius: 12% / 5.5%;
+    box-shadow: 0 40px 70px rgba(0,0,0,.55), 0 0 0 1.5px rgba(255,255,255,.06) inset;
+    display: flex;
+    opacity: 0;
+    transform: translate(-50%, 56%) scale(.92);
+    transition: opacity .7s cubic-bezier(.2,.9,.3,1), transform .7s cubic-bezier(.2,.9,.3,1);
+    will-change: transform;
+  }
+  .phone.in { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .phone.float { animation: floaty 6s ease-in-out infinite; }
+  @keyframes floaty {
+    0%,100% { transform: translate(-50%, -50%) rotate(-1.2deg) scale(1); }
+    50%     { transform: translate(-50%, -52%) rotate(1.2deg) scale(1); }
+  }
+  .phone-screen {
+    position: relative; height: 100%; aspect-ratio: 100 / 195;
+    border-radius: 9% / 4.6%; overflow: hidden; background: #f4f6f5;
+    container-type: size;   /* permet les unités cqw/cqh pour les FX (taille relative à l'écran) */
+  }
+  .island { position: absolute; top: 2.4%; left: 50%; transform: translateX(-50%);
+    width: 34%; height: 3.2%; background: #050505; border-radius: 40px; z-index: 6; }
+
+  /* Captures empilées (crossfade) */
+  .shot { position: absolute; left: 0; top: 0; width: 100%; height: auto;
+    opacity: 0; transition: opacity .55s ease; will-change: transform, opacity; z-index: 1; }
+  .shot.active { opacity: 1; }
+
+  /* Couche d'effets (clips dans l'écran) */
+  .fx { position: absolute; inset: 0; z-index: 8; pointer-events: none; overflow: hidden; }
+
+  /* Tap ripple + doigt */
+  .ripple { position: absolute; width: 16%; aspect-ratio: 1; border-radius: 50%;
+    border: 3px solid rgba(255,255,255,.9); transform: translate(-50%,-50%) scale(.2); opacity: 0;
+    box-shadow: 0 0 24px rgba(255,255,255,.5); }
+  .ripple.go { animation: rip .7s ease-out forwards; }
+  @keyframes rip { 0%{opacity:.9; transform:translate(-50%,-50%) scale(.2);} 100%{opacity:0; transform:translate(-50%,-50%) scale(1.4);} }
+  .finger { position: absolute; width: 9%; aspect-ratio:1; border-radius:50%;
+    background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.95), rgba(255,255,255,.35));
+    transform: translate(-50%,-50%) scale(0); opacity:0; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+  .finger.go { animation: fingertap .55s cubic-bezier(.3,1.4,.4,1) forwards; }
+  @keyframes fingertap { 0%{opacity:0; transform:translate(-50%,-50%) scale(0);} 45%{opacity:.95; transform:translate(-50%,-50%) scale(1);} 100%{opacity:0; transform:translate(-50%,-50%) scale(.7);} }
+
+  /* Coeur "favori" */
+  .heart { position:absolute; font-size: 12cqw; transform: translate(-50%,-50%) scale(0); opacity:0;
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,.3)); }
+  .heart.go { animation: heartpop .7s cubic-bezier(.2,1.6,.4,1) forwards; }
+  @keyframes heartpop { 0%{opacity:0; transform:translate(-50%,-50%) scale(0);} 55%{opacity:1; transform:translate(-50%,-50%) scale(1.25);} 100%{opacity:1; transform:translate(-50%,-50%) scale(1);} }
+
+  /* Chip prix (compteur) */
+  .pricechip { position:absolute; left:50%; bottom: 12%; transform: translate(-50%, 12px);
+    background: linear-gradient(160deg, var(--gold), var(--gold-d)); color:#1c1102;
+    font-weight:800; font-size: 6.5cqw; padding: .5em .9em; border-radius: 14px; white-space: nowrap;
+    box-shadow: 0 12px 30px rgba(251,191,36,.35); opacity:0; font-variant-numeric: tabular-nums; }
+  .pricechip.go { animation: chipin .5s cubic-bezier(.2,1.5,.4,1) forwards; }
+  @keyframes chipin { to { opacity:1; transform: translate(-50%,0); } }
+
+  /* Radar (proximité) */
+  .radar { position:absolute; left:50%; top:50%; width: 20%; aspect-ratio:1; border-radius:50%;
+    border: 2px solid var(--mint); transform: translate(-50%,-50%) scale(.3); opacity:0; }
+  .radar.go { animation: radar 1.6s ease-out forwards; }
+  @keyframes radar { 0%{opacity:.85; transform:translate(-50%,-50%) scale(.3);} 100%{opacity:0; transform:translate(-50%,-50%) scale(3.2);} }
+  .pin { position:absolute; left:50%; top:50%; font-size: 15cqw; transform: translate(-50%,-160%) scale(.4); opacity:0; }
+  .pin.go { animation: pindrop .6s cubic-bezier(.3,1.5,.4,1) forwards; }
+  @keyframes pindrop { 0%{opacity:0; transform:translate(-50%,-200%) scale(.4);} 60%{opacity:1; transform:translate(-50%,-52%) scale(1.1);} 100%{opacity:1; transform:translate(-50%,-58%) scale(1);} }
+
+  /* Glow sur bulle prix (chat) */
+  .bubbleglow { position:absolute; left:6%; right:6%; height: 11%; border-radius: 18px;
+    border: 2.5px solid var(--gold); box-shadow: 0 0 26px rgba(251,191,36,.6), 0 0 40px rgba(251,191,36,.3) inset;
+    opacity:0; transform: scale(.96); }
+  .bubbleglow.go { animation: glowin .5s ease forwards; }
+  @keyframes glowin { to { opacity:1; transform: scale(1); } }
+  .checks { position:absolute; font-size: 6cqw; font-weight:800; color: var(--green-l); opacity:0; }
+  .checks.go { animation: chipin .4s ease .1s forwards; }
+
+  /* Tampon VENDU */
+  .stamp { position:absolute; left:50%; top:46%; transform: translate(-50%,-50%) rotate(-16deg) scale(2.4);
+    opacity:0; border: .35em solid var(--green-l); color: var(--green-l);
+    border-radius: 16px; padding: .18em .5em; font-weight:800; font-size: 13cqw;
+    letter-spacing: 1px; background: rgba(6,25,13,.35); backdrop-filter: blur(2px);
+    text-shadow: 0 2px 10px rgba(0,0,0,.4); }
+  .stamp.go { animation: stampin .5s cubic-bezier(.2,1.4,.3,1) forwards; }
+  @keyframes stampin { 0%{opacity:0; transform:translate(-50%,-50%) rotate(-16deg) scale(2.4);} 70%{opacity:1; transform:translate(-50%,-50%) rotate(-16deg) scale(.92);} 100%{opacity:1; transform:translate(-50%,-50%) rotate(-11deg) scale(1);} }
+
+  /* ---- Chips catégories flottantes (scène recherche) ---- */
+  .catchips { position:absolute; z-index: 15; left:0; right:0; bottom: 15%;
+    display:flex; flex-wrap:wrap; gap: 10px; justify-content:center; padding: 0 22px; opacity:0; }
+  .catchips.show { opacity:1; }
+  .catchip { background: rgba(255,255,255,.12); border:1.5px solid rgba(255,255,255,.2);
+    border-radius: 999px; padding: 9px 16px; font-weight:800; font-size: 16px; white-space:nowrap;
+    opacity:0; transform: translateY(14px) scale(.9); }
+  .catchips.show .catchip { animation: chipin .4s cubic-bezier(.2,1.4,.4,1) forwards; }
+  .catchips.show .catchip:nth-child(2){ animation-delay:.1s; }
+  .catchips.show .catchip:nth-child(3){ animation-delay:.2s; }
+  .catchips.show .catchip:nth-child(4){ animation-delay:.3s; }
+  .catchips.show .catchip:nth-child(5){ animation-delay:.4s; }
+
+  /* ---- Légende (bas), masquable via ?clean ---- */
+  .caption { position:absolute; left:0; right:0; bottom: 6%; z-index: 20; text-align:center;
+    padding: 0 26px; opacity:0; transform: translateY(16px); }
+  .caption.show { animation: capin .5s cubic-bezier(.2,1,.3,1) forwards; }
+  @keyframes capin { to { opacity:1; transform: translateY(0); } }
+  .caption b { display:block; font-size: 34px; font-weight:800; line-height:1.1; letter-spacing:-.5px;
+    text-shadow: 0 4px 18px rgba(0,0,0,.5); }
+  .caption span { font-size: 21px; font-weight:700; color:#cdefd8; }
+  .caption .kw { color: var(--gold); display:inline; }
+
+  /* ===================== INTRO ===================== */
+  .intro { position:absolute; inset:0; z-index: 40; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap: 22px; opacity:0; pointer-events:none; }
+  .intro.on { opacity:1; }
+  .intro .big-logo { width: 118px; height:118px; border-radius: 30px;
+    background: linear-gradient(160deg, #22b558, #128a3e);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 20px 50px rgba(22,163,74,.5); opacity:0; transform: scale(.3) rotate(-20deg); }
+  .intro.on .big-logo { animation: logopop .7s cubic-bezier(.2,1.5,.4,1) forwards; }
+  @keyframes logopop { to { opacity:1; transform: scale(1) rotate(0); } }
+  .intro .big-logo svg { width: 64px; height:64px; }
+  .intro .wm { font-size: 46px; font-weight:800; letter-spacing:-1px; opacity:0; transform: translateY(14px); }
+  .intro.on .wm { animation: capin .55s ease .35s forwards; }
+  .intro .tl { font-size: 22px; font-weight:700; color:#cdefd8; opacity:0; }
+  .intro.on .tl { animation: capin .55s ease .6s forwards; }
+  .intro .tl .kw { color: var(--gold); }
+
+  /* ===================== CTA ENDCARD ===================== */
+  .cta { position:absolute; inset:0; z-index: 45; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap: 20px; padding: 40px 26px; text-align:center;
+    background: radial-gradient(90% 70% at 50% 42%, #0d4423 0%, #05190d 100%);
+    opacity:0; pointer-events:none; transition: opacity .5s; }
+  .cta.on { opacity:1; }
+  .cta .big-logo { width: 110px; height:110px; border-radius: 28px;
+    background: linear-gradient(160deg, #22b558, #128a3e);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 20px 50px rgba(22,163,74,.5); opacity:0; transform: scale(.4); }
+  .cta.on .big-logo { animation: logopop .6s cubic-bezier(.2,1.4,.4,1) forwards; }
+  .cta .big-logo svg { width: 58px; height:58px; }
+  .cta h2 { font-size: 34px; font-weight:800; line-height:1.15; letter-spacing:-.5px; opacity:0; }
+  .cta.on h2 { animation: capin .5s ease .2s forwards; }
+  .cta .accent { color: var(--mint); }
+  .cta .sub { font-size: 21px; font-weight:700; color:#cdefd8; opacity:0; }
+  .cta.on .sub { animation: capin .5s ease .35s forwards; }
+  .badges { display:flex; flex-direction:column; gap:12px; align-items:center; opacity:0; }
+  .cta.on .badges { animation: capin .5s ease .5s forwards; }
+  .store-badge { display:inline-flex; align-items:center; gap:12px; background:#000;
+    border:1.5px solid rgba(255,255,255,.25); border-radius:14px; padding:12px 24px;
+    min-width: 250px; justify-content:center; }
+  .store-badge svg { width:26px; height:26px; fill:#fff; }
+  .store-badge span { text-align:left; line-height:1.2; }
+  .store-badge span small { display:block; font-size:11px; opacity:.85; }
+  .store-badge span b { font-size:17px; font-weight:700; }
+  .cta .url { font-size: 17px; font-weight:800; color: var(--gold); opacity:0; }
+  .cta.on .url { animation: capin .5s ease .65s forwards; }
+
+  /* Confettis */
+  .confetti { position:absolute; width:10px; height:14px; top:-20px; border-radius:2px; opacity:0; z-index:46; }
+
+  /* ---- Contrôles (hors cadre, non filmés) ---- */
+  .controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:center; max-width: 92vw; }
+  .controls button { font: inherit; font-weight:700; font-size:14px; color:#050706;
+    background:#7cf0a8; border:none; border-radius:10px; padding:10px 18px; cursor:pointer; }
+  .controls .hint { font-size:12.5px; color:#8aa; max-width: 520px; line-height:1.5; text-align:center; }
+  .controls code { background: rgba(124,240,168,.14); color:#7cf0a8; padding:1px 6px; border-radius:6px; }
+</style>
+</head>
+<body>
+
+  <div class="stage" id="stage">
+    <div class="orb a"></div><div class="orb b"></div><div class="orb c"></div>
+    <div class="grid"></div>
+
+    <div class="progress" id="progress"></div>
+
+    <div class="brand" id="brand">
+      <span class="logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 7h12l1 13H5L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/>
+          <path d="m12.6 10-2.1 3.4h1.7l-.7 3.2 2.9-4h-1.7l.9-2.6Z" fill="#fff" stroke="none"/>
+        </svg>
+      </span>
+      <b>Flash Market</b>
+    </div>
+
+    <!-- ===== Téléphone ===== -->
+    <div class="phone" id="phone">
+      <div class="phone-screen">
+        <div class="island"></div>
+        <img class="shot" data-shot="home"     src="screens/home.png"     alt="">
+        <img class="shot" data-shot="search"   src="screens/search.png"   alt="">
+        <img class="shot" data-shot="chat"     src="screens/chat.png"     alt="">
+        <img class="shot" data-shot="messages" src="screens/messages.png" alt="">
+        <div class="fx" id="fx"></div>
+      </div>
+    </div>
+
+    <!-- Chips catégories (scène recherche) -->
+    <div class="catchips" id="catchips">
+      <span class="catchip">🚗 Voitures</span>
+      <span class="catchip">🏠 Immobilier</span>
+      <span class="catchip">👗 Mode</span>
+      <span class="catchip">🔧 Services</span>
+      <span class="catchip">📱 Tech</span>
+    </div>
+
+    <!-- Légende -->
+    <div class="caption" id="caption"></div>
+
+    <!-- ===== Intro ===== -->
+    <div class="intro" id="intro">
+      <div class="big-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 7h12l1 13H5L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/>
+          <path d="m12.6 10-2.1 3.4h1.7l-.7 3.2 2.9-4h-1.7l.9-2.6Z" fill="#fff" stroke="none"/>
+        </svg>
+      </div>
+      <div class="wm">Flash Market</div>
+      <div class="tl">Le marché du Mali, <span class="kw">dans ta poche.</span></div>
+    </div>
+
+    <!-- ===== CTA ===== -->
+    <div class="cta" id="cta">
+      <div class="big-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 7h12l1 13H5L6 7Z"/><path d="M9 7a3 3 0 0 1 6 0"/>
+          <path d="m12.6 10-2.1 3.4h1.7l-.7 3.2 2.9-4h-1.7l.9-2.6Z" fill="#fff" stroke="none"/>
+        </svg>
+      </div>
+      <h2>Achète. Vends.<br>Près de chez toi.</h2>
+      <div class="sub">Télécharge <b style="display:inline">Flash&nbsp;Market</b> — c'est gratuit 🇲🇱</div>
+      <div class="badges">
+        <span class="store-badge">
+          <svg viewBox="0 0 24 24"><path d="M16.4 1.4c0 1.1-.5 2.3-1.2 3.1-.7.9-2 1.6-3 1.5-.1-1.1.5-2.3 1.2-3 .8-.9 2.1-1.6 3-1.6Zm4.5 15.7c-.5 1.2-1 1.9-1.7 2.9-1 1.4-2.4 3.2-4 3.2-1.5 0-1.9-.9-3.6-.9s-2.3.9-3.7.9c-1.6 0-2.8-1.6-3.8-3-2.1-3-3.4-7.5-1.4-10.6 1-1.5 2.7-2.5 4.3-2.5 1.5 0 2.5 1 3.6 1 1.1 0 1.9-1 3.7-1 1.4 0 2.9.8 3.9 2.1-3.4 1.9-2.9 6.8.7 7.9Z"/></svg>
+          <span><small>Disponible sur</small><b>l'App Store</b></span>
+        </span>
+        <span class="store-badge">
+          <svg viewBox="0 0 24 24"><path d="M3.6 2.3 13 12 3.6 21.7c-.4-.2-.6-.6-.6-1.1V3.4c0-.5.2-.9.6-1.1Zm10.9 8.9 2.9 2.9-3.4 1.9-2.4-2.4 2.9-2.4Zm-2.9-.2L8.7 8.1l6.1-3.5 1.9 1.1-4.2 5.3Zm0 2.4 1.8 2.3-6.2 3.5-1.8-1 6.2-4.8Z"/></svg>
+          <span><small>Disponible sur</small><b>Google Play</b></span>
+        </span>
+      </div>
+      <div class="url">app-flashmarket.com</div>
+    </div>
+
+  </div>
+
+  <div class="controls">
+    <button id="replay">▶ Lancer / Rejouer</button>
+    <span class="hint">9:16 · ~27 s · avec <b>sound effects</b> (clique Lancer pour activer le son).
+      Recadre sur le rectangle vert pour le screen-record.
+      <code>?clean</code> masque les textes (sous-titres au montage) ·
+      <code>?mute</code> coupe les SFX.</span>
+  </div>
+
+<script>
+/* ============================================================
+   FLASH MARKET — Motion « vitrine satisfaisante » (9:16, ~27 s)
+   Captures réelles dans un iPhone flottant + SFX WebAudio synchro.
+   ============================================================ */
+
+const params = new URLSearchParams(location.search);
+const CLEAN  = params.has('clean');   // masque les textes
+const MUTE   = params.has('mute');    // coupe les SFX
+
+/* ---------- 1. Moteur de sons (WebAudio, aucun fichier externe) ---------- */
+const Sfx = (() => {
+  let ctx = null;
+  function ac() { if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); return ctx; }
+  function master(g) { const m = ac().createGain(); m.gain.value = MUTE ? 0 : g; m.connect(ac().destination); return m; }
+  function env(node, t0, a, d, peak) {
+    node.gain.setValueAtTime(0.0001, t0);
+    node.gain.exponentialRampToValueAtTime(peak, t0 + a);
+    node.gain.exponentialRampToValueAtTime(0.0001, t0 + a + d);
+  }
+  function noiseBuf(dur) {
+    const n = Math.floor(ac().sampleRate * dur);
+    const b = ac().createBuffer(1, n, ac().sampleRate);
+    const d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    return b;
+  }
+  function tone(freq, dur, type='sine', gain=.3, glideTo=null, when=0) {
+    const t0 = ac().currentTime + when;
+    const o = ac().createOscillator(), g = ac().createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t0);
+    if (glideTo) o.frequency.exponentialRampToValueAtTime(glideTo, t0 + dur);
+    env(g, t0, .012, dur, gain);
+    o.connect(g); g.connect(master(1)); o.start(t0); o.stop(t0 + dur + .05);
+  }
+  function noise(dur, f0, f1, gain=.3, q=1, when=0) {
+    const t0 = ac().currentTime + when;
+    const s = ac().createBufferSource(); s.buffer = noiseBuf(dur + .05);
+    const bp = ac().createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = q;
+    bp.frequency.setValueAtTime(f0, t0);
+    bp.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+    const g = ac().createGain(); env(g, t0, .01, dur, gain);
+    s.connect(bp); bp.connect(g); g.connect(master(1)); s.start(t0); s.stop(t0 + dur + .05);
+  }
+
+  return {
+    resume() { try { ac().resume(); } catch(e){} },
+    whoosh() { noise(.34, 500, 2400, .22, .8); },
+    swipe()  { noise(.22, 1800, 500, .16, .9); },
+    pop(p=560){ tone(p*1.5, .12, 'sine', .28, p); },
+    tap()    { tone(2100, .05, 'sine', .18); noise(.04, 3000, 1500, .1, 2); },
+    bubble(p=520){ tone(p, .12, 'sine', .22, p*1.4); },
+    kaching(){ tone(1046, .5, 'triangle', .3); tone(1568, .55, 'triangle', .26, null, .07);
+               noise(.4, 5000, 8000, .06, 3, .05); },
+    ping()   { tone(1250, .5, 'sine', .24, 1200); tone(1250, .45, 'sine', .12, 1200, .18); },
+    stamp()  { tone(150, .18, 'sine', .5, 55); noise(.14, 800, 200, .25, .6); },
+    riser()  { noise(1.2, 300, 3000, .16, .7); tone(220, 1.2, 'sawtooth', .05, 660); },
+    chime()  { [784,1046,1568].forEach((f,i)=> tone(f, .8, 'triangle', .22, null, i*.06)); },
+    success(){ [523,659,784,1046].forEach((f,i)=> tone(f, .3, 'triangle', .24, null, i*.09)); },
+    confetti(){ for(let i=0;i<10;i++){ tone(900+Math.random()*1400, .12, 'triangle', .12, null, i*.045); } },
+  };
+})();
+
+/* ---------- 2. Éléments ---------- */
+const $  = s => document.querySelector(s);
+const stage = $('#stage'), phone = $('#phone'), fx = $('#fx'),
+      brand = $('#brand'), intro = $('#intro'), cta = $('#cta'),
+      caption = $('#caption'), catchips = $('#catchips'), progress = $('#progress');
+const shots = {};
+document.querySelectorAll('.shot').forEach(el => shots[el.dataset.shot] = el);
+
+/* ---------- 3. Timeline ---------- */
+const scenes = [
+  { id:'intro',     dur:2800 },
+  { id:'accueil',   dur:4400, shot:'home',     pan:[0,-11],   cap:['DES MILLIERS D\'ANNONCES','à portée de main'] },
+  { id:'recherche', dur:4200, shot:'search',   pan:[0,-2],    cap:['TOUT, EN UNE <span class="kw">RECHERCHE</span>'] },
+  { id:'proximite', dur:3800, shot:'search',   pan:[-11,-11], cap:['<span class="kw">PRÈS</span> DE CHEZ TOI'] },
+  { id:'chat',      dur:4600, shot:'chat',     pan:[-11,0],   cap:['NÉGOCIE <span class="kw">EN DIRECT</span>'] },
+  { id:'vendu',     dur:2600, shot:'messages', pan:[0,0],     cap:['ACHETÉ. <span class="kw">VENDU.</span> 🔥'] },
+  { id:'cta',       dur:4200 },
+];
+
+/* Barre de progression */
+const bars = scenes.map(() => {
+  const seg = document.createElement('div'); seg.className = 'seg';
+  const i = document.createElement('i'); seg.appendChild(i); progress.appendChild(seg);
+  return i;
+});
+
+let timers = [];
+const clearTimers = () => { timers.forEach(t => (cancelAnimationFrame(t.raf||0), clearTimeout(t.to||0))); timers = []; };
+const later = (fn, ms) => { const to = setTimeout(fn, ms); timers.push({ to }); return to; };
+const raf   = fn => { const r = requestAnimationFrame(fn); timers.push({ raf:r }); return r; };
+
+/* Compteur animé */
+function countUp(setText, target, dur) {
+  const t0 = performance.now();
+  (function tick(t){
+    const p = Math.min(1, ((t||performance.now()) - t0) / dur);
+    const e = 1 - Math.pow(1 - p, 3);
+    setText(Math.round(target * e).toLocaleString('fr-FR'));
+    if (p < 1) raf(tick);
+  })(performance.now());
+}
+
+/* Helpers FX (positions en % de l'écran) */
+function mk(cls, x, y) {
+  const el = document.createElement('div'); el.className = cls;
+  if (x != null) el.style.left = x + '%';
+  if (y != null) el.style.top  = y + '%';
+  fx.appendChild(el); return el;
+}
+function tapAt(x, y, delay=0) {
+  later(() => {
+    const f = mk('finger', x, y), r = mk('ripple', x, y);
+    void f.offsetWidth; f.classList.add('go'); r.classList.add('go');
+    Sfx.tap();
+  }, delay);
+}
+
+/* Pan (scroll) doux de la capture active */
+function panShot(el, fromPct, toPct, dur) {
+  el.style.transition = 'none';
+  el.style.transform = `translateY(${fromPct}%)`;
+  void el.offsetWidth;
+  el.style.transition = `transform ${dur}ms cubic-bezier(.33,0,.2,1), opacity .55s ease`;
+  el.style.transform = `translateY(${toPct}%)`;
+}
+
+/* ---------- 4. Rendu d'une scène ---------- */
+function showCaption(lines) {
+  if (CLEAN || !lines) { caption.classList.remove('show'); caption.innerHTML=''; return; }
+  const [main, sub] = lines;
+  caption.innerHTML = `<b>${main}</b>` + (sub ? `<span>${sub}</span>` : '');
+  void caption.offsetWidth; caption.classList.add('show');
+}
+
+function runScene(idx) {
+  const s = scenes[idx];
+
+  // progression
+  bars.forEach((b, i) => { b.style.transition='none'; b.style.width = i<idx ? '100%' : '0%'; });
+  void progress.offsetWidth;
+  bars[idx].style.transition = `width ${s.dur}ms linear`;
+  bars[idx].style.width = '100%';
+
+  // reset couches
+  fx.innerHTML = '';
+  catchips.classList.remove('show');
+  caption.classList.remove('show');
+  intro.classList.remove('on');
+  cta.classList.remove('on');
+
+  const appScene = s.shot != null;
+  brand.classList.toggle('show', appScene);          // lockup seulement sur les scènes app
+  phone.classList.toggle('in', appScene);            // téléphone visible sur les scènes app
+  if (appScene) phone.classList.add('float'); else phone.classList.remove('float');
+
+  // capture active + crossfade
+  if (appScene) {
+    Object.values(shots).forEach(el => el.classList.remove('active'));
+    const el = shots[s.shot];
+    el.classList.add('active');
+    panShot(el, s.pan[0], s.pan[1], s.dur + 400);
+    showCaption(s.cap);
+  }
+
+  // --- FX + SFX par scène ---
+  if (s.id === 'intro') {
+    intro.classList.add('on');
+    Sfx.riser();
+    later(() => Sfx.chime(), 620);          // logo pose
+    later(() => Sfx.whoosh(), s.dur - 350); // départ vers l'app
+  }
+
+  if (s.id === 'accueil') {
+    Sfx.whoosh();
+    tapAt(74, 40, 700);                                   // tap sur une carte
+    later(() => { const h = mk('heart', 74, 40); h.textContent='❤️'; void h.offsetWidth; h.classList.add('go'); Sfx.pop(680); }, 1050);
+    later(() => {                                         // chip prix qui compte
+      const c = mk('pricechip', null, null); c.textContent='0 FCFA';
+      void c.offsetWidth; c.classList.add('go');
+      countUp(v => c.textContent = v + ' FCFA', 285000, 1000);
+      Sfx.pop(520);
+    }, 1900);
+  }
+
+  if (s.id === 'recherche') {
+    Sfx.swipe();
+    catchips.classList.add('show');
+    [0,1,2,3,4].forEach(i => later(() => Sfx.pop(460 + i*90), 350 + i*130)); // cascade audio
+    tapAt(74, 30, 1600);                                  // tap "Voitures"
+  }
+
+  if (s.id === 'proximite') {
+    Sfx.swipe();
+    later(() => { const r = mk('radar'); void r.offsetWidth; r.classList.add('go'); Sfx.ping(); }, 500);
+    later(() => { const r = mk('radar'); void r.offsetWidth; r.classList.add('go'); }, 1100);
+    later(() => { const p = mk('pin'); p.textContent='📍'; void p.offsetWidth; p.classList.add('go'); Sfx.pop(720); }, 900);
+  }
+
+  if (s.id === 'chat') {
+    Sfx.whoosh();
+    [0,1,2].forEach(i => later(() => Sfx.bubble(480 + i*80), 500 + i*450)); // bulles
+    later(() => {                                         // glow sur la bulle prix + ✓✓
+      const g = mk('bubbleglow'); g.style.bottom = '30%'; g.style.top='auto';
+      void g.offsetWidth; g.classList.add('go');
+      const c = mk('checks'); c.style.left='auto'; c.style.right='10%'; c.style.bottom='31%'; c.style.top='auto';
+      c.textContent='✓✓'; void c.offsetWidth; c.classList.add('go');
+      Sfx.kaching();
+    }, 2400);
+  }
+
+  if (s.id === 'vendu') {
+    const st = mk('stamp'); st.textContent = 'VENDU'; st.style.left='50%'; st.style.top='46%';
+    void st.offsetWidth; st.classList.add('go');
+    Sfx.stamp(); later(() => Sfx.success(), 260);
+  }
+
+  if (s.id === 'cta') {
+    phone.classList.remove('in');
+    cta.classList.add('on');
+    Sfx.chime(); later(() => Sfx.confetti(), 250);
+    burstConfetti();
+  }
+
+  later(() => runScene((idx + 1) % scenes.length), s.dur);
+}
+
+/* ---------- 5. Confettis (CTA) ---------- */
+function burstConfetti() {
+  const colors = ['#22c55e','#fbbf24','#7cf0a8','#ffffff','#e11d48'];
+  for (let i = 0; i < 46; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = Math.random()*100 + '%';
+    c.style.background = colors[i % colors.length];
+    c.style.transform = `rotate(${Math.random()*360}deg)`;
+    stage.appendChild(c);
+    const dx = (Math.random()-.5)*120, dur = 1800 + Math.random()*1400, delay = Math.random()*400;
+    c.animate([
+      { transform:`translate(0,0) rotate(0)`, opacity:1, offset:0 },
+      { transform:`translate(${dx}px, ${stage.clientHeight+40}px) rotate(${Math.random()*720}deg)`, opacity:1, offset:1 }
+    ], { duration:dur, delay, easing:'cubic-bezier(.3,.6,.4,1)', fill:'forwards' });
+    later(() => c.remove(), dur + delay + 200);
+  }
+}
+
+/* ---------- 6. Lancement ---------- */
+function start() {
+  clearTimers();
+  Sfx.resume();               // autorise l'audio (geste utilisateur = clic)
+  document.querySelectorAll('.confetti').forEach(c => c.remove());
+  runScene(0);
+}
+$('#replay').addEventListener('click', start);
+
+// Premier rendu figé sur l'intro (silencieux) tant qu'on n'a pas cliqué Lancer
+intro.classList.add('on');
+</script>
+</body>
+</html>

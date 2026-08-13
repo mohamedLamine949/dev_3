@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chap Chap – Générateur de Fiches Store</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        /* ============================================
+           RESET & BASE
+           ============================================ */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f5f5f7;
+            color: #1d1d1f;
+            min-height: 100vh;
+        }
+
+        /* ============================================
+           TOOLBAR / CONTROLS
+           ============================================ */
+        .toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+            padding: 16px 24px;
+        }
+
+        .toolbar-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar h1 {
+            font-size: 18px;
+            font-weight: 800;
+            color: #1a7a3a;
+            white-space: nowrap;
+            letter-spacing: -0.3px;
+        }
+
+        .toolbar h1 span {
+            color: #1d1d1f;
+        }
+
+        .toolbar-divider {
+            width: 1px;
+            height: 28px;
+            background: rgba(0, 0, 0, 0.12);
+        }
+
+        .toolbar label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #6e6e73;
+            white-space: nowrap;
+        }
+
+        .toolbar select,
+        .toolbar input[type="text"] {
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            padding: 8px 14px;
+            border: 1.5px solid rgba(0, 0, 0, 0.12);
+            border-radius: 10px;
+            background: #fff;
+            color: #1d1d1f;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .toolbar select:focus,
+        .toolbar input[type="text"]:focus {
+            border-color: #1a7a3a;
+            box-shadow: 0 0 0 3px rgba(26, 122, 58, 0.12);
+        }
+
+        .toolbar input[type="text"] {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .toolbar select {
+            min-width: 160px;
+            cursor: pointer;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .btn {
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 9px 18px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-secondary {
+            background: #e8e8ed;
+            color: #1d1d1f;
+        }
+
+        .btn-secondary:hover {
+            background: #d2d2d7;
+        }
+
+        .btn-primary {
+            background: #1a7a3a;
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #15632f;
+        }
+
+        /* ============================================
+           PREVIEW AREA
+           ============================================ */
+        .preview-area {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 120px 24px 60px;
+            min-height: 100vh;
+        }
+
+        /* ============================================
+           THE STORE SCREENSHOT (capture target)
+           ============================================ */
+        .store-screenshot {
+            width: 1290px;
+            height: 2796px;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            position: relative;
+            overflow: hidden;
+            transform-origin: top center;
+        }
+
+        /* Scale it down to fit the screen for preview */
+        .preview-wrapper {
+            transform: scale(0.28);
+            transform-origin: top center;
+            width: 1290px;
+            height: 2796px;
+            flex-shrink: 0;
+        }
+
+        /* ============================================
+           HEADLINE TEXT (above the phone)
+           ============================================ */
+        .headline-area {
+            padding: 140px 80px 40px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .headline-text {
+            font-size: 108px;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -3px;
+            color: #1d1d1f;
+        }
+
+        .headline-text .highlight {
+            color: #1a7a3a;
+        }
+
+        .headline-subtitle {
+            font-size: 48px;
+            font-weight: 500;
+            color: #6e6e73;
+            margin-top: 24px;
+            line-height: 1.3;
+        }
+
+        /* ============================================
+           PHONE MOCKUP
+           ============================================ */
+        .phone-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px 0 0;
+        }
+
+        .phone-frame {
+            position: relative;
+            width: 620px;
+            height: 1280px;
+            background: #1d1d1f;
+            border-radius: 68px;
+            padding: 14px;
+            box-shadow:
+                0 0 0 2px #3a3a3c,
+                0 40px 100px rgba(0, 0, 0, 0.18),
+                0 15px 40px rgba(0, 0, 0, 0.12);
+        }
+
+        /* Dynamic Island */
+        .phone-frame::before {
+            content: '';
+            position: absolute;
+            top: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 160px;
+            height: 42px;
+            background: #000;
+            border-radius: 24px;
+            z-index: 10;
+        }
+
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            border-radius: 55px;
+            overflow: hidden;
+            background: #000;
+            position: relative;
+        }
+
+        .phone-screen img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: top center;
+            display: block;
+        }
+
+        /* ============================================
+           STYLE VARIATIONS
+           ============================================ */
+        /* Style: Centered */
+        .store-screenshot.style-centered .headline-area {
+            padding: 180px 80px 60px;
+        }
+
+        .store-screenshot.style-centered .phone-container {
+            align-items: flex-start;
+        }
+
+        /* Style: Top-heavy (bigger text, smaller phone) */
+        .store-screenshot.style-top-heavy .headline-area {
+            padding: 200px 80px 80px;
+        }
+
+        .store-screenshot.style-top-heavy .headline-text {
+            font-size: 120px;
+        }
+
+        .store-screenshot.style-top-heavy .phone-frame {
+            width: 540px;
+            height: 1120px;
+            border-radius: 60px;
+            padding: 12px;
+        }
+
+        .store-screenshot.style-top-heavy .phone-screen {
+            border-radius: 49px;
+        }
+
+        .store-screenshot.style-top-heavy .phone-frame::before {
+            width: 140px;
+            height: 38px;
+            top: 16px;
+        }
+
+        /* Style: Minimal (no subtitle, extra clean) */
+        .store-screenshot.style-minimal .headline-area {
+            padding: 220px 80px 80px;
+        }
+
+        .store-screenshot.style-minimal .headline-subtitle {
+            display: none;
+        }
+
+        .store-screenshot.style-minimal .headline-text {
+            font-size: 128px;
+        }
+
+        /* ============================================
+           COLOR THEMES
+           ============================================ */
+        .store-screenshot.theme-dark {
+            background: #000000;
+        }
+
+        .store-screenshot.theme-dark .headline-text {
+            color: #ffffff;
+        }
+
+        .store-screenshot.theme-dark .headline-text .highlight {
+            color: #34c759;
+        }
+
+        .store-screenshot.theme-dark .headline-subtitle {
+            color: #98989d;
+        }
+
+        .store-screenshot.theme-light-gray {
+            background: #f5f5f7;
+        }
+
+        /* ============================================
+           HELPER TEXT (not exported)
+           ============================================ */
+        .export-instructions {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(10px);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 100;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .export-instructions.visible {
+            opacity: 1;
+        }
+
+        /* ============================================
+           SCREENSHOT SELECTOR THUMBNAILS
+           ============================================ */
+        .screenshot-thumbs {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .screenshot-thumb {
+            width: 36px;
+            height: 72px;
+            border-radius: 6px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            opacity: 0.5;
+        }
+
+        .screenshot-thumb:hover {
+            opacity: 0.8;
+        }
+
+        .screenshot-thumb.active {
+            border-color: #1a7a3a;
+            opacity: 1;
+        }
+
+        .screenshot-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* ============================================
+           ZOOM CONTROLS
+           ============================================ */
+        .zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .zoom-btn {
+            width: 32px;
+            height: 32px;
+            border: 1.5px solid rgba(0, 0, 0, 0.12);
+            border-radius: 8px;
+            background: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            color: #1d1d1f;
+        }
+
+        .zoom-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .zoom-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6e6e73;
+            min-width: 36px;
+            text-align: center;
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 768px) {
+            .toolbar-inner {
+                gap: 10px;
+            }
+
+            .toolbar-divider {
+                display: none;
+            }
+
+            .toolbar input[type="text"] {
+                min-width: 100%;
+            }
+
+            .btn-group {
+                width: 100%;
+                margin-left: 0;
+            }
+
+            .btn {
+                flex: 1;
+            }
+
+            .preview-wrapper {
+                transform: scale(0.16);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ============================================
+         TOOLBAR
+         ============================================ -->
+    <div class="toolbar">
+        <div class="toolbar-inner">
+            <h1>⚡ <span>Store Mockup</span></h1>
+
+            <div class="toolbar-divider"></div>
+
+            <!-- Screenshot selector -->
+            <label>Écran :</label>
+            <select id="screenshotSelect" onchange="changeScreenshot()">
+                <option value="0" selected>🏠 Accueil</option>
+                <option value="1">🔍 Recherche</option>
+                <option value="2">👤 Profil Vendeur</option>
+                <option value="3">💬 Messages</option>
+                <option value="4">💬 Conversation</option>
+            </select>
+
+            <div class="toolbar-divider"></div>
+
+            <!-- Headline input -->
+            <label>Accroche :</label>
+            <input type="text" id="headlineInput" value="Trouvez la bonne affaire près de chez vous" oninput="updateHeadline()">
+
+            <div class="toolbar-divider"></div>
+
+            <!-- Style selector -->
+            <label>Style :</label>
+            <select id="styleSelect" onchange="changeStyle()">
+                <option value="centered">Centré</option>
+                <option value="top-heavy">Texte dominant</option>
+                <option value="minimal">Minimal</option>
+            </select>
+
+            <!-- Theme selector -->
+            <label>Thème :</label>
+            <select id="themeSelect" onchange="changeTheme()">
+                <option value="white">Blanc</option>
+                <option value="light-gray">Gris clair</option>
+                <option value="dark">Sombre</option>
+            </select>
+
+            <div class="toolbar-divider"></div>
+
+            <!-- Zoom -->
+            <div class="zoom-controls">
+                <button class="zoom-btn" onclick="zoom(-0.04)">−</button>
+                <span class="zoom-label" id="zoomLabel">28%</span>
+                <button class="zoom-btn" onclick="zoom(0.04)">+</button>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="resetAll()">Réinitialiser</button>
+                <button class="btn btn-primary" onclick="exportScreenshot()">📸 Exporter PNG</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================
+         PREVIEW
+         ============================================ -->
+    <div class="preview-area">
+        <div class="preview-wrapper" id="previewWrapper">
+            <div class="store-screenshot style-centered" id="storeScreenshot">
+
+                <!-- Headline -->
+                <div class="headline-area">
+                    <div class="headline-text" id="headlineDisplay">
+                        Trouvez <span class="highlight">la bonne affaire</span> près de chez vous
+                    </div>
+                    <div class="headline-subtitle" id="subtitleDisplay">
+                        La référence des petites annonces au Mali 🇲🇱
+                    </div>
+                </div>
+
+                <!-- Phone Mockup -->
+                <div class="phone-container">
+                    <div class="phone-frame">
+                        <div class="phone-screen">
+                            <img id="phoneScreenImg" src="/images%20stores/IMG_0539.png" alt="Chap Chap – Accueil">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="export-instructions" id="toast"></div>
+
+    <script>
+        // ============================================
+        // DATA
+        // ============================================
+        const screenshots = [
+            {
+                src: '/images%20stores/IMG_0539.png',
+                headline: 'Trouvez <span class="highlight">la bonne affaire</span> près de chez vous',
+                subtitle: 'La référence des petites annonces au Mali 🇲🇱',
+                inputText: 'Trouvez la bonne affaire près de chez vous'
+            },
+            {
+                src: '/images%20stores/IMG_0529.png',
+                headline: 'Recherchez par <span class="highlight">catégorie</span> en un clic',
+                subtitle: 'Téléphones, voitures, immobilier et bien plus',
+                inputText: 'Recherchez par catégorie en un clic'
+            },
+            {
+                src: '/images%20stores/IMG_0538.png',
+                headline: 'Des vendeurs <span class="highlight">professionnels</span> près de chez vous',
+                subtitle: 'Profils vérifiés avec vitrine et avis clients',
+                inputText: 'Des vendeurs professionnels près de chez vous'
+            },
+            {
+                src: '/images%20stores/IMG_0540.png',
+                headline: 'Négociez <span class="highlight">en direct</span> avec le vendeur',
+                subtitle: 'Messagerie instantanée intégrée',
+                inputText: 'Négociez en direct avec le vendeur'
+            },
+            {
+                src: '/images%20stores/IMG_0541.png',
+                headline: 'Discutez et <span class="highlight">concluez</span> la bonne affaire',
+                subtitle: 'Chat en temps réel, simple et efficace',
+                inputText: 'Discutez et concluez la bonne affaire'
+            }
+        ];
+
+        let currentZoom = 0.28;
+        let currentIndex = 0;
+
+        // ============================================
+        // FUNCTIONS
+        // ============================================
+
+        function changeScreenshot() {
+            const select = document.getElementById('screenshotSelect');
+            currentIndex = parseInt(select.value);
+            const data = screenshots[currentIndex];
+
+            document.getElementById('phoneScreenImg').src = data.src;
+            document.getElementById('headlineDisplay').innerHTML = data.headline;
+            document.getElementById('subtitleDisplay').textContent = data.subtitle;
+            document.getElementById('headlineInput').value = data.inputText;
+        }
+
+        function updateHeadline() {
+            const input = document.getElementById('headlineInput').value;
+            // Try to find the key phrase to highlight (words between the first and last 3-4 words)
+            const words = input.split(' ');
+            let html = '';
+            if (words.length > 4) {
+                const start = words.slice(0, 2).join(' ');
+                const middle = words.slice(2, -2).join(' ');
+                const end = words.slice(-2).join(' ');
+                html = `${start} <span class="highlight">${middle}</span> ${end}`;
+            } else if (words.length > 2) {
+                const start = words.slice(0, 1).join(' ');
+                const middle = words.slice(1, -1).join(' ');
+                const end = words.slice(-1).join(' ');
+                html = `${start} <span class="highlight">${middle}</span> ${end}`;
+            } else {
+                html = `<span class="highlight">${input}</span>`;
+            }
+            document.getElementById('headlineDisplay').innerHTML = html;
+        }
+
+        function changeStyle() {
+            const el = document.getElementById('storeScreenshot');
+            const style = document.getElementById('styleSelect').value;
+            el.className = el.className.replace(/style-\w+/g, '');
+            el.classList.add('style-' + style);
+        }
+
+        function changeTheme() {
+            const el = document.getElementById('storeScreenshot');
+            const theme = document.getElementById('themeSelect').value;
+            el.className = el.className.replace(/theme-\w+/g, '');
+            if (theme !== 'white') {
+                el.classList.add('theme-' + theme);
+            }
+        }
+
+        function zoom(delta) {
+            currentZoom = Math.max(0.1, Math.min(0.5, currentZoom + delta));
+            document.getElementById('previewWrapper').style.transform = `scale(${currentZoom})`;
+            document.getElementById('zoomLabel').textContent = Math.round(currentZoom * 100) + '%';
+        }
+
+        function resetAll() {
+            document.getElementById('screenshotSelect').value = '0';
+            document.getElementById('styleSelect').value = 'centered';
+            document.getElementById('themeSelect').value = 'white';
+            currentZoom = 0.28;
+            document.getElementById('previewWrapper').style.transform = `scale(${currentZoom})`;
+            document.getElementById('zoomLabel').textContent = '28%';
+
+            const el = document.getElementById('storeScreenshot');
+            el.className = 'store-screenshot style-centered';
+
+            changeScreenshot();
+        }
+
+        function showToast(message, duration = 3000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('visible');
+            setTimeout(() => toast.classList.remove('visible'), duration);
+        }
+
+        async function exportScreenshot() {
+            showToast('⏳ Préparation de l\'export…');
+
+            // We'll use a canvas-based approach
+            const el = document.getElementById('storeScreenshot');
+
+            try {
+                // Try using html2canvas if available, otherwise guide user
+                if (typeof html2canvas !== 'undefined') {
+                    const canvas = await html2canvas(el, {
+                        width: 1290,
+                        height: 2796,
+                        scale: 1,
+                        useCORS: true,
+                        backgroundColor: null
+                    });
+
+                    const link = document.createElement('a');
+                    link.download = `chapchap-store-screenshot-${currentIndex + 1}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+
+                    showToast('✅ Screenshot exporté !');
+                } else {
+                    // Fallback: open in new window for manual screenshot
+                    showToast('💡 Astuce : Faites clic droit → "Inspecter", puis Ctrl+Shift+P → "Capture full size screenshot" pour un export parfait.', 6000);
+
+                    // Also provide a pop-up window with full-size render
+                    const win = window.open('', '_blank', `width=645,height=1398`);
+                    win.document.write(`
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <meta charset="UTF-8">
+                            <title>Export – Chap Chap Store Screenshot</title>
+                            <style>
+                                body { margin: 0; padding: 0; display: flex; justify-content: center; background: #f5f5f7; }
+                                .container { transform: scale(0.5); transform-origin: top center; }
+                            </style>
+                            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+                        </head>
+                        <body>
+                            <div class="container">
+                            ${el.outerHTML}
+                            </div>
+                            <p style="position:fixed;bottom:10px;left:50%;transform:translateX(-50%);font-family:Inter,sans-serif;font-size:13px;color:#6e6e73;background:#fff;padding:8px 16px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                                Clic droit → "Enregistrer sous…" ou faites une capture d'écran (Ctrl+Shift+S sur Firefox)
+                            </p>
+                        </body>
+                        </html>
+                    `);
+                    // Copy styles
+                    const styles = document.querySelectorAll('style');
+                    styles.forEach(style => {
+                        win.document.head.appendChild(style.cloneNode(true));
+                    });
+                    win.document.close();
+                }
+            } catch (err) {
+                showToast('❌ Erreur lors de l\'export : ' + err.message);
+            }
+        }
+
+        // ============================================
+        // INIT
+        // ============================================
+        // Preload all images
+        screenshots.forEach(s => {
+            const img = new Image();
+            img.src = s.src;
+        });
+    </script>
+
+    <!-- html2canvas for PNG export (CDN) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" 
+            integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKnTidzjm2Yg9+BFbvw==" 
+            crossorigin="anonymous" 
+            referrerpolicy="no-referrer"
+            onerror="console.log('html2canvas not loaded – export will use fallback method')"></script>
+</body>
+</html>

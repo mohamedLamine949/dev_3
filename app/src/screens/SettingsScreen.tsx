@@ -192,10 +192,10 @@ export default function SettingsScreen({ navigation }: Props) {
               navigation.navigate('Login');
               return;
             }
-            Alert.alert('Déconnexion', 'Êtes-vous sûr ?', [
+            Alert.alert('Déconnexion', 'Êtes-vous sûr de vouloir vous déconnecter ?', [
               { text: 'Annuler', style: 'cancel' },
               { 
-                text: 'Déconnexion', 
+                text: 'Se déconnecter', 
                 style: 'destructive', 
                 onPress: async () => {
                   await signOut();
@@ -209,8 +209,8 @@ export default function SettingsScreen({ navigation }: Props) {
           }}
           activeOpacity={0.7}
         >
-          <Feather name={session ? 'log-out' : 'log-in'} size={18} color={session ? COLORS.error : theme.primary} />
-          <Text style={[styles.logoutText, { color: session ? COLORS.error : theme.primary }]}>
+          <Feather name={session ? 'log-out' : 'log-in'} size={18} color={session ? theme.error : theme.primary} />
+          <Text style={[styles.logoutText, { color: session ? theme.error : theme.primary }]}>
             {session ? 'Déconnexion' : 'Se connecter'}
           </Text>
         </TouchableOpacity>
@@ -224,10 +224,10 @@ export default function SettingsScreen({ navigation }: Props) {
             activeOpacity={0.7}
           >
             {isDeletingAccount ? (
-              <ActivityIndicator size="small" color={COLORS.error} />
+              <ActivityIndicator size="small" color={theme.error} />
             ) : (
               <>
-                <Feather name="trash-2" size={18} color={COLORS.error} />
+                <Feather name="trash-2" size={18} color={theme.error} />
                 <Text style={styles.deleteAccountText}>Supprimer mon compte</Text>
               </>
             )}
@@ -367,14 +367,14 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: theme.surface,
     borderRadius: RADIUS.xl,
     borderWidth: 1,
-    borderColor: COLORS.error,
+    borderColor: theme.error,
     marginTop: SPACING.md,
     ...SHADOWS.sm,
   },
   deleteAccountText: {
     fontSize: FONTS.md,
     fontWeight: FONTS.semibold,
-    color: COLORS.error,
+    color: theme.error,
   },
   version: {
     textAlign: 'center',

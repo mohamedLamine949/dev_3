@@ -981,12 +981,12 @@ export default function ProfileScreen({ navigation }: Props) {
           <View style={styles.modal}>
             <View style={styles.modalHeader}>
               <TouchableOpacity onPress={() => setIsEditing(false)}>
-                <Ionicons name="close" size={26} color={COLORS.textPrimary} />
+                <Ionicons name="close" size={26} color={theme.textPrimary} />
               </TouchableOpacity>
               <Text style={styles.modalTitle}>Modifier le profil vitrine</Text>
               <TouchableOpacity onPress={handleSaveProfile} disabled={isSaving}>
                 {isSaving
-                  ? <ActivityIndicator size="small" color={COLORS.primary} />
+                  ? <ActivityIndicator size="small" color={theme.primary} />
                   : <Text style={styles.modalSave}>Valider</Text>
                 }
               </TouchableOpacity>
@@ -998,7 +998,7 @@ export default function ProfileScreen({ navigation }: Props) {
                 {editAvatarUri ? (
                   <Image source={{ uri: editAvatarUri }} style={styles.modalAvatarImage} />
                 ) : (
-                  <Ionicons name="camera" size={32} color={COLORS.textInverse} />
+                  <Ionicons name="camera" size={32} color={theme.textInverse} />
                 )}
                 <View style={styles.modalAvatarOverlay}>
                   <Ionicons name="pencil" size={14} color="#fff" />
@@ -1110,7 +1110,7 @@ export default function ProfileScreen({ navigation }: Props) {
                             setEditImagesBusinessBase64(editImagesBusinessBase64.filter((_, i) => i !== idx));
                           }}
                         >
-                          <Ionicons name="close-circle" size={22} color={COLORS.error} />
+                          <Ionicons name="close-circle" size={22} color={theme.error} />
                         </TouchableOpacity>
                       </View>
                     ))}

@@ -4,11 +4,19 @@ import { navigationRef } from './navigationRef';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { View, StyleSheet, Platform } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  Animated,
+  Dimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BlurView } from 'expo-blur';
 
-import { COLORS, FONTS, RADIUS, SHADOWS } from '../constants/theme';
+import { COLORS, FONTS, RADIUS, SHADOWS, SPACING } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useUnreadCount } from '../hooks/useChat';
@@ -47,8 +55,12 @@ import DeviceIdSync from '../components/DeviceIdSync';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Stack pour l'onglet Accueil
+// ─────────────────────────────────────────────
+// Stack Navigators (inchangés)
+// ─────────────────────────────────────────────
+
 function HomeStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -62,7 +74,6 @@ function HomeStack() {
   );
 }
 
-// Stack pour l'onglet Recherche
 function SearchStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -76,7 +87,6 @@ function SearchStack() {
   );
 }
 
-// Stack pour l'onglet Messages
 function MessagesStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -90,29 +100,28 @@ function MessagesStack() {
   );
 }
 
-// Stack pour l'onglet Profil
 function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
-      <Stack.Screen 
-        name="Settings" 
-        component={SettingsScreen} 
+      <Stack.Screen
+        name="Settings"
+        component={SettingsScreen}
         options={{ animation: 'slide_from_right' }}
       />
-      <Stack.Screen 
-        name="MesAnnonces" 
-        component={MesAnnoncesScreen} 
+      <Stack.Screen
+        name="MesAnnonces"
+        component={MesAnnoncesScreen}
         options={{ animation: 'slide_from_right' }}
       />
-      <Stack.Screen 
-        name="Favoris" 
-        component={FavorisScreen} 
+      <Stack.Screen
+        name="Favoris"
+        component={FavorisScreen}
         options={{ animation: 'slide_from_right' }}
       />
-      <Stack.Screen 
-        name="Placeholder" 
-        component={PlaceholderScreen} 
+      <Stack.Screen
+        name="Placeholder"
+        component={PlaceholderScreen}
         options={{ animation: 'slide_from_right' }}
       />
       <Stack.Screen
@@ -124,53 +133,177 @@ function ProfileStack() {
   );
 }
 
-// Barre de navigation principale (Tabs)
-function MainTabs() {
-  const { session, user } = useAuth();
-  const unreadCount = useUnreadCount(session?.user?.id);
-  const { theme } = useTheme();
-  // Zone occupée par la barre système Android (boutons de navigation ou barre de gestes).
-  // Indispensable avec edgeToEdgeEnabled: sans ça, la tab bar passe SOUS les boutons Android.
+// ─────────────────────────────────────────────
+// 🎯 Custom Floating Tab Bar
+// ─────────────────────────────────────────────
+
+interface TabConfig {
+  name: string;
+  iconActive: keyof typeof Ionicons.glyphMap;
+  iconInactive: keyof typeof Ionicons.glyphMap;
+  isFAB?: boolean;
+}
+
+const TAB_CONFIG: TabConfig[] = [
+  { name: 'Accueil', iconActive: 'home', iconInactive: 'home-outline' },
+  { name: 'Recherche', iconActive: 'search', iconInactive: 'search-outline' },
+  { name: 'Publier', iconActive: 'add', iconInactive: 'add', isFAB: true },
+  { name: 'Messages', iconActive: 'chatbubbles', iconInactive: 'chatbubbles-outline' },
+  { name: 'Profil', iconActive: 'person', iconInactive: 'person-outline' },
+];
+
+function FloatingTabBar({ state, descriptors, navigation }: any) {
+  const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
-  const bottomInset = Platform.OS === 'android' ? insets.bottom : 0;
+  const { session } = useAuth();
+  const unreadCount = useUnreadCount(session?.user?.id);
+
+  // Animations de scale pour chaque tab
+  const scaleValues = React.useRef(
+    TAB_CONFIG.map(() => new Animated.Value(1))
+  ).current;
+
+  const handlePressIn = (index: number) => {
+    Animated.spring(scaleValues[index], {
+      toValue: 0.85,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  };
+
+  const handlePressOut = (index: number) => {
+    Animated.spring(scaleValues[index], {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 8,
+    }).start();
+  };
+
+  const bottomPadding = Platform.OS === 'ios' ? Math.max(insets.bottom - 8, 8) : 12;
+
+  return (
+    <View
+      style={[
+        styles.floatingBarContainer,
+        { paddingBottom: bottomPadding },
+      ]}
+    >
+      <View style={[
+        styles.floatingBar,
+        {
+          backgroundColor: isDark
+            ? 'rgba(20, 27, 45, 0.92)'
+            : 'rgba(255, 255, 255, 0.92)',
+          borderColor: isDark
+            ? 'rgba(30, 41, 59, 0.5)'
+            : 'rgba(229, 231, 235, 0.5)',
+        },
+      ]}>
+        {/* Blur background pour le glassmorphism */}
+        <BlurView
+          intensity={isDark ? 40 : 60}
+          tint={isDark ? 'dark' : 'light'}
+          style={StyleSheet.absoluteFill}
+        />
+
+        {/* Tab items */}
+        <View style={styles.floatingBarContent}>
+          {state.routes.map((route: any, index: number) => {
+            const config = TAB_CONFIG[index];
+            if (!config) return null;
+
+            const isFocused = state.index === index;
+            const isFAB = config.isFAB;
+
+            const onPress = () => {
+              const event = navigation.emit({
+                type: 'tabPress',
+                target: route.key,
+                canPreventDefault: true,
+              });
+
+              if (!isFocused && !event.defaultPrevented) {
+                navigation.navigate(route.name, route.params);
+              }
+            };
+
+            // Badge pour les messages non lus
+            const showBadge = config.name === 'Messages' && unreadCount > 0;
+
+            if (isFAB) {
+              return (
+                <Animated.View
+                  key={route.key}
+                  style={[
+                    styles.fabWrapper,
+                    { transform: [{ scale: scaleValues[index] }] },
+                  ]}
+                >
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={onPress}
+                    onPressIn={() => handlePressIn(index)}
+                    onPressOut={() => handlePressOut(index)}
+                    style={[styles.fabButton, { backgroundColor: theme.primary }]}
+                  >
+                    <Ionicons name="add" size={28} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </Animated.View>
+              );
+            }
+
+            return (
+              <Animated.View
+                key={route.key}
+                style={{ transform: [{ scale: scaleValues[index] }] }}
+              >
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={onPress}
+                  onPressIn={() => handlePressIn(index)}
+                  onPressOut={() => handlePressOut(index)}
+                  style={styles.tabItem}
+                >
+                  <View style={styles.tabIconContainer}>
+                    <Ionicons
+                      name={isFocused ? config.iconActive : config.iconInactive}
+                      size={22}
+                      color={isFocused ? theme.primary : theme.textMuted}
+                    />
+                    {/* Dot indicator pour le tab actif */}
+                    {isFocused && (
+                      <View style={[styles.activeDot, { backgroundColor: theme.primary }]} />
+                    )}
+                    {/* Badge notifications */}
+                    {showBadge && (
+                      <View style={[styles.badge, { backgroundColor: theme.error }]}>
+                        {/* Dot minimaliste (pas de nombre) */}
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              </Animated.View>
+            );
+          })}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────
+// Barre de navigation principale (Tabs)
+// ─────────────────────────────────────────────
+
+function MainTabs() {
+  const { user } = useAuth();
 
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap = 'home';
-
-          if (route.name === 'Accueil') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Recherche') {
-            iconName = focused ? 'search' : 'search-outline';
-          } else if (route.name === 'Publier') {
-            iconName = focused ? 'add-circle' : 'add-circle-outline';
-          } else if (route.name === 'Messages') {
-            iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
-          } else if (route.name === 'Profil') {
-            iconName = focused ? 'person' : 'person-outline';
-          }
-
-          return <Ionicons name={iconName} size={size} color={color} />;
-        },
-        tabBarActiveTintColor: theme.primary,
-        tabBarInactiveTintColor: theme.textMuted,
-        tabBarLabelStyle: {
-          fontSize: FONTS.xs,
-          fontWeight: FONTS.medium,
-          marginTop: -2,
-        },
-        tabBarStyle: {
-          backgroundColor: theme.surface,
-          borderTopWidth: 0,
-          height: (Platform.OS === 'ios' ? 88 : 65) + bottomInset,
-          paddingBottom: (Platform.OS === 'ios' ? 28 : 10) + bottomInset,
-          paddingTop: 8,
-          ...SHADOWS.md,
-        },
-      })}
+      tabBar={(props) => <FloatingTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
     >
       <Tab.Screen name="Accueil" component={HomeStack} />
       <Tab.Screen name="Recherche" component={SearchStack} />
@@ -187,36 +320,17 @@ function MainTabs() {
             }
           },
         })}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <View style={[styles.publishButton, { backgroundColor: theme.primary }]}>
-              <Ionicons name="add" size={28} color={theme.textInverse} />
-            </View>
-          ),
-          tabBarLabel: () => null,
-        }}
       />
-      <Tab.Screen
-        name="Messages"
-        component={MessagesStack}
-        options={{
-          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
-          tabBarBadgeStyle: {
-            backgroundColor: theme.primary,
-            fontSize: 10,
-            fontWeight: '700',
-            minWidth: 18,
-            height: 18,
-            lineHeight: 18,
-          },
-        }}
-      />
+      <Tab.Screen name="Messages" component={MessagesStack} />
       <Tab.Screen name="Profil" component={ProfileStack} />
     </Tab.Navigator>
   );
 }
 
+// ─────────────────────────────────────────────
 // Root Navigator
+// ─────────────────────────────────────────────
+
 export default function AppNavigator() {
   const { isDark } = useTheme();
   const { session, isLoading } = useAuth();
@@ -259,11 +373,11 @@ export default function AppNavigator() {
     ...DarkTheme,
     colors: {
       ...DarkTheme.colors,
-      background: '#0F172A',
-      card: '#1E293B',
-      text: '#F8FAFC',
-      border: '#334155',
-      primary: '#16a34a',
+      background: '#0A0F1A',
+      card: '#141B2D',
+      text: '#F9FAFB',
+      border: '#1E293B',
+      primary: '#34D399',
     },
   };
 
@@ -271,11 +385,11 @@ export default function AppNavigator() {
     ...DefaultTheme,
     colors: {
       ...DefaultTheme.colors,
-      background: '#FAFBFD',
+      background: '#FAFBFC',
       card: '#FFFFFF',
-      text: '#1A1D26',
-      border: '#E8ECF1',
-      primary: '#15803d',
+      text: '#111827',
+      border: '#E5E7EB',
+      primary: '#059669',
     },
   };
 
@@ -373,15 +487,79 @@ export default function AppNavigator() {
   );
 }
 
+// ─────────────────────────────────────────────
+// 🎨 Styles
+// ─────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  publishButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: COLORS.primary,
+  // Floating Tab Bar
+  floatingBarContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+  },
+  floatingBar: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: RADIUS.xl,
+    overflow: 'hidden',
+    borderWidth: 1,
+    ...SHADOWS.lg,
+  },
+  floatingBarContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
+  },
+
+  // Tab items
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    minWidth: 48,
+    minHeight: 48,
+  },
+  tabIconContainer: {
+    position: 'relative',
+    alignItems: 'center',
+  },
+  activeDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    marginTop: 4,
+  },
+
+  // Badge
+  badge: {
+    position: 'absolute',
+    top: -3,
+    right: -6,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+
+  // FAB (Floating Action Button)
+  fabWrapper: {
+    marginTop: -22,
+    alignItems: 'center',
+  },
+  fabButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: -15,
     ...SHADOWS.colored,
   },
 });

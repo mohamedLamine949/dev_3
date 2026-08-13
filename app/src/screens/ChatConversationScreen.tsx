@@ -15,7 +15,7 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { FONTS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '../constants/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase, Message } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -26,172 +26,6 @@ function formatTime(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
-
-const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.md,
-    backgroundColor: theme.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.borderLight,
-    gap: SPACING.md,
-  },
-  headerInfo: {
-    flex: 1,
-  },
-  headerContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-  },
-  headerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.surfaceMuted,
-  },
-  headerAvatarPlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.surfaceMuted,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerAvatarInitial: {
-    fontSize: FONTS.md,
-    fontWeight: FONTS.bold,
-    color: theme.primary,
-  },
-  headerTitle: {
-    fontSize: FONTS.md,
-    fontWeight: FONTS.bold,
-    color: theme.textPrimary,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: theme.textMuted,
-    fontWeight: FONTS.medium,
-  },
-  headerSubtitleOnline: {
-    color: theme.primary,
-  },
-  messagesList: {
-    padding: SPACING.lg,
-  },
-  messageRow: {
-    flexDirection: 'row',
-    marginBottom: SPACING.md,
-    justifyContent: 'flex-start',
-  },
-  messageRowMe: {
-    justifyContent: 'flex-end',
-  },
-  messageBubble: {
-    maxWidth: '80%',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.xl,
-  },
-  bubbleMe: {
-    backgroundColor: theme.primary,
-    borderBottomRightRadius: 4,
-  },
-  bubbleOther: {
-    backgroundColor: theme.surfaceMuted,
-    borderBottomLeftRadius: 4,
-  },
-  messageText: {
-    fontSize: FONTS.md,
-    lineHeight: 20,
-    color: theme.textPrimary,
-  },
-  messageTextMe: {
-    color: '#fff',
-  },
-  messageFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginTop: 4,
-    gap: 4,
-  },
-  messageTime: {
-    fontSize: 10,
-    color: theme.textMuted,
-  },
-  messageTimeMe: {
-    color: 'rgba(255,255,255,0.7)',
-  },
-  inputArea: {
-    backgroundColor: theme.surface,
-    borderTopWidth: 1,
-    borderTopColor: theme.borderLight,
-    paddingBottom: Platform.OS === 'ios' ? 30 : SPACING.lg,
-  },
-  quickReplies: {
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.borderLight,
-  },
-  quickReplyChip: {
-    backgroundColor: theme.surfaceMuted,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 8,
-    borderRadius: RADIUS.full,
-    marginRight: SPACING.sm,
-    borderWidth: 1,
-    borderColor: theme.borderLight,
-  },
-  quickReplyText: {
-    fontSize: 13,
-    color: theme.textSecondary,
-    fontWeight: FONTS.medium,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.md,
-    gap: SPACING.md,
-  },
-  textInputContainer: {
-    flex: 1,
-    backgroundColor: theme.surfaceMuted,
-    borderRadius: RADIUS.full,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 5,
-    borderWidth: 1,
-    borderColor: theme.borderLight,
-  },
-  textInput: {
-    fontSize: FONTS.md,
-    color: theme.textPrimary,
-    maxHeight: 100,
-  },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: theme.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...SHADOWS.sm,
-  },
-  sendButtonDisabled: {
-    backgroundColor: theme.textMuted,
-    opacity: 0.5,
-  },
-});
 
 export default function ChatConversationScreen({ route, navigation }: any) {
   const { conversationId: initialConvId, vendeurId, annonceId, interlocuteur } = route.params || {};
@@ -214,7 +48,6 @@ export default function ChatConversationScreen({ route, navigation }: any) {
   
   const { messages, loading, sendMessage } = useChat(activeConversationId, currentUserId);
   const otherOnline = useConversationPresence(activeConversationId, currentUserId);
-  // prefill : message pré-rempli (ex. bouton « Commander » d'une boutique)
   const [inputText, setInputText] = useState(route.params?.prefill || '');
   const flatListRef = useRef<FlatList>(null);
 
@@ -241,8 +74,6 @@ export default function ChatConversationScreen({ route, navigation }: any) {
     initConv();
   }, [initialConvId, vendeurId, annonceId, currentUserId]);
 
-  // Récupère le profil de l'interlocuteur s'il n'a pas été passé en paramètre
-  // (ex : ouverture depuis une notification qui ne connaît que l'id de conversation)
   useEffect(() => {
     if (otherUser || !currentUserId) return;
     let cancelled = false;
@@ -303,7 +134,7 @@ export default function ChatConversationScreen({ route, navigation }: any) {
               <Ionicons
                 name={item.lu ? 'checkmark-done' : 'checkmark'}
                 size={14}
-                color={item.lu ? '#fff' : 'rgba(255,255,255,0.5)'}
+                color={item.lu ? '#fff' : 'rgba(255,255,255,0.6)'}
               />
             )}
           </View>
@@ -321,10 +152,6 @@ export default function ChatConversationScreen({ route, navigation }: any) {
   }
 
   return (
-    // 'padding' sur les deux plateformes : contrairement à 'height', il ne
-    // compense que le chevauchement réellement mesuré avec le clavier, donc il
-    // fonctionne avec l'edge-to-edge Android que la fenêtre soit redimensionnée
-    // ou non ('height' laissait le clavier cacher la saisie).
     <KeyboardAvoidingView
       style={styles.container}
       behavior="padding"
@@ -332,8 +159,8 @@ export default function ChatConversationScreen({ route, navigation }: any) {
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.surface} />
 
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={theme.textPrimary} />
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+          <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.headerContent}
@@ -345,17 +172,20 @@ export default function ChatConversationScreen({ route, navigation }: any) {
             }
           }}
         >
-          {otherUser?.avatar_url ? (
-            <Image source={{ uri: otherUser.avatar_url }} style={styles.headerAvatar} />
-          ) : (
-            <View style={styles.headerAvatarPlaceholder}>
-              {otherUserName ? (
-                <Text style={styles.headerAvatarInitial}>{otherUserName[0].toUpperCase()}</Text>
-              ) : (
-                <Ionicons name="person" size={20} color={theme.textMuted} />
-              )}
-            </View>
-          )}
+          <View style={{ position: 'relative' }}>
+            {otherUser?.avatar_url ? (
+              <Image source={{ uri: otherUser.avatar_url }} style={styles.headerAvatar} />
+            ) : (
+              <View style={styles.headerAvatarPlaceholder}>
+                {otherUserName ? (
+                  <Text style={styles.headerAvatarInitial}>{otherUserName[0].toUpperCase()}</Text>
+                ) : (
+                  <Ionicons name="person" size={18} color={theme.primary} />
+                )}
+              </View>
+            )}
+            {otherOnline && <View style={styles.onlineDot} />}
+          </View>
           <View style={styles.headerInfo}>
             <Text style={styles.headerTitle} numberOfLines={1}>
               {otherUserName || titreAnnonce || 'Conversation'}
@@ -382,7 +212,7 @@ export default function ChatConversationScreen({ route, navigation }: any) {
       <View style={styles.inputArea}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickReplies}>
           {QUICK_REPLIES.map((reply, idx) => (
-            <TouchableOpacity key={idx} style={styles.quickReplyChip} onPress={() => handleSend(reply)}>
+            <TouchableOpacity key={idx} style={styles.quickReplyChip} onPress={() => handleSend(reply)} activeOpacity={0.7}>
               <Text style={styles.quickReplyText}>{reply}</Text>
             </TouchableOpacity>
           ))}
@@ -403,11 +233,205 @@ export default function ChatConversationScreen({ route, navigation }: any) {
             style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]} 
             onPress={() => handleSend()}
             disabled={!inputText.trim()}
+            activeOpacity={0.8}
           >
-            <Ionicons name="send" size={20} color="#fff" />
+            <Ionicons name="send" size={18} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
     </KeyboardAvoidingView>
   );
 }
+
+const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.md,
+    backgroundColor: theme.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.borderLight,
+    gap: SPACING.md,
+    ...SHADOWS.sm,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: theme.surfaceMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  headerContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  headerAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: theme.surfaceMuted,
+  },
+  headerAvatarPlaceholder: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: theme.primaryFaded,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerAvatarInitial: {
+    fontSize: FONTS.md,
+    fontWeight: FONTS.bold,
+    color: theme.primary,
+  },
+  onlineDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#10B981',
+    borderWidth: 2,
+    borderColor: theme.surface,
+  },
+  headerTitle: {
+    fontSize: FONTS.md,
+    fontWeight: FONTS.bold,
+    color: theme.textPrimary,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: theme.textMuted,
+    fontWeight: FONTS.medium,
+  },
+  headerSubtitleOnline: {
+    color: theme.primary,
+    fontWeight: FONTS.semibold,
+  },
+  messagesList: {
+    padding: SPACING.lg,
+    paddingBottom: SPACING.xl,
+  },
+  messageRow: {
+    flexDirection: 'row',
+    marginBottom: SPACING.md,
+    justifyContent: 'flex-start',
+  },
+  messageRowMe: {
+    justifyContent: 'flex-end',
+  },
+  messageBubble: {
+    maxWidth: '80%',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.lg,
+  },
+  bubbleMe: {
+    backgroundColor: theme.primary,
+    borderBottomRightRadius: RADIUS.xs,
+    ...SHADOWS.colored,
+  },
+  bubbleOther: {
+    backgroundColor: theme.surface,
+    borderBottomLeftRadius: RADIUS.xs,
+    borderWidth: isDark ? 1 : 0,
+    borderColor: theme.borderLight,
+    ...SHADOWS.sm,
+  },
+  messageText: {
+    fontSize: FONTS.md,
+    lineHeight: 22,
+    color: theme.textPrimary,
+  },
+  messageTextMe: {
+    color: '#FFFFFF',
+  },
+  messageFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 4,
+    gap: 4,
+  },
+  messageTime: {
+    fontSize: 10,
+    color: theme.textMuted,
+  },
+  messageTimeMe: {
+    color: 'rgba(255,255,255,0.75)',
+  },
+  inputArea: {
+    backgroundColor: theme.surface,
+    borderTopWidth: 1,
+    borderTopColor: theme.borderLight,
+    paddingBottom: Platform.OS === 'ios' ? 30 : SPACING.lg,
+  },
+  quickReplies: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm + 2,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.borderLight,
+  },
+  quickReplyChip: {
+    backgroundColor: theme.surfaceMuted,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 7,
+    borderRadius: RADIUS.full,
+    marginRight: SPACING.sm,
+    borderWidth: 1,
+    borderColor: theme.borderLight,
+  },
+  quickReplyText: {
+    fontSize: 12,
+    color: theme.textSecondary,
+    fontWeight: FONTS.medium,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    gap: SPACING.md,
+  },
+  textInputContainer: {
+    flex: 1,
+    backgroundColor: theme.surfaceMuted,
+    borderRadius: RADIUS.xl,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+    borderWidth: 1,
+    borderColor: theme.borderLight,
+  },
+  textInput: {
+    fontSize: FONTS.md,
+    color: theme.textPrimary,
+    maxHeight: 100,
+  },
+  sendButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...SHADOWS.colored,
+  },
+  sendButtonDisabled: {
+    backgroundColor: theme.textMuted,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+});
