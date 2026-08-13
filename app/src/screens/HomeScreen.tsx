@@ -51,6 +51,8 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diff / 604800)}sem`;
 }
 
+import { hapticLight, hapticMedium } from '../lib/haptics';
+
 // Couleur de fond pour les cercles catégorie
 const CAT_CIRCLE_COLORS: Record<string, string> = {
   telephonie_electronique: '#3B82F6',
@@ -72,6 +74,7 @@ function PressableCard({ children, style, onPress }: { children: React.ReactNode
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
+    hapticLight();
     Animated.spring(scaleAnim, {
       toValue: 0.96,
       useNativeDriver: true,
@@ -113,6 +116,7 @@ function FavoriteButton({ isFavorite, onPress }: { isFavorite: boolean; onPress:
   const { theme } = useTheme();
 
   const handlePress = () => {
+    hapticMedium();
     Animated.sequence([
       Animated.spring(scaleAnim, { toValue: 1.35, useNativeDriver: true, speed: 50, bounciness: 12 }),
       Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 8 }),

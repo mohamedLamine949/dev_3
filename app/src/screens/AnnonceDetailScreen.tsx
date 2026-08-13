@@ -28,6 +28,7 @@ import { toggleFavori } from '../hooks/useFavoris';
 import ReportModal from '../components/ReportModal';
 import { useTheme } from '../contexts/ThemeContext';
 import { addToRecent } from '../lib/recentStorage';
+import { hapticMedium } from '../lib/haptics';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -103,6 +104,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
 
   const handleToggleFavori = async () => {
     if (!session) { navigation.navigate('Login'); return; }
+    hapticMedium();
     Animated.sequence([
       Animated.spring(favScale, { toValue: 1.4, useNativeDriver: true, speed: 50, bounciness: 12 }),
       Animated.spring(favScale, { toValue: 1, useNativeDriver: true, speed: 50, bounciness: 8 }),

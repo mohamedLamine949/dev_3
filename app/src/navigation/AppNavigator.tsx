@@ -52,6 +52,8 @@ import TermsModal from '../components/TermsModal';
 import NotificationManager from '../components/NotificationManager';
 import DeviceIdSync from '../components/DeviceIdSync';
 
+import { hapticLight, hapticMedium } from '../lib/haptics';
+
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
@@ -164,6 +166,7 @@ function FloatingTabBar({ state, descriptors, navigation }: any) {
   ).current;
 
   const handlePressIn = (index: number) => {
+    hapticLight();
     Animated.spring(scaleValues[index], {
       toValue: 0.85,
       useNativeDriver: true,
