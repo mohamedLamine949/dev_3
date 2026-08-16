@@ -12,10 +12,11 @@ import {
   Animated,
   StatusBar,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, SUBCATEGORIES, TYPOGRAPHY } from '../constants/theme';
-import { useAnnonces } from '../hooks/useAnnonces';
+import { useAnnonces, ANNONCES_PAGE_SIZE } from '../hooks/useAnnonces';
 import { Annonce } from '../lib/supabase';
 import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
 import { useAuth } from '../contexts/AuthContext';
@@ -178,10 +179,13 @@ export default function HomeScreen({ navigation }: Props) {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  const { annonces, loading, error, refetch } = useAnnonces({
+  const { annonces, loading, loadingMore, hasMore, error, refetch, loadMore } = useAnnonces({
     categorie: selectedCategory,
     sousCategorie: selectedSousCategorie,
     search: debouncedSearch,
+    // Le fil chargeait toutes les annonces actives d'un coup : on charge par
+    // paquets de 20, la suite arrive au scroll.
+    pageSize: ANNONCES_PAGE_SIZE,
   });
   const { location } = useLocation();
   const { session, user } = useAuth();
@@ -562,6 +566,24 @@ export default function HomeScreen({ navigation }: Props) {
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.6}
+          // Fenêtre de rendu resserrée : par défaut la FlatList monte
+          // plusieurs écrans de cartes d'avance, donc autant d'images
+          // téléchargées avant même d'être vues.
+          initialNumToRender={6}
+          maxToRenderPerBatch={6}
+          windowSize={5}
+          removeClippedSubviews
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator size="small" color={theme.primary} />
+              </View>
+            ) : !hasMore && annonces.length > 0 ? (
+              <Text style={styles.footerEndText}>Vous avez tout vu</Text>
+            ) : null
+          }
           refreshControl={
             <RefreshControl
               refreshing={loading}
@@ -595,6 +617,16 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.background,
+  },
+  footerLoader: {
+    paddingVertical: SPACING.xl,
+    alignItems: 'center',
+  },
+  footerEndText: {
+    paddingVertical: SPACING.xl,
+    textAlign: 'center',
+    fontSize: FONTS.sm,
+    color: theme.textMuted,
   },
   listContainer: {
     paddingHorizontal: SPACING.lg,

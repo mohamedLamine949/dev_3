@@ -14,7 +14,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
+import { pickImages } from '../lib/imagePicker';
+import { UPLOAD_CACHE_CONTROL } from '../lib/imageOptimizer';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, SUBCATEGORIES, ETAT_ARTICLE } from '../constants/theme';
@@ -60,15 +61,13 @@ export default function EditAnnonceScreen({ route, navigation }: Props) {
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'] as any,
+    const assets = await pickImages({
       allowsMultipleSelection: true,
-      quality: 0.7,
       selectionLimit: MAX_IMAGES - images.length,
     });
 
-    if (!result.canceled) {
-      const newImages = result.assets.map((a) => a.uri);
+    if (assets) {
+      const newImages = assets.map((a) => a.uri);
       setImages([...images, ...newImages].slice(0, MAX_IMAGES));
     }
   };
@@ -129,7 +128,8 @@ export default function EditAnnonceScreen({ route, navigation }: Props) {
             .from('annonces-images')
             .upload(fileName, decode(base64), { 
               contentType: 'image/jpeg',
-              upsert: true
+              upsert: true,
+              cacheControl: UPLOAD_CACHE_CONTROL,
             });
 
           if (uploadError) {

@@ -1,8 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, Annonce, ImageAnnonce } from '../lib/supabase';
 import { scoreAnnonce } from '../lib/relevance';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
+import { UPLOAD_CACHE_CONTROL } from '../lib/imageOptimizer';
+
+/** Nombre d'annonces chargées par page sur les listes paginées. */
+export const ANNONCES_PAGE_SIZE = 20;
 
 /**
  * Hook pour récupérer les annonces actives avec filtrage
@@ -12,6 +16,12 @@ export function useAnnonces(options?: {
   sousCategorie?: string | null;
   search?: string;
   limit?: number;
+  /**
+   * Active la pagination : la liste démarre avec `pageSize` annonces puis
+   * s'agrandit via `loadMore()`. Sans cette option, tout est chargé d'un coup
+   * (comportement historique, conservé pour la recherche).
+   */
+  pageSize?: number;
   minPrice?: number | null;
   maxPrice?: number | null;
   etat?: string | null;
@@ -19,7 +29,87 @@ export function useAnnonces(options?: {
 }) {
   const [annonces, setAnnonces] = useState<Annonce[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pageRef = useRef(0);
+  const fetchingMoreRef = useRef(false);
+
+  const searchTerm = options?.search?.trim() ?? '';
+  const isSearching = searchTerm.length > 0;
+  const pageSize = options?.pageSize;
+  // La recherche est scorée côté client (pertinence fuzzy) : elle a besoin du
+  // corpus complet, on ne pagine donc pas dans ce cas. Ce sont les images —
+  // virtualisées par la FlatList — qui coûtent cher, pas les lignes.
+  const paginated = !!pageSize && !isSearching;
+
+  const buildQuery = useCallback(() => {
+    let query = supabase
+      .from('annonces')
+      // On joint le type de compte du vendeur pour afficher le badge PRO sur
+      // les cartes (le badge dérive du type_compte : les annonces déjà en
+      // ligne d'un compte pro l'obtiennent automatiquement).
+      .select('*, images:images_annonce(id, image_url, ordre), user:users!annonces_user_id_fkey(type_compte)')
+      .eq('statut', 'active')
+      .eq('est_payee', true);
+
+    // Tri
+    const sort = options?.orderBy || 'newest';
+    if (sort === 'newest') {
+      query = query.order('date_creation', { ascending: false });
+    } else if (sort === 'price_asc') {
+      query = query.order('prix', { ascending: true });
+    } else if (sort === 'price_desc') {
+      query = query.order('prix', { ascending: false });
+    }
+
+    if (options?.categorie) {
+      query = query.eq('categorie', options.categorie);
+    }
+
+    if (options?.sousCategorie) {
+      query = query.eq('sous_categorie', options.sousCategorie);
+    }
+
+    // La recherche textuelle est effectuée côté client pour être plus flexible (pertinence fuzzy)
+
+    if (options?.minPrice !== undefined && options?.minPrice !== null) {
+      query = query.gte('prix', options.minPrice);
+    }
+
+    if (options?.maxPrice !== undefined && options?.maxPrice !== null) {
+      query = query.lte('prix', options.maxPrice);
+    }
+
+    if (options?.etat) {
+      query = query.eq('etat_article', options.etat);
+    }
+
+    // `limit` et `range` ne se combinent pas : en mode paginé c'est `range`
+    // qui découpe le résultat.
+    if (options?.limit && !paginated) {
+      query = query.limit(options.limit);
+    }
+
+    return query;
+  }, [
+    options?.categorie,
+    options?.sousCategorie,
+    options?.limit,
+    options?.minPrice,
+    options?.maxPrice,
+    options?.etat,
+    options?.orderBy,
+    paginated,
+  ]);
+
+  const applySearch = useCallback((rows: Annonce[]) => {
+    if (!isSearching) return rows;
+    return rows
+      .map(a => ({ ...a, searchScore: scoreAnnonce(searchTerm, a) }))
+      .filter(a => (a as any).searchScore > 0)
+      .sort((a, b) => (b as any).searchScore - (a as any).searchScore);
+  }, [isSearching, searchTerm]);
 
   const fetchAnnonces = useCallback(async () => {
     let timedOut = false;
@@ -34,49 +124,9 @@ export function useAnnonces(options?: {
       setLoading(true);
       setError(null);
 
-      let query = supabase
-        .from('annonces')
-        // On joint le type de compte du vendeur pour afficher le badge PRO sur
-        // les cartes (le badge dérive du type_compte : les annonces déjà en
-        // ligne d'un compte pro l'obtiennent automatiquement).
-        .select('*, images:images_annonce(id, image_url, ordre), user:users!annonces_user_id_fkey(type_compte)')
-        .eq('statut', 'active')
-        .eq('est_payee', true);
-
-      // Tri
-      const sort = options?.orderBy || 'newest';
-      if (sort === 'newest') {
-        query = query.order('date_creation', { ascending: false });
-      } else if (sort === 'price_asc') {
-        query = query.order('prix', { ascending: true });
-      } else if (sort === 'price_desc') {
-        query = query.order('prix', { ascending: false });
-      }
-
-      if (options?.categorie) {
-        query = query.eq('categorie', options.categorie);
-      }
-
-      if (options?.sousCategorie) {
-        query = query.eq('sous_categorie', options.sousCategorie);
-      }
-
-      // La recherche textuelle est effectuée côté client pour être plus flexible (pertinence fuzzy)
-
-      if (options?.minPrice !== undefined && options?.minPrice !== null) {
-        query = query.gte('prix', options.minPrice);
-      }
-
-      if (options?.maxPrice !== undefined && options?.maxPrice !== null) {
-        query = query.lte('prix', options.maxPrice);
-      }
-
-      if (options?.etat) {
-        query = query.eq('etat_article', options.etat);
-      }
-
-      if (options?.limit) {
-        query = query.limit(options.limit);
+      let query = buildQuery();
+      if (paginated) {
+        query = query.range(0, pageSize! - 1);
       }
 
       const { data, error: fetchError } = await query;
@@ -88,21 +138,13 @@ export function useAnnonces(options?: {
         console.error('❌ Supabase error:', JSON.stringify(fetchError));
         throw fetchError;
       }
-      
-      console.log('✅ Annonces reçues:', data?.length ?? 0);
-      if (data && data.length > 0) {
-        console.log('📸 [DEBUG] Première annonce - images:', JSON.stringify(data[0].images));
-      }
 
-      let finalData = (data as Annonce[]) || [];
-      if (options?.search && options.search.trim().length > 0) {
-        finalData = finalData
-          .map(a => ({ ...a, searchScore: scoreAnnonce(options.search!, a) }))
-          .filter(a => (a as any).searchScore > 0)
-          .sort((a, b) => (b as any).searchScore - (a as any).searchScore);
-      }
+      const rows = (data as Annonce[]) || [];
+      console.log('✅ Annonces reçues:', rows.length);
 
-      setAnnonces(finalData);
+      pageRef.current = 1;
+      setHasMore(paginated && rows.length === pageSize);
+      setAnnonces(applySearch(rows));
     } catch (err: any) {
       if (timedOut) return;
       clearTimeout(timeoutId);
@@ -111,13 +153,46 @@ export function useAnnonces(options?: {
     } finally {
       if (!timedOut) setLoading(false);
     }
-  }, [options?.categorie, options?.sousCategorie, options?.search, options?.limit, options?.minPrice, options?.maxPrice, options?.etat, options?.orderBy]);
+  }, [buildQuery, applySearch, paginated, pageSize]);
+
+  /**
+   * Charge la page suivante et l'ajoute à la liste. Sans effet si la
+   * pagination est désactivée, si tout est déjà chargé, ou si un chargement
+   * est déjà en cours (la FlatList peut déclencher onEndReached en rafale).
+   */
+  const loadMore = useCallback(async () => {
+    if (!paginated || !hasMore || loading || fetchingMoreRef.current) return;
+
+    fetchingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      const from = pageRef.current * pageSize!;
+      const { data, error: fetchError } = await buildQuery().range(from, from + pageSize! - 1);
+      if (fetchError) throw fetchError;
+
+      const rows = (data as Annonce[]) || [];
+      pageRef.current += 1;
+      setHasMore(rows.length === pageSize);
+
+      // Dédoublonnage : une annonce publiée entre deux pages décale le
+      // classement et peut faire réapparaître une ligne déjà affichée.
+      setAnnonces(prev => {
+        const seen = new Set(prev.map(a => a.id));
+        return [...prev, ...rows.filter(a => !seen.has(a.id))];
+      });
+    } catch (err) {
+      console.error('Erreur loadMore annonces:', err);
+    } finally {
+      fetchingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [buildQuery, paginated, hasMore, loading, pageSize]);
 
   useEffect(() => {
     fetchAnnonces();
   }, [fetchAnnonces]);
 
-  return { annonces, loading, error, refetch: fetchAnnonces };
+  return { annonces, loading, loadingMore, hasMore, error, refetch: fetchAnnonces, loadMore };
 }
 
 /**
@@ -198,7 +273,11 @@ export async function createAnnonce(
             .from('annonces-images')
             .upload(fileName, decode(base64), { 
               contentType: 'image/jpeg',
-              upsert: true
+              upsert: true,
+              // Cache CDN 1 an : sans ça Supabase applique max-age=3600 et la
+              // même photo est re-téléchargée toutes les heures par chaque
+              // utilisateur (première cause de l'egress).
+              cacheControl: UPLOAD_CACHE_CONTROL,
             });
 
           if (uploadError) {

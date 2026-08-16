@@ -15,6 +15,7 @@ import { useAppConfig } from '../hooks/useAppConfig';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import { getEffectivePlanKey, isSubscriptionExpired, subscriptionExpiryDate } from '../lib/subscription';
 import { pickImages } from '../lib/imagePicker';
+import { IMAGE_SIZES, UPLOAD_CACHE_CONTROL } from '../lib/imageOptimizer';
 import { decode } from 'base64-arraybuffer';
 
 const { width: W } = Dimensions.get('window');
@@ -243,7 +244,7 @@ export default function ProfileScreen({ navigation }: Props) {
   };
 
   const pickImage = async () => {
-    const assets = await pickImages({ allowsEditing: true, aspect: [1, 1], base64: true });
+    const assets = await pickImages({ allowsEditing: true, aspect: [1, 1], base64: true }, { maxSize: IMAGE_SIZES.avatar });
     if (assets && assets[0].base64) {
       setEditAvatarUri(assets[0].uri);
       setEditAvatarBase64(assets[0].base64);
@@ -252,14 +253,14 @@ export default function ProfileScreen({ navigation }: Props) {
 
   const handleAvatarPress = async () => {
     if (!session) return;
-    const assets = await pickImages({ allowsEditing: true, aspect: [1, 1], base64: true });
+    const assets = await pickImages({ allowsEditing: true, aspect: [1, 1], base64: true }, { maxSize: IMAGE_SIZES.avatar });
     if (!assets || !assets[0].base64) return;
     try {
       setIsUploadingAvatar(true);
-      const filePath = `${session.user.id}/avatar.png`;
+      const filePath = `${session.user.id}/avatar.jpg`;
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, decode(assets[0].base64), { contentType: 'image/png', upsert: true });
+        .upload(filePath, decode(assets[0].base64), { contentType: 'image/jpeg', upsert: true, cacheControl: UPLOAD_CACHE_CONTROL });
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
       const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
@@ -277,14 +278,14 @@ export default function ProfileScreen({ navigation }: Props) {
 
   const handleBannerPress = async () => {
     if (!session) return;
-    const assets = await pickImages({ allowsEditing: true, aspect: [16, 9], base64: true });
+    const assets = await pickImages({ allowsEditing: true, aspect: [16, 9], base64: true }, { maxSize: IMAGE_SIZES.banniere });
     if (!assets || !assets[0].base64) return;
     try {
       setIsUploadingBanner(true);
-      const filePath = `${session.user.id}/banner.png`;
+      const filePath = `${session.user.id}/banner.jpg`;
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, decode(assets[0].base64), { contentType: 'image/png', upsert: true });
+        .upload(filePath, decode(assets[0].base64), { contentType: 'image/jpeg', upsert: true, cacheControl: UPLOAD_CACHE_CONTROL });
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
       const banniereUrl = `${data.publicUrl}?t=${Date.now()}`;
@@ -306,12 +307,13 @@ export default function ProfileScreen({ navigation }: Props) {
       
       let avatarUrlToSave = user?.avatar_url || null;
       if (editAvatarBase64) {
-        const filePath = `${userId}/avatar.png`;
+        const filePath = `${userId}/avatar.jpg`;
         const { error: uploadError } = await supabase.storage
           .from('avatars')
           .upload(filePath, decode(editAvatarBase64), { 
-            contentType: 'image/png', 
-            upsert: true 
+            contentType: 'image/jpeg', 
+            upsert: true,
+            cacheControl: UPLOAD_CACHE_CONTROL,
           });
 
         if (uploadError) {
@@ -324,12 +326,13 @@ export default function ProfileScreen({ navigation }: Props) {
 
       let banniereUrlToSave = user?.banniere_url || null;
       if (editBanniereBase64) {
-        const filePath = `${userId}/banner.png`;
+        const filePath = `${userId}/banner.jpg`;
         const { error: uploadError } = await supabase.storage
           .from('avatars')
           .upload(filePath, decode(editBanniereBase64), { 
-            contentType: 'image/png', 
-            upsert: true 
+            contentType: 'image/jpeg', 
+            upsert: true,
+            cacheControl: UPLOAD_CACHE_CONTROL,
           });
 
         if (uploadError) {
@@ -348,12 +351,13 @@ export default function ProfileScreen({ navigation }: Props) {
           const uri = editImagesBusiness[i];
           const base64 = editImagesBusinessBase64[i];
           if (base64) {
-            const filePath = `${userId}/business_${i}.png`;
+            const filePath = `${userId}/business_${i}.jpg`;
             const { error: uploadError } = await supabase.storage
               .from('avatars')
               .upload(filePath, decode(base64), { 
-                contentType: 'image/png', 
-                upsert: true 
+                contentType: 'image/jpeg', 
+                upsert: true,
+                cacheControl: UPLOAD_CACHE_CONTROL,
               });
             if (uploadError) {
               throw new Error(`Erreur lors de l'upload de la photo business ${i+1}: ${uploadError.message}`);
@@ -1041,7 +1045,7 @@ export default function ProfileScreen({ navigation }: Props) {
                   <TouchableOpacity
                     style={styles.modalBannerSelector}
                     onPress={async () => {
-                      const assets = await pickImages({ allowsEditing: true, aspect: [16, 9], base64: true });
+                      const assets = await pickImages({ allowsEditing: true, aspect: [16, 9], base64: true }, { maxSize: IMAGE_SIZES.banniere });
                       if (assets && assets[0].base64) {
                         setEditBanniereUri(assets[0].uri);
                         setEditBanniereBase64(assets[0].base64);
