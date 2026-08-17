@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { navigationRef } from './navigationRef';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -153,6 +153,10 @@ const TAB_CONFIG: TabConfig[] = [
   { name: 'Profil', iconActive: 'person', iconInactive: 'person-outline' },
 ];
 
+// Ecrans plein ecran ayant leur propre barre d'action collee en bas :
+// la tab bar flottante la recouvrirait (CTA "Contacter le vendeur", champ de saisie du chat).
+const HIDE_TAB_BAR_ON = ['AnnonceDetail', 'ChatConversation'];
+
 function FloatingTabBar({ state, descriptors, navigation }: any) {
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
@@ -184,6 +188,13 @@ function FloatingTabBar({ state, descriptors, navigation }: any) {
   };
 
   const bottomPadding = Platform.OS === 'ios' ? Math.max(insets.bottom - 8, 8) : 12;
+
+  // Masquer la barre sur les ecrans qui ont deja un CTA colle en bas
+  const focusedRoute = state.routes[state.index];
+  const nestedRouteName = getFocusedRouteNameFromRoute(focusedRoute);
+  if (nestedRouteName && HIDE_TAB_BAR_ON.includes(nestedRouteName)) {
+    return null;
+  }
 
   return (
     <View

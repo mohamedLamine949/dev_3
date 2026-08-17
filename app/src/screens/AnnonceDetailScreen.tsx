@@ -360,6 +360,15 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
 
                 {/* Boutons de contact rapides */}
                 <View style={styles.contactButtons}>
+                  {/* Messagerie interne : toujours proposee, c'est le canal par defaut */}
+                  <TouchableOpacity
+                    style={[styles.contactBtn, { backgroundColor: theme.primary, borderColor: theme.primary }]}
+                    onPress={handleContact}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="chatbubble-ellipses" size={18} color="#FFFFFF" />
+                    <Text style={[styles.contactBtnText, { color: '#FFFFFF' }]}>Message</Text>
+                  </TouchableOpacity>
                   {seller?.telephone && (
                     <TouchableOpacity
                       style={[styles.contactBtn, { backgroundColor: theme.primaryFaded, borderColor: theme.primary }]}
