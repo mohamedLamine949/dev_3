@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BlurView } from 'expo-blur';
 
 import { COLORS, FONTS, RADIUS, SHADOWS, SPACING } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
@@ -204,13 +203,6 @@ function FloatingTabBar({ state, descriptors, navigation }: any) {
             : 'rgba(229, 231, 235, 0.5)',
         },
       ]}>
-        {/* Blur background pour le glassmorphism */}
-        <BlurView
-          intensity={isDark ? 40 : 60}
-          tint={isDark ? 'dark' : 'light'}
-          style={StyleSheet.absoluteFill}
-        />
-
         {/* Tab items */}
         <View style={styles.floatingBarContent}>
           {state.routes.map((route: any, index: number) => {
