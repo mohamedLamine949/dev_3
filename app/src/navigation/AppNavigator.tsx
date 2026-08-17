@@ -500,7 +500,8 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
     borderRadius: RADIUS.xl,
-    overflow: 'hidden',
+    // 'visible' : le FAB deborde vers le haut, il ne doit pas etre rogne
+    overflow: 'visible',
     borderWidth: 1,
     ...SHADOWS.lg,
   },
@@ -548,6 +549,8 @@ const styles = StyleSheet.create({
   fabWrapper: {
     marginTop: -22,
     alignItems: 'center',
+    zIndex: 10,
+    elevation: 10,
   },
   fabButton: {
     width: 56,
