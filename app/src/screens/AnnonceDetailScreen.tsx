@@ -377,63 +377,6 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
                 </TouchableOpacity>
-
-                {/* Boutons de contact rapides */}
-                <View style={styles.contactButtons}>
-                  {/* Messagerie interne : toujours proposee, c'est le canal par defaut */}
-                  <TouchableOpacity
-                    style={[styles.contactBtn, { backgroundColor: theme.primary, borderColor: theme.primary }]}
-                    onPress={handleContact}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="chatbubble-ellipses" size={18} color="#FFFFFF" />
-                    <Text style={[styles.contactBtnText, { color: '#FFFFFF' }]}>Message</Text>
-                  </TouchableOpacity>
-                  {seller?.telephone && (
-                    <TouchableOpacity
-                      style={[styles.contactBtn, { backgroundColor: theme.primaryFaded, borderColor: theme.primary }]}
-                      onPress={() => Linking.openURL(`tel:${seller.telephone}`)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="call-outline" size={18} color={theme.primary} />
-                      <Text style={[styles.contactBtnText, { color: theme.primary }]}>Appeler</Text>
-                    </TouchableOpacity>
-                  )}
-                  {seller?.whatsapp && (
-                    <TouchableOpacity
-                      style={[styles.contactBtn, { backgroundColor: 'rgba(37, 211, 102, 0.1)', borderColor: '#25D366' }]}
-                      onPress={() => Linking.openURL(`https://wa.me/${seller.whatsapp.replace(/[^0-9]/g, '')}`)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
-                      <Text style={[styles.contactBtnText, { color: '#25D366' }]}>WhatsApp</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {/* Réseaux sociaux */}
-                {(seller?.instagram || seller?.tiktok || seller?.facebook) && (
-                  <View style={styles.sellerSocials}>
-                    {seller.instagram && (
-                      <TouchableOpacity onPress={() => Linking.openURL(`https://instagram.com/${seller.instagram.replace('@','')}`)} style={[styles.socialChip, { backgroundColor: 'rgba(225, 48, 108, 0.1)' }]}>
-                        <Ionicons name="logo-instagram" size={14} color="#E1306C" />
-                        <Text style={[styles.socialChipText, { color: '#E1306C' }]}>{seller.instagram}</Text>
-                      </TouchableOpacity>
-                    )}
-                    {seller.tiktok && (
-                      <TouchableOpacity onPress={() => Linking.openURL(`https://tiktok.com/@${seller.tiktok.replace('@','')}`)} style={[styles.socialChip, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(1, 1, 1, 0.08)' }]}>
-                        <Ionicons name="musical-notes-outline" size={14} color={theme.textPrimary} />
-                        <Text style={[styles.socialChipText, { color: theme.textPrimary }]}>{seller.tiktok}</Text>
-                      </TouchableOpacity>
-                    )}
-                    {seller.facebook && (
-                      <TouchableOpacity onPress={() => Linking.openURL(`https://facebook.com/${seller.facebook}`)} style={[styles.socialChip, { backgroundColor: 'rgba(24, 119, 242, 0.1)' }]}>
-                        <Ionicons name="logo-facebook" size={14} color="#1877F2" />
-                        <Text style={[styles.socialChipText, { color: '#1877F2' }]}>{seller.facebook}</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                )}
               </View>
             );
           })()}
