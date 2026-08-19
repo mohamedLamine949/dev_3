@@ -25,6 +25,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../lib/supabase';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { getEffectivePlanKey } from '../lib/subscription';
+import { useTabBarSpace } from '../hooks/useTabBarSpace';
 
 const MAX_IMAGES = 10;
 
@@ -37,6 +38,8 @@ export default function PostAnnonceScreen({ navigation }: any) {
   const { location } = useLocation();
   const { theme, isDark } = useTheme();
   const { paymentsEnabled } = useAppConfig();
+  // La tab bar flottante recouvre le bas de l'ecran : on remonte le CTA au-dessus.
+  const tabBarSpace = useTabBarSpace();
 
   const [images, setImages] = useState<string[]>([]);
   const [titre, setTitre] = useState('');
@@ -645,12 +648,12 @@ export default function PostAnnonceScreen({ navigation }: any) {
             </View>
           )}
 
-          <View style={{ height: 100 }} />
+          <View style={{ height: tabBarSpace + 90 }} />
         </ScrollView>
       </KeyboardAvoidingView>
 
       {/* CTA */}
-      <View style={styles.ctaContainer}>
+      <View style={[styles.ctaContainer, { paddingBottom: tabBarSpace }]}>
         <TouchableOpacity
           style={[styles.ctaButton, !isFormValid && styles.ctaButtonDisabled]}
           onPress={handlePreSubmit}
@@ -913,7 +916,9 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   costDivider: { height: 1, backgroundColor: theme.borderLight, marginVertical: SPACING.md },
   costInfo: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.sm },
   costInfoText: { flex: 1, fontSize: FONTS.sm, color: theme.textMuted, lineHeight: 20 },
-  ctaContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: SPACING.xl, paddingTop: SPACING.lg, paddingBottom: Platform.OS === 'ios' ? 34 : 14, backgroundColor: theme.surface, borderTopWidth: 1, borderTopColor: theme.borderLight },
+  // `paddingBottom` est surcharge a l'usage : le fond descend jusqu'au bord de
+  // l'ecran mais le bouton remonte au-dessus de la tab bar flottante.
+  ctaContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: SPACING.xl, paddingTop: SPACING.lg, paddingBottom: SPACING.lg, backgroundColor: theme.surface, borderTopWidth: 1, borderTopColor: theme.borderLight },
   ctaButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 56, backgroundColor: theme.primary, borderRadius: RADIUS.lg, gap: SPACING.sm, ...SHADOWS.colored },
   ctaButtonDisabled: { backgroundColor: theme.textMuted, shadowOpacity: 0, elevation: 0 },
   ctaText: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.textInverse },

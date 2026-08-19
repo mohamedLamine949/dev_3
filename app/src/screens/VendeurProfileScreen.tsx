@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
   StatusBar, ActivityIndicator, Dimensions, Linking, Modal, Platform,
+  TextInput, KeyboardAvoidingView, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { supabase, Annonce } from '../lib/supabase';
-import { useSellerAvis, Avis } from '../hooks/useAvis';
+import { useSellerAvis, submitAvis, Avis } from '../hooks/useAvis';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import ReportModal from '../components/ReportModal';
+import { sellerDisplayName } from '../lib/seller';
 
 const { width: W } = Dimensions.get('window');
 const CARD_W = (W - SPACING.lg * 2 - SPACING.md) / 2;
@@ -35,8 +37,14 @@ export default function VendeurProfileScreen({ route, navigation }: any) {
   const [annonces, setAnnonces] = useState<Annonce[]>([]);
   const [loadingSeller, setLoadingSeller] = useState(true);
   const [loadingAnnonces, setLoadingAnnonces] = useState(true);
-  const { avis, avgNote, loading: loadingAvis } = useSellerAvis(vendeurId);
+  const { avis, avgNote, loading: loadingAvis, refetch: refetchAvis } = useSellerAvis(vendeurId);
   const [showReportModal, setShowReportModal] = useState(false);
+
+  // Avis laisse directement depuis le profil (sans passer par une annonce)
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewNote, setReviewNote] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   // Full-screen image viewer states
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -99,7 +107,7 @@ export default function VendeurProfileScreen({ route, navigation }: any) {
   useEffect(() => {
     supabase
       .from('users')
-      .select('id, prenom, nom, bio, avatar_url, telephone, whatsapp, instagram, tiktok, facebook, type_compte, banniere_url, images_business')
+      .select('id, prenom, nom, nom_boutique, bio, avatar_url, telephone, whatsapp, instagram, tiktok, facebook, type_compte, banniere_url, images_business')
       .eq('id', vendeurId)
       .single()
       .then(({ data }) => {
@@ -122,9 +130,51 @@ export default function VendeurProfileScreen({ route, navigation }: any) {
       });
   }, [vendeurId]);
 
-  const sellerName = seller
-    ? `${seller.prenom || ''} ${seller.nom || ''}`.trim() || 'Vendeur'
-    : 'Vendeur';
+  const sellerName = sellerDisplayName(seller);
+  const isOwnProfile = vendeurId === session?.user?.id;
+  const dejaNote = !!session && avis.some(a => a.auteur_id === session.user.id);
+
+  const handleOpenReview = () => {
+    if (!session) {
+      Alert.alert(
+        'Connexion rapide',
+        'Créez un compte gratuit pour laisser un avis.',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Se connecter', onPress: () => navigation.navigate('Login') },
+        ]
+      );
+      return;
+    }
+    if (dejaNote) {
+      Alert.alert('Avis déjà envoyé', 'Vous avez déjà noté ce vendeur.');
+      return;
+    }
+    setShowReviewModal(true);
+  };
+
+  const handleSubmitReview = async () => {
+    if (!session || reviewNote === 0) return;
+    setSubmittingReview(true);
+    // annonceId null : l'avis porte sur le vendeur, pas sur une annonce precise
+    const { error } = await submitAvis({
+      auteurId: session.user.id,
+      vendeurId,
+      annonceId: null,
+      note: reviewNote,
+      commentaire: reviewComment,
+    });
+    setSubmittingReview(false);
+    if (error) {
+      Alert.alert('Erreur', "Impossible d'envoyer l'avis. Réessayez.");
+      return;
+    }
+    setShowReviewModal(false);
+    setReviewNote(0);
+    setReviewComment('');
+    refetchAvis();
+    Alert.alert('Merci !', 'Votre avis a bien été enregistré.');
+  };
 
   if (loadingSeller) {
     return (
@@ -334,6 +384,21 @@ export default function VendeurProfileScreen({ route, navigation }: any) {
             </>
           )}
 
+          {/* Laisser un avis sur ce vendeur (depuis son profil, sans annonce) */}
+          {!isOwnProfile && (
+            <TouchableOpacity
+              style={styles.reviewBtn}
+              onPress={handleOpenReview}
+              activeOpacity={0.8}
+            >
+              <Ionicons name={dejaNote ? 'checkmark-circle' : 'star-outline'} size={18} color="#F59E0B" />
+              <Text style={styles.reviewBtnText}>
+                {dejaNote ? 'Vous avez noté ce vendeur' : 'Laisser un avis sur ce vendeur'}
+              </Text>
+              {!dejaNote && <Ionicons name="chevron-forward" size={16} color="#F59E0B" />}
+            </TouchableOpacity>
+          )}
+
           {/* Annonces */}
           <Text style={styles.sectionTitle}>
             Annonces ({loadingAnnonces ? '…' : annonces.length})
@@ -427,11 +492,68 @@ export default function VendeurProfileScreen({ route, navigation }: any) {
         </View>
       </Modal>
 
+      {/* Modal avis */}
+      <Modal visible={showReviewModal} transparent animationType="slide" onRequestClose={() => setShowReviewModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHandle} />
+              <Text style={styles.modalTitle}>Laisser un avis</Text>
+              <Text style={styles.modalSubtitle}>Pour {sellerName}</Text>
+
+              <View style={styles.starsRow}>
+                {[1, 2, 3, 4, 5].map(i => (
+                  <TouchableOpacity key={i} onPress={() => setReviewNote(i)} activeOpacity={0.7}>
+                    <Ionicons
+                      name={i <= reviewNote ? 'star' : 'star-outline'}
+                      size={38}
+                      color={i <= reviewNote ? '#F59E0B' : theme.border}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {reviewNote > 0 && (
+                <Text style={styles.noteLabel}>
+                  {['', 'Très mauvais', 'Mauvais', 'Correct', 'Bien', 'Excellent'][reviewNote]}
+                </Text>
+              )}
+
+              <TextInput
+                style={styles.reviewInput}
+                placeholder="Commentaire (facultatif)…"
+                placeholderTextColor={theme.textMuted}
+                value={reviewComment}
+                onChangeText={setReviewComment}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowReviewModal(false)}>
+                  <Text style={styles.modalCancelText}>Annuler</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalSubmitBtn, reviewNote === 0 && { opacity: 0.4 }]}
+                  onPress={handleSubmitReview}
+                  disabled={reviewNote === 0 || submittingReview}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.modalSubmitText}>
+                    {submittingReview ? 'Envoi…' : 'Envoyer'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       <ReportModal
         isVisible={showReportModal}
         onClose={() => setShowReportModal(false)}
         cibleUserId={vendeurId}
-        targetName={seller ? `${seller.prenom || ''} ${seller.nom || ''}`.trim() : 'Vendeur'}
+        targetName={sellerName}
       />
     </View>
   );
@@ -439,6 +561,67 @@ export default function VendeurProfileScreen({ route, navigation }: any) {
 
 const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
+
+  // Bouton "Laisser un avis" + modale (memes reperes visuels que la fiche annonce)
+  reviewBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.08)',
+    borderWidth: 1, borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : 'rgba(245, 158, 11, 0.2)',
+    borderRadius: RADIUS.lg, paddingHorizontal: SPACING.lg, paddingVertical: 14,
+    marginBottom: SPACING.xl,
+  },
+  reviewBtnText: {
+    flex: 1, fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: '#F59E0B',
+  },
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: theme.surface,
+    borderTopLeftRadius: RADIUS.xxl, borderTopRightRadius: RADIUS.xxl,
+    paddingHorizontal: SPACING.xl, paddingBottom: 40, paddingTop: SPACING.lg,
+    alignItems: 'center',
+  },
+  modalHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: theme.border, marginBottom: SPACING.xl,
+  },
+  modalTitle: {
+    fontSize: FONTS.xl, fontWeight: FONTS.extrabold,
+    color: theme.textPrimary, marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: FONTS.sm, color: theme.textMuted, marginBottom: SPACING.xl,
+  },
+  starsRow: {
+    flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.sm,
+  },
+  noteLabel: {
+    fontSize: FONTS.sm, fontWeight: FONTS.semibold,
+    color: '#F59E0B', marginBottom: SPACING.xl,
+  },
+  reviewInput: {
+    width: '100%', height: 90,
+    backgroundColor: theme.surfaceMuted,
+    borderWidth: 1, borderColor: theme.borderLight,
+    borderRadius: RADIUS.lg, padding: SPACING.md,
+    fontSize: FONTS.md, color: theme.textPrimary,
+    marginBottom: SPACING.xl,
+  },
+  modalActions: {
+    flexDirection: 'row', gap: SPACING.md, width: '100%',
+  },
+  modalCancelBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: RADIUS.lg,
+    backgroundColor: theme.surfaceMuted, alignItems: 'center',
+  },
+  modalCancelText: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: theme.textSecondary },
+  modalSubmitBtn: {
+    flex: 2, paddingVertical: 14, borderRadius: RADIUS.lg,
+    backgroundColor: theme.primary, alignItems: 'center',
+  },
+  modalSubmitText: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
 
   // PRO Snapchat style header styles
   proHeaderContainer: {

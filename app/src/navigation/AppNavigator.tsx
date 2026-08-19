@@ -12,13 +12,13 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { COLORS, FONTS, RADIUS, SHADOWS, SPACING } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useUnreadCount } from '../hooks/useChat';
+import { useTabBarBottomPadding } from '../hooks/useTabBarSpace';
 import { DefaultTheme, DarkTheme } from '@react-navigation/native';
 
 // Screens
@@ -159,7 +159,6 @@ const HIDE_TAB_BAR_ON = ['AnnonceDetail', 'ChatConversation'];
 
 function FloatingTabBar({ state, descriptors, navigation }: any) {
   const { theme, isDark } = useTheme();
-  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const unreadCount = useUnreadCount(session?.user?.id);
 
@@ -187,7 +186,7 @@ function FloatingTabBar({ state, descriptors, navigation }: any) {
     }).start();
   };
 
-  const bottomPadding = Platform.OS === 'ios' ? Math.max(insets.bottom - 8, 8) : 12;
+  const bottomPadding = useTabBarBottomPadding();
 
   // Masquer la barre sur les ecrans qui ont deja un CTA colle en bas
   const focusedRoute = state.routes[state.index];

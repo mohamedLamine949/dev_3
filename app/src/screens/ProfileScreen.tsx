@@ -8,6 +8,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { PLANS_CONFIG, COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useTabBarSpace } from '../hooks/useTabBarSpace';
 import { supabase, Annonce } from '../lib/supabase';
 import { useSellerAvis, Avis } from '../hooks/useAvis';
 import { useParrainage } from '../hooks/useParrainage';
@@ -104,6 +105,10 @@ export default function ProfileScreen({ navigation }: Props) {
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
   const viewerScrollViewRef = React.useRef<ScrollView>(null);
+
+  // Reserve la place de la tab bar flottante : sans ca le bas de la page
+  // (programme partenaire, avis) reste sous la barre et inaccessible.
+  const tabBarSpace = useTabBarSpace();
 
   useEffect(() => {
     if (viewerVisible) {
@@ -411,7 +416,10 @@ export default function ProfileScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={theme.primary} />
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: tabBarSpace + SPACING.lg }}
+      >
 
         {/* Header avec bannière et avatar */}
         <View style={[styles.header, user?.type_compte === 'professionnel' && styles.proHeader]}>

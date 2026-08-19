@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useFavorisAnnonces, toggleFavori } from '../hooks/useFavoris';
 
 import { useTheme } from '../contexts/ThemeContext';
+import { useTabBarSpace } from '../hooks/useTabBarSpace';
 
 function formatPrix(prix: number): string {
   if (prix >= 1000000) return (prix / 1000000).toFixed(1) + 'M FCFA';
@@ -21,6 +22,8 @@ export default function FavorisScreen({ navigation }: any) {
   const { annonces, loading, refetch } = useFavorisAnnonces(session?.user?.id);
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+  // Place reservee sous la tab bar flottante.
+  const tabBarSpace = useTabBarSpace();
 
   const handleRemove = async (annonceId: string) => {
     if (!session) return;
@@ -94,7 +97,7 @@ export default function FavorisScreen({ navigation }: any) {
           data={annonces}
           keyExtractor={item => item.id}
           renderItem={renderItem}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: tabBarSpace + SPACING.lg }]}
           onRefresh={refetch}
           refreshing={loading}
           ListEmptyComponent={
@@ -120,7 +123,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   backButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.textPrimary },
-  list: { padding: SPACING.lg, paddingBottom: 100 },
+  list: { padding: SPACING.lg },
   card: {
     flexDirection: 'row', backgroundColor: theme.surface,
     borderRadius: RADIUS.lg, padding: SPACING.sm,

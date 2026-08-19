@@ -22,6 +22,7 @@ import { supabase, Annonce, User } from '../lib/supabase';
 import { useAnnonces } from '../hooks/useAnnonces';
 import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
 import { useTheme } from '../contexts/ThemeContext';
+import { useTabBarSpace } from '../hooks/useTabBarSpace';
 import { SkeletonCard } from '../components/SkeletonLoader';
 
 const { width: W } = Dimensions.get('window');
@@ -326,6 +327,8 @@ export default function SearchScreen({ navigation }: Props) {
   const activeSousCatLabel = getSousCategorieLabel(selectedSousCategorie);
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+  // Place reservee sous la tab bar flottante.
+  const tabBarSpace = useTabBarSpace();
 
   return (
     <View style={styles.container}>
@@ -421,7 +424,7 @@ export default function SearchScreen({ navigation }: Props) {
       {/* MODE GRILLE CATÉGORIES */}
       {!inResultsMode ? (
         <ScrollView
-          contentContainerStyle={styles.gridContainer}
+          contentContainerStyle={[styles.gridContainer, { paddingBottom: tabBarSpace + SPACING.lg }]}
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.browseTitle}>Parcourir par catégorie</Text>
@@ -463,7 +466,7 @@ export default function SearchScreen({ navigation }: Props) {
             data={searchResults}
             keyExtractor={(item) => item.id}
             renderItem={renderResult}
-            contentContainerStyle={styles.resultsList}
+            contentContainerStyle={[styles.resultsList, { paddingBottom: tabBarSpace + SPACING.lg }]}
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={
               searchResults.length > 0 ? (
@@ -917,7 +920,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   resultsList: {
     padding: SPACING.lg,
-    paddingBottom: 120,
+    // paddingBottom ajoute a l'usage : hauteur reelle de la tab bar flottante
   },
   resultCard: {
     flexDirection: 'row',

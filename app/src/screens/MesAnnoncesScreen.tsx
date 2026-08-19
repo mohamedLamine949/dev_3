@@ -18,6 +18,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useMesAnnonces, updateAnnonceStatus, deleteAnnonceById } from '../hooks/useAnnonces';
 
 import { useTheme } from '../contexts/ThemeContext';
+import { useTabBarSpace } from '../hooks/useTabBarSpace';
 
 function formatPrix(prix: number): string {
   return prix.toLocaleString('fr-FR') + ' FCFA';
@@ -37,6 +38,8 @@ export default function MesAnnoncesScreen({ navigation }: any) {
   const { annonces, loading, refetch } = useMesAnnonces(session?.user?.id);
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+  // Place reservee sous la tab bar flottante.
+  const tabBarSpace = useTabBarSpace();
 
   React.useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -187,7 +190,7 @@ export default function MesAnnoncesScreen({ navigation }: any) {
           data={annonces}
           keyExtractor={item => item.id}
           renderItem={renderItem}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: tabBarSpace + SPACING.lg }]}
           refreshing={loading}
           onRefresh={refetch}
         />

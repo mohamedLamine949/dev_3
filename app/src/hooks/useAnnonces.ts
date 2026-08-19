@@ -49,7 +49,7 @@ export function useAnnonces(options?: {
       // On joint le type de compte du vendeur pour afficher le badge PRO sur
       // les cartes (le badge dérive du type_compte : les annonces déjà en
       // ligne d'un compte pro l'obtiennent automatiquement).
-      .select('*, images:images_annonce(id, image_url, ordre), user:users!annonces_user_id_fkey(type_compte)')
+      .select('*, images:images_annonce(id, image_url, ordre), user:users!annonces_user_id_fkey(id, prenom, nom, nom_boutique, avatar_url, type_compte)')
       .eq('statut', 'active')
       .eq('est_payee', true);
 

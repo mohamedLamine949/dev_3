@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FONTS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useTabBarSpace } from '../hooks/useTabBarSpace';
 import { useConversations } from '../hooks/useChat';
 
 function timeAgo(dateStr: string): string {
@@ -32,6 +33,8 @@ export default function MessagesScreen({ navigation }: any) {
   
   const { conversations, loading, refetch } = useConversations(userId);
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+  // Place reservee sous la tab bar flottante.
+  const tabBarSpace = useTabBarSpace();
 
   const renderConversation = ({ item }: { item: any }) => {
     const imageUrl = item.annonce?.images?.[0]?.image_url || null;
@@ -141,7 +144,7 @@ export default function MessagesScreen({ navigation }: any) {
           data={conversations}
           keyExtractor={(item) => item.id}
           renderItem={renderConversation}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={[styles.listContainer, { paddingBottom: tabBarSpace + SPACING.lg }]}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           refreshing={loading}
           onRefresh={refetch}
@@ -181,7 +184,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   listContainer: {
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.sm,
-    paddingBottom: 120,
+    // paddingBottom ajoute a l'usage : hauteur reelle de la tab bar flottante
   },
   separator: {
     height: 1,

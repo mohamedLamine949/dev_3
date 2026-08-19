@@ -7,6 +7,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useTabBarSpace } from '../hooks/useTabBarSpace';
 import { supabase } from '../lib/supabase';
 
 interface Props {
@@ -131,6 +132,8 @@ export default function SettingsScreen({ navigation }: Props) {
   };
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+  // Place reservee sous la tab bar flottante.
+  const tabBarSpace = useTabBarSpace();
 
   return (
     <View style={styles.container}>
@@ -145,7 +148,10 @@ export default function SettingsScreen({ navigation }: Props) {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarSpace + SPACING.lg }]}
+      >
         {MENU_ITEMS.map((section) => (
           <View key={section.section} style={styles.menuSection}>
             <Text style={styles.sectionLabel}>{section.section}</Text>
@@ -271,7 +277,6 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   scrollContent: {
     padding: SPACING.lg,
-    paddingBottom: 60,
   },
   menuSection: {
     marginBottom: SPACING.lg,

@@ -4,12 +4,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 
 import { useTheme } from '../contexts/ThemeContext';
+import { useTabBarSpace } from '../hooks/useTabBarSpace';
 
 export default function PlaceholderScreen({ route, navigation }: any) {
   const { title } = route.params || { title: 'Bientôt disponible' };
   const { theme, isDark } = useTheme();
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+  // Place reservee sous la tab bar flottante.
+  const tabBarSpace = useTabBarSpace();
 
   return (
     <View style={styles.container}>
@@ -24,7 +27,7 @@ export default function PlaceholderScreen({ route, navigation }: any) {
         <View style={{ width: 40 }} />
       </View>
 
-      <View style={styles.content}>
+      <View style={[styles.content, { paddingBottom: tabBarSpace + SPACING.lg }]}>
         <View style={styles.iconContainer}>
           <Ionicons name="construct-outline" size={64} color={theme.primary} />
         </View>

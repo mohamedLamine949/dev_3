@@ -21,6 +21,7 @@ import { Annonce } from '../lib/supabase';
 import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useTabBarSpace } from '../hooks/useTabBarSpace';
 import { useFavoris, toggleFavori } from '../hooks/useFavoris';
 import { getRecentAnnonces } from '../lib/recentStorage';
 import { SkeletonCard, SkeletonCategories } from '../components/SkeletonLoader';
@@ -360,6 +361,8 @@ export default function HomeScreen({ navigation }: Props) {
   };
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
+  // Place reservee sous la tab bar flottante (variable selon la zone sure iOS).
+  const tabBarSpace = useTabBarSpace();
 
   // ─────────────────────────────────────────────
   // Skeleton Loading
@@ -563,7 +566,7 @@ export default function HomeScreen({ navigation }: Props) {
           keyExtractor={(item) => item.id}
           numColumns={2}
           ListHeaderComponent={listHeader}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={[styles.listContainer, { paddingBottom: tabBarSpace + SPACING.lg }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           onEndReached={loadMore}
@@ -630,7 +633,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   listContainer: {
     paddingHorizontal: SPACING.lg,
-    paddingBottom: 120,  // Extra space for floating tab bar
+    // paddingBottom ajoute a l'usage : hauteur reelle de la tab bar flottante
   },
 
   // Hero

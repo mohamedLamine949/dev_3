@@ -23,12 +23,13 @@ import { FONTS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, CATEGORIES, getSousCategor
 import { Annonce } from '../lib/supabase';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { submitAvis } from '../hooks/useAvis';
+import { submitAvis, useSellerAvis } from '../hooks/useAvis';
 import { toggleFavori } from '../hooks/useFavoris';
 import ReportModal from '../components/ReportModal';
 import { useTheme } from '../contexts/ThemeContext';
 import { addToRecent } from '../lib/recentStorage';
 import { hapticMedium } from '../lib/haptics';
+import { sellerDisplayName, sellerInitial } from '../lib/seller';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -49,6 +50,8 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const [seller, setSeller] = useState<any>((annonce as any).user || null);
+  // Note moyenne du vendeur : signal de confiance affiche des la fiche annonce.
+  const { avis, avgNote, refetch: refetchAvis } = useSellerAvis(annonce.user_id);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewNote, setReviewNote] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
@@ -70,15 +73,17 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
     }
   }, [viewerVisible]);
 
+  // La liste ne joint qu'un vendeur partiel (identite seule) : on complete
+  // toujours avec les contacts et la bio, puis on fusionne. Un simple
+  // `if (!seller)` bloquait la requete et laissait « Vendeur » a l'ecran.
   useEffect(() => {
-    if (!seller && annonce.user_id) {
-      supabase
-        .from('users')
-        .select('id, prenom, nom, bio, avatar_url, telephone, whatsapp, instagram, tiktok, facebook, type_compte')
-        .eq('id', annonce.user_id)
-        .single()
-        .then(({ data }) => { if (data) setSeller(data); });
-    }
+    if (!annonce.user_id) return;
+    supabase
+      .from('users')
+      .select('id, prenom, nom, nom_boutique, bio, avatar_url, telephone, whatsapp, instagram, tiktok, facebook, type_compte')
+      .eq('id', annonce.user_id)
+      .single()
+      .then(({ data }) => { if (data) setSeller((prev: any) => ({ ...prev, ...data })); });
   }, [annonce.user_id]);
 
   useEffect(() => {
@@ -153,6 +158,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
       setShowReviewModal(false);
       setReviewNote(0);
       setReviewComment('');
+      refetchAvis();
       Alert.alert('Merci !', 'Votre avis a bien été enregistré.');
     }
   };
@@ -323,7 +329,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
           {/* Vendeur */}
           <Text style={styles.sectionTitle}>Vendeur</Text>
           {(() => {
-            const sellerName = seller ? `${seller.prenom || ''} ${seller.nom || ''}`.trim() || 'Vendeur' : 'Vendeur';
+            const sellerName = sellerDisplayName(seller);
             return (
               <View style={styles.sellerSection}>
                 {/* Carte identité — cliquable pour voir le profil */}
@@ -336,7 +342,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
                     <Image source={{ uri: seller.avatar_url }} style={styles.sellerAvatarImg} />
                   ) : (
                     <View style={styles.sellerAvatar}>
-                      <Text style={styles.sellerAvatarText}>{sellerName.charAt(0).toUpperCase()}</Text>
+                      <Text style={styles.sellerAvatarText}>{sellerInitial(seller)}</Text>
                     </View>
                   )}
                   <View style={styles.sellerInfo}>
@@ -349,11 +355,25 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
                         </View>
                       )}
                     </View>
+                    {avgNote !== null ? (
+                      <View style={styles.sellerRatingRow}>
+                        {[1, 2, 3, 4, 5].map(i => (
+                          <Ionicons
+                            key={i}
+                            name={i <= Math.round(avgNote) ? 'star' : 'star-outline'}
+                            size={12}
+                            color={i <= Math.round(avgNote) ? '#F59E0B' : theme.border}
+                          />
+                        ))}
+                        <Text style={[styles.sellerMeta, { marginTop: 0, marginLeft: 4 }]}>
+                          {avgNote.toFixed(1)} ({avis.length})
+                        </Text>
+                      </View>
+                    ) : null}
                     {seller?.bio ? (
                       <Text style={styles.sellerBio} numberOfLines={2}>{seller.bio}</Text>
-                    ) : (
-                      <Text style={styles.sellerMeta}>Vendeur sur Flash Market</Text>
-                    )}
+                    ) : null}
+                    <Text style={styles.sellerLink}>Voir le profil du vendeur</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
                 </TouchableOpacity>
@@ -466,7 +486,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
               <Text style={styles.modalTitle}>Laisser un avis</Text>
               {seller && (
                 <Text style={styles.modalSubtitle}>
-                  Pour {`${seller.prenom || ''} ${seller.nom || ''}`.trim() || 'ce vendeur'}
+                  Pour {sellerDisplayName(seller, 'ce vendeur')}
                 </Text>
               )}
 
@@ -802,6 +822,8 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   sellerName: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.textPrimary },
   sellerBio: { fontSize: FONTS.sm, color: theme.textSecondary, marginTop: 2, lineHeight: 18 },
   sellerMeta: { fontSize: FONTS.sm, color: theme.textMuted, marginTop: 2 },
+  sellerRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 3 },
+  sellerLink: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.primary, marginTop: 3 },
   badgePro: {
     flexDirection: 'row',
     alignItems: 'center',
