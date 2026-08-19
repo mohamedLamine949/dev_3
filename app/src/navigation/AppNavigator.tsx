@@ -43,6 +43,8 @@ import DevenirPartenaireScreen from '../screens/DevenirPartenaireScreen';
 import SaisirCodeParrainageScreen from '../screens/SaisirCodeParrainageScreen';
 import MaBoutiqueScreen from '../screens/MaBoutiqueScreen';
 import BoutiqueScreen from '../screens/BoutiqueScreen';
+import DecouverteProScreen from '../screens/DecouverteProScreen';
+import DecouverteProShopListScreen from '../screens/DecouverteProShopListScreen';
 import AjouterProduitScreen from '../screens/AjouterProduitScreen';
 import CommandesScreen from '../screens/CommandesScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
@@ -465,6 +467,16 @@ export default function AppNavigator() {
         <Stack.Screen
           name="Boutique"
           component={BoutiqueScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="DecouvertePro"
+          component={DecouverteProScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="DecouverteProShopList"
+          component={DecouverteProShopListScreen}
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen

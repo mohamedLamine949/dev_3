@@ -389,6 +389,7 @@ export default function ProfileScreen({ navigation }: Props) {
         type_compte: editTypeCompte,
         banniere_url: banniereUrlToSave,
         images_business: businessUrlsToSave,
+        ...(editTypeCompte === 'particulier' ? { date_abonnement: null } : {}),
       }, { onConflict: 'id' });
 
       if (error) throw error;
@@ -399,6 +400,33 @@ export default function ProfileScreen({ navigation }: Props) {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleDowngradeToParticulier = () => {
+    if (!session) return;
+    Alert.alert(
+      'Repasser en compte particulier ?',
+      'Vous perdrez immédiatement le badge « Vérifié », la vitrine boutique et les avantages de votre formule actuelle. Votre abonnement en cours ne sera pas remboursé. Vous pourrez vous réabonner à tout moment.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Confirmer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('users')
+                .update({ type_compte: 'particulier', date_abonnement: null })
+                .eq('id', session.user.id);
+              if (error) throw error;
+              await refreshUser();
+            } catch (err: any) {
+              Alert.alert('Erreur', err.message || 'Impossible de repasser en compte particulier.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const openLink = (prefix: string, value: string) => {
@@ -624,6 +652,19 @@ export default function ProfileScreen({ navigation }: Props) {
                       <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: '#fff' }}>Renouveler mon abonnement</Text>
                     </TouchableOpacity>
                   </View>
+                )}
+
+                {/* Compte PRO/Vendeur actif : possibilité de repasser en particulier */}
+                {effectivePlanKey !== 'particulier' && !subExpired && (
+                  <TouchableOpacity
+                    style={{ marginTop: 10, paddingVertical: 8, alignItems: 'center' }}
+                    onPress={handleDowngradeToParticulier}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ fontSize: FONTS.xs, color: theme.textMuted, textDecorationLine: 'underline' }}>
+                      Repasser en compte particulier
+                    </Text>
+                  </TouchableOpacity>
                 )}
 
                 {/* Ni PRO actif ni expiré : upsell classique */}

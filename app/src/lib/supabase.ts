@@ -44,6 +44,10 @@ export interface User {
   horaires?: string | null;
   livraison?: 'disponible' | 'a_discuter' | 'retrait' | null;
   frais_livraison?: string | null;
+  // Découverte Pro (migration_decouverte_pro.sql)
+  categorie_metier?: string | null;
+  // Statut boutique (migration_ouvert_et_follow.sql)
+  ouvert_maintenant?: boolean;
 }
 
 export interface Annonce {

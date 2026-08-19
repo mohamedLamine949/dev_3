@@ -131,7 +131,7 @@ export default function AjouterProduitScreen({ navigation }: Props) {
         images
       );
       if (error) throw new Error(error);
-      Alert.alert('Produit en ligne 🎉', `« ${annonce?.titre} » est visible dans votre boutique.`, [
+      Alert.alert('Produit en ligne', `« ${annonce?.titre} » est visible dans votre boutique.`, [
         { text: 'Ajouter un autre', onPress: () => { setNom(''); setDescription(''); setPrix(''); setStock('1'); setImages([]); } },
         { text: 'Voir ma boutique', onPress: () => navigation.replace('MaBoutique') },
       ]);

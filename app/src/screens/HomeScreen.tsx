@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, SUBCATEGORIES, TYPOGRAPHY } from '../constants/theme';
 import { useAnnonces, ANNONCES_PAGE_SIZE } from '../hooks/useAnnonces';
 import { Annonce } from '../lib/supabase';
@@ -25,6 +26,7 @@ import { useTabBarSpace } from '../hooks/useTabBarSpace';
 import { useFavoris, toggleFavori } from '../hooks/useFavoris';
 import { getRecentAnnonces } from '../lib/recentStorage';
 import { SkeletonCard, SkeletonCategories } from '../components/SkeletonLoader';
+import { useDecouverteProPreview } from '../hooks/useDecouvertePro';
 
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -191,6 +193,7 @@ export default function HomeScreen({ navigation }: Props) {
   const { location } = useLocation();
   const { session, user } = useAuth();
   const { favorisIds, refetch: refetchFavoris } = useFavoris(session?.user?.id);
+  const { shops: proShops, total: proTotal } = useDecouverteProPreview();
   const [recentAnnonces, setRecentAnnonces] = useState<Annonce[]>([]);
 
   const loadRecent = useCallback(async () => {
@@ -484,19 +487,48 @@ export default function HomeScreen({ navigation }: Props) {
           />
         )}
 
-        {/* Bannière sécurité */}
+        {/* Découverte Pro : point d'entrée vers l'annuaire des boutiques PRO */}
         <View style={styles.bannerContainer}>
-          <View style={styles.bannerCard}>
-            <View style={styles.bannerIconContainer}>
-              <Ionicons name="shield-checkmark" size={22} color="#fff" />
-            </View>
-            <View style={styles.bannerTextContainer}>
-              <Text style={styles.bannerTitle}>Achetez en toute sécurité 🛡️</Text>
-              <Text style={styles.bannerSubtitle}>
-                Rencontrez toujours le vendeur dans un lieu public et vérifiez l'article avant d'acheter.
-              </Text>
-            </View>
-          </View>
+          <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('DecouvertePro')}>
+            <LinearGradient
+              colors={['#0b4023', '#15803d', '#1f9450']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.proCta}
+            >
+              <View style={styles.proCtaTop}>
+                <View style={styles.proCtaIcon}>
+                  <Ionicons name="storefront" size={19} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.proCtaTitle}>Découvrez nos professionnels</Text>
+                  <Text style={styles.proCtaSubtitle}>
+                    Boutiques, restaurants, agences, prestataires — le bon pro près de chez vous.
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.proCtaFacesRow}>
+                {proShops.slice(0, 3).map((s, i) => (
+                  <View key={s.id} style={[styles.proCtaFace, i > 0 && { marginLeft: -8 }]}>
+                    {s.avatar_url ? (
+                      <Image source={{ uri: s.avatar_url }} style={styles.proCtaFaceImg} />
+                    ) : (
+                      <Text style={styles.proCtaFaceInitial}>
+                        {(s.nom_boutique || s.prenom || '?').charAt(0).toUpperCase()}
+                      </Text>
+                    )}
+                  </View>
+                ))}
+                {proTotal > 0 && (
+                  <Text style={styles.proCtaCount}>{proTotal} boutique{proTotal !== 1 ? 's' : ''}</Text>
+                )}
+                <View style={styles.proCtaExplore}>
+                  <Text style={styles.proCtaExploreText}>Explorer</Text>
+                  <Ionicons name="arrow-forward" size={13} color="#fff" />
+                </View>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
 
         {/* Récemment consultés */}
@@ -921,37 +953,58 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   bannerContainer: {
     marginBottom: SPACING.xl,
   },
-  bannerCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.primary,
-    borderRadius: RADIUS.lg,
+  proCta: {
+    borderRadius: RADIUS.xl,
     padding: SPACING.lg,
-    gap: SPACING.md,
     ...SHADOWS.colored,
   },
-  bannerIconContainer: {
-    width: 44,
-    height: 44,
+  proCtaTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.md,
+  },
+  proCtaIcon: {
+    width: 38,
+    height: 38,
     borderRadius: RADIUS.md,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  bannerTextContainer: {
-    flex: 1,
-  },
-  bannerTitle: {
-    fontSize: FONTS.sm + 1,
-    fontWeight: FONTS.bold,
+  proCtaTitle: {
+    fontSize: FONTS.md,
+    fontWeight: FONTS.extrabold,
     color: '#fff',
     marginBottom: 3,
   },
-  bannerSubtitle: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.9)',
+  proCtaSubtitle: {
+    fontSize: FONTS.xs,
+    color: 'rgba(255,255,255,0.85)',
     lineHeight: 16,
   },
+  proCtaFacesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.md,
+  },
+  proCtaFace: {
+    width: 26, height: 26, borderRadius: 13,
+    borderWidth: 2, borderColor: '#0b4023',
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    justifyContent: 'center', alignItems: 'center',
+    overflow: 'hidden',
+  },
+  proCtaFaceImg: { width: '100%', height: '100%' },
+  proCtaFaceInitial: { fontSize: 10, fontWeight: FONTS.bold, color: '#0b4023' },
+  proCtaCount: {
+    fontSize: FONTS.xs, fontWeight: FONTS.semibold, color: 'rgba(255,255,255,0.85)',
+    marginLeft: SPACING.sm,
+  },
+  proCtaExplore: {
+    marginLeft: 'auto',
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+  },
+  proCtaExploreText: { fontSize: FONTS.sm, fontWeight: FONTS.extrabold, color: '#fff' },
 
   // Récemment vus
   recentSection: {

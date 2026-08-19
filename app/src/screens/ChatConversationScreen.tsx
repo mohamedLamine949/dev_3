@@ -45,6 +45,7 @@ export default function ChatConversationScreen({ route, navigation }: any) {
   const [activeConversationId, setActiveConversationId] = useState<string | undefined>(initialConvId);
   const [resolving, setResolving] = useState(!initialConvId);
   const [otherUser, setOtherUser] = useState<any>(interlocuteur || null);
+  const [resolvingOtherUser, setResolvingOtherUser] = useState(!interlocuteur);
   
   const { messages, loading, sendMessage } = useChat(activeConversationId, currentUserId);
   const otherOnline = useConversationPresence(activeConversationId, currentUserId);
@@ -79,25 +80,30 @@ export default function ChatConversationScreen({ route, navigation }: any) {
     let cancelled = false;
 
     async function fetchOtherUser() {
-      let otherId: string | undefined = vendeurId;
-      if (!otherId && activeConversationId) {
-        const { data: conv } = await supabase
-          .from('conversations')
-          .select('acheteur_id, vendeur_id')
-          .eq('id', activeConversationId)
-          .maybeSingle();
-        if (conv) {
-          otherId = conv.acheteur_id === currentUserId ? conv.vendeur_id : conv.acheteur_id;
+      setResolvingOtherUser(true);
+      try {
+        let otherId: string | undefined = vendeurId;
+        if (!otherId && activeConversationId) {
+          const { data: conv } = await supabase
+            .from('conversations')
+            .select('acheteur_id, vendeur_id')
+            .eq('id', activeConversationId)
+            .maybeSingle();
+          if (conv) {
+            otherId = conv.acheteur_id === currentUserId ? conv.vendeur_id : conv.acheteur_id;
+          }
         }
-      }
-      if (!otherId || otherId === currentUserId) return;
+        if (!otherId || otherId === currentUserId) return;
 
-      const { data } = await supabase
-        .from('users')
-        .select('id, prenom, nom, avatar_url')
-        .eq('id', otherId)
-        .maybeSingle();
-      if (data && !cancelled) setOtherUser(data);
+        const { data } = await supabase
+          .from('users')
+          .select('id, prenom, nom, avatar_url')
+          .eq('id', otherId)
+          .maybeSingle();
+        if (data && !cancelled) setOtherUser(data);
+      } finally {
+        if (!cancelled) setResolvingOtherUser(false);
+      }
     }
 
     fetchOtherUser();
@@ -177,7 +183,9 @@ export default function ChatConversationScreen({ route, navigation }: any) {
               <Image source={{ uri: otherUser.avatar_url }} style={styles.headerAvatar} />
             ) : (
               <View style={styles.headerAvatarPlaceholder}>
-                {otherUserName ? (
+                {resolvingOtherUser && !otherUser ? (
+                  <ActivityIndicator size="small" color={theme.primary} />
+                ) : otherUserName ? (
                   <Text style={styles.headerAvatarInitial}>{otherUserName[0].toUpperCase()}</Text>
                 ) : (
                   <Ionicons name="person" size={18} color={theme.primary} />

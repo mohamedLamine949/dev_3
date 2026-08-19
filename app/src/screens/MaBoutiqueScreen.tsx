@@ -2,11 +2,16 @@ import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
   StatusBar, Platform, Alert, ActivityIndicator, TextInput,
-  Modal, KeyboardAvoidingView, Share, Switch,
+  Modal, KeyboardAvoidingView, Share, Switch, Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
+import { FONTS, SPACING, RADIUS, SHADOWS, METIER_CATEGORIES } from '../constants/theme';
 import { supabase, Annonce, Catalogue } from '../lib/supabase';
+import TintedChip from '../components/TintedChip';
+import ProduitGestionSheet from '../components/ProduitGestionSheet';
+
+const { width: W } = Dimensions.get('window');
+const CARD_W = (W - SPACING.lg * 2 - SPACING.md) / 2;
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -52,6 +57,7 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
   const [catEditBusy, setCatEditBusy] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [gestionTarget, setGestionTarget] = useState<Annonce | null>(null);
 
   // Champs d'édition
   const [nomBoutique, setNomBoutique] = useState('');
@@ -60,6 +66,7 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
   const [horaires, setHoraires] = useState('');
   const [livraison, setLivraison] = useState<string | null>(null);
   const [fraisLivraison, setFraisLivraison] = useState('');
+  const [categorieMetier, setCategorieMetier] = useState<string | null>(null);
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const isPro = user?.type_compte === 'professionnel';
@@ -96,6 +103,13 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
     fetchProduits();
   }, [fetchProduits]);
 
+  async function toggleOuvert() {
+    if (!session) return;
+    const next = !(user?.ouvert_maintenant ?? true);
+    await supabase.from('users').update({ ouvert_maintenant: next }).eq('id', session.user.id);
+    refreshUser();
+  }
+
   function openEdit() {
     setNomBoutique(user?.nom_boutique || '');
     setQuartier(user?.quartier_boutique || '');
@@ -103,6 +117,7 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
     setHoraires(user?.horaires || '');
     setLivraison(user?.livraison || null);
     setFraisLivraison(user?.frais_livraison || '');
+    setCategorieMetier(user?.categorie_metier || null);
     setEditVisible(true);
   }
 
@@ -129,6 +144,7 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
             horaires: horaires.trim() || null,
             livraison: livraison,
             frais_livraison: fraisLivraison.trim() || null,
+            categorie_metier: categorieMetier,
           })
           .eq('id', session.user.id);
         if (!error) {
@@ -277,12 +293,11 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.primary} />
-      {renderHeader()}
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
 
-        {/* ---- Carte identité ---- */}
-        <View style={styles.identityCard}>
+        {/* ---- Bannière + navigation flottante ---- */}
+        <View style={styles.heroWrap}>
           {user?.banniere_url ? (
             <Image source={{ uri: user.banniere_url }} style={styles.banner} />
           ) : (
@@ -291,6 +306,18 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
               <Text style={styles.bannerPlaceholderText}>Ajoutez une bannière depuis « Modifier le profil »</Text>
             </View>
           )}
+          <View style={styles.heroOverlay} />
+          <TouchableOpacity style={[styles.roundBtn, styles.backPos]} onPress={() => navigation.goBack()} activeOpacity={0.8}>
+            <Ionicons name="arrow-back" size={20} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.roundBtn, styles.sharePos]} onPress={shareBoutique} activeOpacity={0.8}>
+            <Ionicons name="share-social-outline" size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+      <View style={styles.scrollContent}>
+        {/* ---- Carte identité ---- */}
+        <View style={styles.identityCard}>
           <View style={styles.identityBody}>
             <View style={styles.logoWrap}>
               {user?.avatar_url ? (
@@ -308,11 +335,21 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
                 </Text>
                 <View style={styles.proBadge}><Text style={styles.proBadgeText}>PRO</Text></View>
               </View>
-              <Text style={styles.boutiqueMeta} numberOfLines={1}>
-                {user?.quartier_boutique
-                  ? `📍 ${user.quartier_boutique}${user?.horaires ? ' · 🕒 ' + user.horaires : ''}`
-                  : 'Quartier et horaires à renseigner'}
-              </Text>
+              {user?.quartier_boutique ? (
+                <View style={styles.boutiqueMetaRow}>
+                  <Ionicons name="location-outline" size={12} color={theme.textMuted} />
+                  <Text style={styles.boutiqueMeta} numberOfLines={1}>{user.quartier_boutique}</Text>
+                  {user?.horaires && (
+                    <>
+                      <Text style={styles.boutiqueMetaDot}>·</Text>
+                      <Ionicons name="time-outline" size={12} color={theme.textMuted} />
+                      <Text style={styles.boutiqueMeta} numberOfLines={1}>{user.horaires}</Text>
+                    </>
+                  )}
+                </View>
+              ) : (
+                <Text style={styles.boutiqueMeta} numberOfLines={1}>Quartier et horaires à renseigner</Text>
+              )}
             </View>
             <TouchableOpacity style={styles.editBtn} onPress={openEdit} activeOpacity={0.8}>
               <Ionicons name="create-outline" size={18} color={theme.primary} />
@@ -322,9 +359,14 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
           {/* Jauge de complétude */}
           <View style={styles.completudeWrap}>
             <View style={styles.completudeHead}>
-              <Text style={styles.completudeLabel}>
-                {completudePct === 100 ? 'Boutique complète 🎉' : `Boutique complète à ${completudePct} %`}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {completudePct === 100 && (
+                  <Ionicons name="checkmark-circle" size={15} color={theme.primary} style={{ marginRight: 5 }} />
+                )}
+                <Text style={styles.completudeLabel}>
+                  {completudePct === 100 ? 'Boutique complète' : `Boutique complète à ${completudePct} %`}
+                </Text>
+              </View>
             </View>
             <View style={styles.completudeBarBg}>
               <View style={[styles.completudeBarFill, { width: `${completudePct}%` }]} />
@@ -350,6 +392,21 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
             <Ionicons name="share-social-outline" size={16} color={theme.textMuted} />
           </TouchableOpacity>
         )}
+
+        {/* ---- Ouvert maintenant ---- */}
+        <View style={styles.ouvertCard}>
+          <View style={[styles.ouvertDot, { backgroundColor: user?.ouvert_maintenant !== false ? theme.primary : theme.textMuted }]} />
+          <Text style={styles.ouvertText}>
+            {user?.ouvert_maintenant !== false ? 'Boutique ouverte' : 'Boutique fermée'}
+          </Text>
+          <Text style={styles.ouvertHint}>Visible sur votre page publique</Text>
+          <Switch
+            value={user?.ouvert_maintenant !== false}
+            onValueChange={toggleOuvert}
+            trackColor={{ false: theme.borderLight, true: theme.primaryFaded }}
+            thumbColor={user?.ouvert_maintenant !== false ? theme.primary : theme.textMuted}
+          />
+        </View>
 
         {/* ---- Livraison ---- */}
         {user?.livraison && (
@@ -394,24 +451,31 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
         <Text style={[styles.sectionLabel, { marginTop: SPACING.xl }]}>Ce mois-ci</Text>
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Text style={styles.statEmoji}>🛒</Text>
+            <View style={styles.statIconCircle}>
+              <Ionicons name="cart-outline" size={16} color={theme.primary} />
+            </View>
             <Text style={styles.statValue}>{commandesMois.length}</Text>
             <Text style={styles.statLabel}>Commandes</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statEmoji}>📦</Text>
+            <View style={styles.statIconCircle}>
+              <Ionicons name="cube-outline" size={16} color={theme.primary} />
+            </View>
             <Text style={styles.statValue}>{livreesMois.length}</Text>
             <Text style={styles.statLabel}>Livrées</Text>
           </View>
           <View style={[styles.statCard, styles.statCardMoney]}>
-            <Text style={styles.statEmoji}>💰</Text>
+            <View style={styles.statIconCircle}>
+              <Ionicons name="cash-outline" size={16} color={theme.primary} />
+            </View>
             <Text style={[styles.statValue, { color: theme.primary }]}>{recettesMois.toLocaleString('fr-FR')} F</Text>
             <Text style={styles.statLabel}>Recettes</Text>
           </View>
         </View>
         {topProduit && (
           <View style={styles.topProduitRow}>
-            <Text style={styles.topProduitText} numberOfLines={1}>⭐ Produit star : {topProduit}</Text>
+            <Ionicons name="star" size={14} color={theme.secondary} />
+            <Text style={styles.topProduitText} numberOfLines={1}>Produit star : {topProduit}</Text>
           </View>
         )}
 
@@ -470,84 +534,65 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
         ) : (
-          produits.filter(p => filtreCat === 'all' || p.catalogue_id === filtreCat).map(p => {
-            const img = p.images && p.images.length > 0
-              ? [...p.images].sort((a, b) => (a.ordre || 0) - (b.ordre || 0))[0].image_url
-              : null;
-            const enRupture = p.stock === 0;
-            const masque = p.visible === false;
-            return (
-              <View key={p.id} style={[styles.produitCard, masque && styles.produitCardMasque]}>
-                {img ? (
-                  <Image source={{ uri: img }} style={styles.produitImg} />
-                ) : (
-                  <View style={[styles.produitImg, styles.produitImgFallback]}>
-                    <Ionicons name="image-outline" size={20} color={theme.textMuted} />
+          <View style={styles.produitsGrid}>
+            {produits.filter(p => filtreCat === 'all' || p.catalogue_id === filtreCat).map((p, index) => {
+              const img = p.images && p.images.length > 0
+                ? [...p.images].sort((a, b) => (a.ordre || 0) - (b.ordre || 0))[0].image_url
+                : null;
+              const enRupture = p.stock === 0;
+              const masque = p.visible === false;
+              return (
+                <TouchableOpacity
+                  key={p.id}
+                  activeOpacity={0.85}
+                  style={[styles.produitCard, index % 2 === 1 && { marginLeft: SPACING.md }, masque && styles.produitCardMasque]}
+                  onPress={() => setGestionTarget(p)}
+                >
+                  <View style={styles.produitImgWrap}>
+                    {img ? (
+                      <Image source={{ uri: img }} style={styles.produitImg} />
+                    ) : (
+                      <View style={[styles.produitImg, styles.produitImgFallback]}>
+                        <Ionicons name="image-outline" size={22} color={theme.textMuted} />
+                      </View>
+                    )}
+                    <View style={styles.badgeStack}>
+                      {p.statut === 'vendu' && <View style={[styles.badge, styles.badgeGris]}><Text style={styles.badgeText}>Vendu</Text></View>}
+                      {enRupture && p.statut !== 'vendu' && <View style={[styles.badge, styles.badgeRouge]}><Text style={styles.badgeText}>Rupture</Text></View>}
+                      {masque && <View style={[styles.badge, styles.badgeGris]}><Text style={styles.badgeText}>Masqué</Text></View>}
+                    </View>
                   </View>
-                )}
-                <View style={styles.produitBody}>
-                  <Text style={styles.produitTitre} numberOfLines={1}>{p.titre}</Text>
-                  <Text style={styles.produitPrix}>{Number(p.prix).toLocaleString('fr-FR')} FCFA</Text>
-                  <View style={styles.produitMetaRow}>
-                    <Text style={styles.produitMeta}>👁 {p.nombre_vues || 0}</Text>
-                    {p.statut === 'vendu' && <View style={[styles.badge, styles.badgeGris]}><Text style={styles.badgeText}>Vendu</Text></View>}
-                    {enRupture && p.statut !== 'vendu' && <View style={[styles.badge, styles.badgeRouge]}><Text style={styles.badgeText}>Rupture</Text></View>}
-                    {masque && <View style={[styles.badge, styles.badgeGris]}><Text style={styles.badgeText}>Masqué</Text></View>}
+                  <View style={styles.produitBody}>
+                    <Text style={styles.produitTitre} numberOfLines={2}>{p.titre}</Text>
+                    <Text style={styles.produitPrix}>{Number(p.prix).toLocaleString('fr-FR')} FCFA</Text>
+                    <View style={styles.produitMetaRow}>
+                      <Ionicons name="eye-outline" size={12} color={theme.textMuted} />
+                      <Text style={styles.produitMeta}>{p.nombre_vues || 0}</Text>
+                      <View style={{ flex: 1 }} />
+                      <Ionicons name="cube-outline" size={12} color={theme.textMuted} />
+                      <Text style={styles.produitMeta}>{p.stock ?? '—'}</Text>
+                    </View>
                   </View>
-
-                  {/* Stock : saisie directe + ajustement rapide − / + */}
-                  <View style={styles.stockRow}>
-                    <Text style={styles.stockLabel}>Stock</Text>
-                    <TouchableOpacity
-                      style={styles.stockBtn}
-                      onPress={() => updateProduit(p.id, { stock: Math.max(0, (p.stock ?? 1) - 1) })}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="remove" size={16} color={theme.textPrimary} />
-                    </TouchableOpacity>
-                    <TextInput
-                      key={`stock-${p.id}-${p.stock ?? 'n'}`}
-                      style={styles.stockInput}
-                      defaultValue={p.stock != null ? String(p.stock) : ''}
-                      placeholder="—"
-                      placeholderTextColor={theme.textMuted}
-                      keyboardType="number-pad"
-                      maxLength={4}
-                      selectTextOnFocus
-                      onEndEditing={(e) => {
-                        const v = parseInt(e.nativeEvent.text.replace(/[^0-9]/g, ''), 10);
-                        if (!isNaN(v) && v !== p.stock) updateProduit(p.id, { stock: v });
-                      }}
-                    />
-                    <TouchableOpacity
-                      style={styles.stockBtn}
-                      onPress={() => updateProduit(p.id, { stock: (p.stock ?? 0) + 1 })}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="add" size={16} color={theme.textPrimary} />
-                    </TouchableOpacity>
-                    <View style={{ flex: 1 }} />
-                    <TouchableOpacity
-                      style={styles.editProduitBtn}
-                      onPress={() => navigation.navigate('EditAnnonce', { annonce: p })}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons name="create-outline" size={15} color={theme.primary} />
-                    </TouchableOpacity>
-                    <Ionicons name={masque ? 'eye-off-outline' : 'eye-outline'} size={15} color={theme.textMuted} />
-                    <Switch
-                      value={!masque}
-                      onValueChange={(v) => updateProduit(p.id, { visible: v })}
-                      trackColor={{ false: theme.borderLight, true: theme.primary }}
-                      thumbColor="#fff"
-                      style={{ transform: [{ scale: 0.8 }] }}
-                    />
-                  </View>
-                </View>
-              </View>
-            );
-          })
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         )}
+
+        <ProduitGestionSheet
+          produit={gestionTarget}
+          theme={theme}
+          onClose={() => setGestionTarget(null)}
+          onUpdate={(id, patch) => {
+            updateProduit(id, patch);
+            setGestionTarget(prev => (prev && prev.id === id ? { ...prev, ...patch } : prev));
+          }}
+          onEdit={(p) => {
+            setGestionTarget(null);
+            navigation.navigate('EditAnnonce', { annonce: p });
+          }}
+        />
+        </View>
       </ScrollView>
 
       {/* ---- Modal gestion d'un rayon (renommer / supprimer) ---- */}
@@ -635,15 +680,14 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
               <Text style={styles.fieldLabel}>Livraison</Text>
               <View style={styles.chipsRow}>
                 {LIVRAISON_OPTIONS.map(o => (
-                  <TouchableOpacity
+                  <TintedChip
                     key={o.key}
-                    style={[styles.chip, livraison === o.key && styles.chipActive]}
+                    icon={o.icon}
+                    label={o.label}
+                    color={theme.primary}
+                    active={livraison === o.key}
                     onPress={() => setLivraison(livraison === o.key ? null : o.key)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name={o.icon as any} size={14} color={livraison === o.key ? '#fff' : theme.textSecondary} />
-                    <Text style={[styles.chipText, livraison === o.key && styles.chipTextActive]}>{o.label}</Text>
-                  </TouchableOpacity>
+                  />
                 ))}
               </View>
               {livraison === 'disponible' && (
@@ -659,6 +703,22 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
                   />
                 </>
               )}
+              <Text style={styles.fieldLabel}>Catégorie métier</Text>
+              <Text style={styles.fieldHint}>
+                Détermine où votre boutique apparaît dans « Nos Professionnels ».
+              </Text>
+              <View style={styles.chipsRow}>
+                {METIER_CATEGORIES.map(m => (
+                  <TintedChip
+                    key={m.id}
+                    icon={m.icon}
+                    label={m.label}
+                    color={m.gradient[0]}
+                    active={categorieMetier === m.id}
+                    onPress={() => setCategorieMetier(categorieMetier === m.id ? null : m.id)}
+                  />
+                ))}
+              </View>
               <TouchableOpacity
                 style={[styles.ctaBtn, { marginTop: SPACING.lg }]}
                 onPress={saveBoutique}
@@ -691,28 +751,38 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   headerTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: '#fff' },
-  scrollContent: { padding: SPACING.lg, paddingBottom: 40 },
+  scrollContent: { paddingHorizontal: SPACING.lg, paddingBottom: 40 },
   centerBox: { alignItems: 'center', padding: SPACING.xxl, marginTop: 40, gap: SPACING.md },
   centerTitle: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.textPrimary },
   centerText: { fontSize: FONTS.sm, color: theme.textSecondary, textAlign: 'center', lineHeight: 20 },
 
-  identityCard: { backgroundColor: theme.surface, borderRadius: RADIUS.xl, overflow: 'hidden', ...SHADOWS.md },
-  banner: { width: '100%', height: 110, backgroundColor: theme.primaryDark },
+  identityCard: { backgroundColor: theme.surface, borderRadius: RADIUS.xl, overflow: 'hidden', marginTop: -28, ...SHADOWS.md },
+  heroWrap: { position: 'relative' },
+  heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.25)' },
+  roundBtn: {
+    position: 'absolute', width: 38, height: 38, borderRadius: 19,
+    backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', alignItems: 'center',
+  },
+  backPos: { top: Platform.OS === 'ios' ? 56 : 42, left: SPACING.lg },
+  sharePos: { top: Platform.OS === 'ios' ? 56 : 42, right: SPACING.lg },
+  banner: { width: '100%', height: 170, backgroundColor: theme.primaryDark },
   bannerPlaceholder: {
     justifyContent: 'center', alignItems: 'center', gap: 4,
     backgroundColor: theme.primaryDark,
   },
   bannerPlaceholderText: { fontSize: FONTS.xs, color: 'rgba(255,255,255,.85)', fontWeight: FONTS.medium },
-  identityBody: { flexDirection: 'row', alignItems: 'center', padding: SPACING.lg, paddingTop: 0, marginTop: -26 },
+  identityBody: { flexDirection: 'row', alignItems: 'center', padding: SPACING.lg, paddingTop: 0, marginTop: -18 },
   logoWrap: { borderRadius: RADIUS.lg, padding: 3, backgroundColor: theme.surface, ...SHADOWS.sm },
-  logo: { width: 56, height: 56, borderRadius: RADIUS.md },
+  logo: { width: 64, height: 64, borderRadius: RADIUS.md },
   logoFallback: { backgroundColor: theme.primaryFaded, justifyContent: 'center', alignItems: 'center' },
-  logoInitial: { fontSize: FONTS.xl, fontWeight: FONTS.extrabold, color: theme.primary },
-  identityText: { flex: 1, marginLeft: SPACING.md, marginTop: 22 },
+  logoInitial: { fontSize: FONTS.xxl, fontWeight: FONTS.extrabold, color: theme.primary },
+  identityText: { flex: 1, marginLeft: SPACING.md, marginTop: 26 },
   boutiqueName: { fontSize: FONTS.lg, fontWeight: FONTS.extrabold, color: theme.textPrimary, flexShrink: 1 },
   proBadge: { backgroundColor: theme.primary, paddingHorizontal: 7, paddingVertical: 2, borderRadius: RADIUS.xs },
   proBadgeText: { fontSize: 10, fontWeight: FONTS.bold, color: '#fff' },
-  boutiqueMeta: { fontSize: FONTS.xs, color: theme.textSecondary, marginTop: 2 },
+  boutiqueMeta: { fontSize: FONTS.xs, color: theme.textSecondary },
+  boutiqueMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, flexShrink: 1 },
+  boutiqueMetaDot: { fontSize: FONTS.xs, color: theme.textMuted, marginHorizontal: 1 },
   editBtn: {
     width: 36, height: 36, borderRadius: 18, marginTop: 22,
     backgroundColor: theme.primaryFaded, justifyContent: 'center', alignItems: 'center',
@@ -732,6 +802,14 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   linkText: { flex: 1, fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.primary },
 
+  ouvertCard: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    backgroundColor: theme.surface, borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.lg, paddingVertical: 12, marginTop: SPACING.sm, ...SHADOWS.sm,
+  },
+  ouvertDot: { width: 8, height: 8, borderRadius: 4 },
+  ouvertText: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textPrimary },
+  ouvertHint: { flex: 1, fontSize: FONTS.xs, color: theme.textMuted, textAlign: 'right', marginRight: SPACING.sm },
   livraisonCard: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
     backgroundColor: theme.surface, borderRadius: RADIUS.md,
@@ -758,11 +836,12 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   commandesSub: { fontSize: FONTS.xs, color: 'rgba(255,255,255,0.85)', marginTop: 1 },
 
   catChip: {
+    flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: RADIUS.full,
-    backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.borderLight,
+    backgroundColor: theme.primaryFaded, borderWidth: 1, borderColor: `${theme.primary}40`,
   },
   catChipActive: { backgroundColor: theme.primary, borderColor: theme.primary },
-  catChipText: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textSecondary },
+  catChipText: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.primary },
   catChipTextActive: { color: '#fff' },
 
   statsRow: { flexDirection: 'row', gap: SPACING.sm },
@@ -771,14 +850,18 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     paddingVertical: SPACING.lg, alignItems: 'center', ...SHADOWS.sm,
   },
   statCardMoney: { borderWidth: 1.5, borderColor: theme.primary },
-  statEmoji: { fontSize: 20, marginBottom: 2 },
+  statIconCircle: {
+    width: 30, height: 30, borderRadius: 15, backgroundColor: theme.primaryFaded,
+    justifyContent: 'center', alignItems: 'center', marginBottom: 6,
+  },
   statValue: { fontSize: FONTS.lg, fontWeight: FONTS.extrabold, color: theme.textPrimary },
   statLabel: { fontSize: FONTS.xs, color: theme.textMuted, marginTop: 1 },
   topProduitRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: theme.primaryFaded, borderRadius: RADIUS.md,
     paddingHorizontal: SPACING.lg, paddingVertical: 10, marginTop: SPACING.sm,
   },
-  topProduitText: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.primary },
+  topProduitText: { flex: 1, fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.primary },
 
   catalogueHead: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -793,39 +876,26 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   emptyBox: { alignItems: 'center', padding: SPACING.xl, gap: SPACING.md },
   emptyText: { fontSize: FONTS.sm, color: theme.textSecondary },
 
+  produitsGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   produitCard: {
-    flexDirection: 'row', backgroundColor: theme.surface, borderRadius: RADIUS.lg,
-    padding: SPACING.md, marginBottom: SPACING.sm, ...SHADOWS.sm,
+    width: CARD_W, backgroundColor: theme.surface, borderRadius: RADIUS.lg,
+    marginBottom: SPACING.md, overflow: 'hidden', ...SHADOWS.sm,
   },
   produitCardMasque: { opacity: 0.55 },
-  produitImg: { width: 84, height: 84, borderRadius: RADIUS.md, backgroundColor: theme.surfaceMuted },
+  produitImgWrap: { position: 'relative' },
+  produitImg: { width: '100%', height: CARD_W * 0.85, backgroundColor: theme.surfaceMuted },
   produitImgFallback: { justifyContent: 'center', alignItems: 'center' },
-  produitBody: { flex: 1, marginLeft: SPACING.md },
-  produitTitre: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.textPrimary },
-  produitPrix: { fontSize: FONTS.sm, fontWeight: FONTS.extrabold, color: theme.primary, marginTop: 1 },
-  produitMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
+  produitBody: { padding: SPACING.md },
+  produitTitre: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.textPrimary, lineHeight: 18, marginBottom: 3 },
+  produitPrix: { fontSize: FONTS.sm, fontWeight: FONTS.extrabold, color: theme.primary, marginBottom: 4 },
+  produitMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   produitMeta: { fontSize: FONTS.xs, color: theme.textMuted },
-  badge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: RADIUS.xs },
-  badgeGris: { backgroundColor: theme.surfaceMuted },
-  badgeRouge: { backgroundColor: '#fee2e2' },
-  badgeText: { fontSize: 10, fontWeight: FONTS.bold, color: theme.textSecondary },
+  badgeStack: { position: 'absolute', top: 6, left: 6, gap: 4 },
+  badge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: RADIUS.xs, alignSelf: 'flex-start' },
+  badgeGris: { backgroundColor: 'rgba(15,23,42,0.75)' },
+  badgeRouge: { backgroundColor: '#dc2626' },
+  badgeText: { fontSize: 10, fontWeight: FONTS.bold, color: '#fff' },
 
-  stockRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
-  stockLabel: { fontSize: FONTS.xs, color: theme.textSecondary, fontWeight: FONTS.semibold },
-  stockBtn: {
-    width: 26, height: 26, borderRadius: 13,
-    backgroundColor: theme.surfaceMuted, justifyContent: 'center', alignItems: 'center',
-  },
-  stockInput: {
-    fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.textPrimary,
-    minWidth: 44, textAlign: 'center', paddingVertical: 4, paddingHorizontal: 6,
-    backgroundColor: theme.surfaceMuted, borderRadius: RADIUS.sm,
-    borderWidth: 1, borderColor: theme.borderLight,
-  },
-  editProduitBtn: {
-    width: 28, height: 28, borderRadius: 14, marginRight: 2,
-    backgroundColor: theme.primaryFaded, justifyContent: 'center', alignItems: 'center',
-  },
   deleteRayonBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 12, marginTop: SPACING.sm,
@@ -848,6 +918,9 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   fieldLabel: {
     fontSize: FONTS.xs, fontWeight: FONTS.semibold, color: theme.textSecondary,
     textTransform: 'uppercase', letterSpacing: 0.5, marginTop: SPACING.md, marginBottom: 6,
+  },
+  fieldHint: {
+    fontSize: FONTS.xs, color: theme.textMuted, marginTop: -4, marginBottom: SPACING.sm,
   },
   fieldInput: {
     backgroundColor: theme.surfaceMuted, borderRadius: RADIUS.md, paddingHorizontal: SPACING.lg,

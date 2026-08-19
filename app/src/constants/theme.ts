@@ -275,6 +275,49 @@ export const CATEGORIES = [
   { id: 'services', label: 'Services', icon: 'build-outline' },
 ];
 
+// Taxonomie "Découverte Pro" — indépendante de CATEGORIES (annonces).
+// Regroupe les boutiques PRO par métier plutôt que par catégorie produit :
+// une boutique choisit son `categorie_metier` une fois dans "Ma boutique",
+// séparément des catégories de ses annonces/catalogues.
+export const METIER_CATEGORIES = [
+  {
+    id: 'telephonie_electronique_pro',
+    label: 'Téléphonie & Électronique',
+    icon: 'phone-portrait-outline',
+    gradient: ['#2563eb', '#1d4ed8'],
+  },
+  {
+    id: 'mode_beaute_pro',
+    label: 'Mode & Beauté',
+    icon: 'shirt-outline',
+    gradient: ['#db2777', '#9d174d'],
+  },
+  {
+    id: 'voitures_concessionnaires',
+    label: 'Voitures & Concessionnaires',
+    icon: 'car-sport-outline',
+    gradient: ['#d97706', '#b45309'],
+  },
+  {
+    id: 'immobilier_pro',
+    label: 'Immobilier',
+    icon: 'business-outline',
+    gradient: ['#0891b2', '#0e7490'],
+  },
+  {
+    id: 'restaurants',
+    label: 'Restaurants',
+    icon: 'restaurant-outline',
+    gradient: ['#dc2626', '#991b1b'],
+  },
+  {
+    id: 'professionnels_metier',
+    label: 'Professionnels du métier',
+    icon: 'construct-outline',
+    gradient: ['#15803d', '#166534'],
+  },
+];
+
 // Sous-catégories par catégorie principale. Même prix de publication que la
 // catégorie parente — purement un niveau de navigation/filtrage supplémentaire.
 // `keywords` : termes fréquents utilisés par le scoring de recherche textuelle

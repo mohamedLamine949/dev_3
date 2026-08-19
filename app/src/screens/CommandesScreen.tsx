@@ -30,7 +30,7 @@ const FILTRES_VENDEUR = [
   { key: 'all', label: 'Toutes' },
 ] as const;
 
-const REPONSE_DEFAUT = 'Commande bien reçue ✅ Nous vous contactons pour organiser la remise.';
+const REPONSE_DEFAUT = 'Commande bien reçue. Nous vous contactons pour organiser la remise.';
 
 /**
  * Gestion des commandes de boutique.
@@ -153,10 +153,16 @@ export default function CommandesScreen({ navigation, route }: Props) {
         </TouchableOpacity>
 
         {c.note_client ? (
-          <Text style={styles.note}>💬 {c.note_client}</Text>
+          <View style={styles.noteRow}>
+            <Ionicons name="chatbubble-outline" size={13} color={theme.textSecondary} style={{ marginTop: 2 }} />
+            <Text style={styles.note}>{c.note_client}</Text>
+          </View>
         ) : null}
         {c.reponse_vendeur && c.statut !== 'nouvelle' ? (
-          <Text style={[styles.note, { color: theme.primary }]}>↩️ {c.reponse_vendeur}</Text>
+          <View style={styles.noteRow}>
+            <Ionicons name="arrow-undo-outline" size={13} color={theme.primary} style={{ marginTop: 2 }} />
+            <Text style={[styles.note, { color: theme.primary }]}>{c.reponse_vendeur}</Text>
+          </View>
         ) : null}
 
         {/* Actions */}
@@ -207,7 +213,7 @@ export default function CommandesScreen({ navigation, route }: Props) {
                 interlocuteur: c.vendeur,
                 // Contexte pour le vendeur : il sait immédiatement de quelle
                 // commande parle ce message
-                prefill: `🛒 Au sujet de ma commande « ${c.produit_titre} » : `,
+                prefill: `Au sujet de ma commande « ${c.produit_titre} » : `,
               })}
               activeOpacity={0.85}
             >
@@ -304,7 +310,12 @@ export default function CommandesScreen({ navigation, route }: Props) {
                 <Text style={[styles.modalBtnText, { color: theme.textSecondary }]}>Annuler</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalBtn} onPress={confirmerCommande} disabled={sending} activeOpacity={0.8}>
-                {sending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.modalBtnText}>Confirmer ✓</Text>}
+                {sending ? <ActivityIndicator color="#fff" size="small" /> : (
+                  <>
+                    <Ionicons name="checkmark" size={16} color="#fff" />
+                    <Text style={styles.modalBtnText}>Confirmer</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -354,7 +365,8 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   autreRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: SPACING.sm },
   autreNom: { flex: 1, fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textPrimary },
   cardDate: { fontSize: FONTS.xs, color: theme.textMuted },
-  note: { fontSize: FONTS.sm, color: theme.textSecondary, marginTop: 6, lineHeight: 19 },
+  noteRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
+  note: { flex: 1, fontSize: FONTS.sm, color: theme.textSecondary, lineHeight: 19 },
 
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: SPACING.md },
   actionBtn: {
@@ -382,7 +394,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   modalBtn: {
     flex: 1, height: 44, borderRadius: RADIUS.md, backgroundColor: theme.primary,
-    justifyContent: 'center', alignItems: 'center',
+    flexDirection: 'row', gap: 6, justifyContent: 'center', alignItems: 'center',
   },
   modalBtnGhost: { backgroundColor: theme.surfaceMuted },
   modalBtnText: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: '#fff' },

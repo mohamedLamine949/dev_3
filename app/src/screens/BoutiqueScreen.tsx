@@ -9,6 +9,7 @@ import { supabase, Annonce, User, Catalogue } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSellerAvis } from '../hooks/useAvis';
+import { useBoutiqueFollow } from '../hooks/useBoutiqueFollow';
 
 const { width: W } = Dimensions.get('window');
 const CARD_W = (W - SPACING.lg * 2 - SPACING.md) / 2;
@@ -34,6 +35,7 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
   const { theme, isDark } = useTheme();
   const { session } = useAuth();
   const { avis, avgNote } = useSellerAvis(vendeurId);
+  const { isFollowing, followerCount, busy: followBusy, toggleFollow } = useBoutiqueFollow(vendeurId, session?.user?.id);
 
   const [vendeur, setVendeur] = useState<User | null>(null);
   const [produits, setProduits] = useState<Annonce[]>([]);
@@ -101,7 +103,7 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
             if (error) {
               Alert.alert('Erreur', error.message);
             } else {
-              Alert.alert('Commande envoyée ✅', 'La boutique vient d\'être notifiée. Suivez votre commande dans « Mes commandes ».', [
+              Alert.alert('Commande envoyée', 'La boutique vient d\'être notifiée. Suivez votre commande dans « Mes commandes ».', [
                 { text: 'OK' },
                 { text: 'Mes commandes', onPress: () => navigation.navigate('Commandes', { mode: 'client' }) },
               ]);
@@ -165,6 +167,10 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: SPACING.sm }}>
             <Text style={styles.nom}>{nomBoutique}</Text>
             <View style={styles.proBadge}><Text style={styles.proBadgeText}>PRO</Text></View>
+            <View style={[styles.ouvertBadge, vendeur?.ouvert_maintenant === false && styles.ouvertBadgeFerme]}>
+              <View style={[styles.ouvertBadgeDot, { backgroundColor: vendeur?.ouvert_maintenant !== false ? '#4ade80' : '#9ca3af' }]} />
+              <Text style={styles.ouvertBadgeText}>{vendeur?.ouvert_maintenant !== false ? 'Ouvert' : 'Fermé'}</Text>
+            </View>
           </View>
           {avgNote !== null && (
             <View style={styles.noteRow}>
@@ -201,6 +207,30 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
             </View>
           )}
         </View>
+
+        {/* ---- Suivre ---- */}
+        {!isOwner && session && (
+          <TouchableOpacity
+            style={[styles.followBtn, isFollowing && styles.followBtnActive]}
+            onPress={toggleFollow}
+            disabled={followBusy}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name={isFollowing ? 'checkmark' : 'add'}
+              size={16}
+              color={isFollowing ? theme.primary : '#fff'}
+            />
+            <Text style={[styles.followBtnText, isFollowing && { color: theme.primary }]}>
+              {isFollowing ? 'Suivi' : 'Suivre'}
+            </Text>
+            {followerCount > 0 && (
+              <Text style={[styles.followCount, isFollowing && { color: theme.primary }]}>
+                · {followerCount}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
 
         {/* ---- Contact ---- */}
         {!isOwner && (vendeur?.telephone || vendeur?.whatsapp) && (
@@ -344,6 +374,13 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   nom: { fontSize: FONTS.xl, fontWeight: FONTS.extrabold, color: theme.textPrimary },
   proBadge: { backgroundColor: theme.primary, paddingHorizontal: 7, paddingVertical: 2, borderRadius: RADIUS.xs },
   proBadgeText: { fontSize: 10, fontWeight: FONTS.bold, color: '#fff' },
+  ouvertBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(74,222,128,0.15)', paddingHorizontal: 7, paddingVertical: 2, borderRadius: RADIUS.xs,
+  },
+  ouvertBadgeFerme: { backgroundColor: theme.surfaceMuted },
+  ouvertBadgeDot: { width: 6, height: 6, borderRadius: 3 },
+  ouvertBadgeText: { fontSize: 10, fontWeight: FONTS.bold, color: theme.textSecondary },
   noteRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
   noteText: { fontSize: FONTS.xs, color: theme.textSecondary, fontWeight: FONTS.semibold },
   bio: { fontSize: FONTS.sm, color: theme.textSecondary, textAlign: 'center', marginTop: SPACING.sm, lineHeight: 19 },
@@ -355,6 +392,15 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   infoText: { flex: 1, fontSize: FONTS.sm, color: theme.textPrimary },
+
+  followBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    backgroundColor: theme.primary, borderRadius: RADIUS.md, paddingVertical: 10,
+    marginHorizontal: SPACING.lg, marginTop: SPACING.md,
+  },
+  followBtnActive: { backgroundColor: theme.primaryFaded },
+  followBtnText: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: '#fff' },
+  followCount: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: 'rgba(255,255,255,0.85)' },
 
   contactRow: { flexDirection: 'row', gap: SPACING.sm, marginHorizontal: SPACING.lg, marginTop: SPACING.sm },
   contactBtn: {

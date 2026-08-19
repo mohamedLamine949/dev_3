@@ -20,13 +20,16 @@ import { FONTS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, CATEGORIES, SUBCATEGORIES,
 import { scoreAnnonce, scoreUser } from '../lib/relevance';
 import { supabase, Annonce, User } from '../lib/supabase';
 import { useAnnonces } from '../hooks/useAnnonces';
+import { useFavoris, toggleFavori } from '../hooks/useFavoris';
 import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useTabBarSpace } from '../hooks/useTabBarSpace';
 import { SkeletonCard } from '../components/SkeletonLoader';
 
 const { width: W } = Dimensions.get('window');
 const TILE_SIZE = (W - SPACING.lg * 2 - SPACING.md) / 2;
+const CARD_WIDTH = (W - SPACING.lg * 2 - SPACING.md) / 2;
 
 function formatPrix(prix: number): string {
   if (prix >= 1000000) return (prix / 1000000).toFixed(prix % 1000000 === 0 ? 0 : 1) + 'M FCFA';
@@ -104,7 +107,15 @@ export default function SearchScreen({ navigation }: Props) {
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
   const { location } = useLocation();
+  const { session } = useAuth();
+  const { favorisIds, refetch: refetchFavoris } = useFavoris(session?.user?.id);
   const inResultsMode = debouncedSearch.length > 0 || selectedCategory !== null;
+
+  const handleToggleFavori = async (annonceId: string) => {
+    if (!session) { navigation.navigate('Login'); return; }
+    await toggleFavori(session.user.id, annonceId);
+    refetchFavoris();
+  };
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), 400);
@@ -199,45 +210,43 @@ export default function SearchScreen({ navigation }: Props) {
     setSelectedSousCategorie(null);
   };
 
-  const renderResult = ({ item }: { item: any }) => {
+  const renderResult = ({ item, index }: { item: any; index: number }) => {
+    const marginStyle = { marginLeft: index % 2 === 0 ? 0 : SPACING.md };
+
     if (item.isUserProfile) {
       const authorName = `${item.prenom || ''} ${item.nom || ''}`.trim() || 'Utilisateur';
       const isPro = item.type_compte === 'professionnel';
-      
+
       return (
         <TouchableOpacity
-          style={[styles.resultCard, styles.profileCardBorder]}
-          activeOpacity={0.75}
+          activeOpacity={0.85}
+          style={[styles.card, marginStyle]}
           onPress={() => navigation.navigate('VendeurProfile', { vendeurId: item.id })}
         >
-          {item.avatar_url ? (
-            <Image source={{ uri: item.avatar_url }} style={styles.resultImageProfile} />
-          ) : (
-            <View style={[styles.resultImageProfile, { backgroundColor: theme.primaryFaded, justifyContent: 'center', alignItems: 'center' }]}>
-              <Text style={{ fontSize: 24, fontWeight: FONTS.bold, color: theme.primary }}>{authorName.charAt(0).toUpperCase()}</Text>
-            </View>
-          )}
-          <View style={styles.resultInfo}>
-            <View style={styles.profileHeaderRow}>
-              <Text style={styles.profileName} numberOfLines={1}>{authorName}</Text>
-              {isPro ? (
-                <View style={styles.proBadge}>
-                  <Ionicons name="checkmark-circle" size={10} color="#fff" style={{ marginRight: 2 }} />
-                  <Text style={styles.proBadgeText}>PRO</Text>
-                </View>
-              ) : (
-                <View style={styles.particulierBadge}>
-                  <Text style={styles.particulierBadgeText}>Particulier</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.profileBio} numberOfLines={1}>{item.bio || 'Aucune description disponible.'}</Text>
-            <View style={styles.resultMeta}>
+          <View style={styles.cardImageContainer}>
+            {item.avatar_url ? (
+              <Image source={{ uri: item.avatar_url }} style={styles.cardImage} />
+            ) : (
+              <View style={[styles.cardImage, styles.imagePlaceholder]}>
+                <Text style={{ fontSize: 32, fontWeight: FONTS.bold, color: theme.primary }}>
+                  {authorName.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+            {isPro && (
+              <View style={[styles.proBadge, styles.cardBadgePos]}>
+                <Ionicons name="checkmark-circle" size={10} color="#fff" style={{ marginRight: 2 }} />
+                <Text style={styles.proBadgeText}>PRO</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.cardInfo}>
+            <Text style={styles.cardTitle} numberOfLines={1}>{authorName}</Text>
+            <View style={styles.cardMeta}>
               <Ionicons name="storefront-outline" size={12} color={theme.textMuted} />
-              <Text style={styles.resultMetaText}>Voir la vitrine de l'utilisateur</Text>
+              <Text style={styles.cardMetaText} numberOfLines={1}>Voir la vitrine</Text>
             </View>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={theme.primary} />
         </TouchableOpacity>
       );
     }
@@ -250,44 +259,53 @@ export default function SearchScreen({ navigation }: Props) {
 
     return (
       <TouchableOpacity
-        style={styles.resultCard}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
+        style={[styles.card, marginStyle]}
         onPress={() => navigation.navigate('AnnonceDetail', { annonce: item })}
       >
-        {imageUrl
-          ? <Image source={{ uri: imageUrl }} style={styles.resultImage} />
-          : <View style={[styles.resultImage, { backgroundColor: theme.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
-              <Ionicons name="image-outline" size={24} color={theme.border} />
-            </View>
-        }
-        <View style={styles.resultInfo}>
-          <View style={styles.resultTitleRow}>
-            {item.user?.type_compte === 'professionnel' && (
-              <View style={styles.proBadge}>
-                <Ionicons name="checkmark-circle" size={10} color="#fff" style={{ marginRight: 2 }} />
-                <Text style={styles.proBadgeText}>PRO</Text>
+        <View style={styles.cardImageContainer}>
+          {imageUrl
+            ? <Image source={{ uri: imageUrl }} style={styles.cardImage} />
+            : <View style={[styles.cardImage, styles.imagePlaceholder]}>
+                <Ionicons name="image-outline" size={32} color={theme.border} />
               </View>
-            )}
-            <Text style={[styles.resultTitle, { flex: 1 }]} numberOfLines={2}>{item.titre}</Text>
-          </View>
-          <Text style={styles.resultPrice}>{formatPrix(item.prix)}</Text>
-          <View style={styles.resultMeta}>
+          }
+          {item.user?.type_compte === 'professionnel' && (
+            <View style={[styles.proBadge, styles.cardBadgePos]}>
+              <Ionicons name="checkmark-circle" size={10} color="#fff" style={{ marginRight: 2 }} />
+              <Text style={styles.proBadgeText}>PRO</Text>
+            </View>
+          )}
+          <TouchableOpacity
+            style={styles.favoriteButton}
+            activeOpacity={0.7}
+            onPress={() => handleToggleFavori(item.id)}
+          >
+            <Ionicons
+              name={favorisIds.has(item.id) ? 'heart' : 'heart-outline'}
+              size={18}
+              color={favorisIds.has(item.id) ? '#ef4444' : '#fff'}
+            />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.cardInfo}>
+          <Text style={styles.cardTitle} numberOfLines={2}>{item.titre}</Text>
+          <Text style={styles.cardPrice}>{formatPrix(item.prix)}</Text>
+          <View style={styles.cardMeta}>
             <Ionicons name="location-outline" size={12} color={theme.textMuted} />
-            <Text style={styles.resultMetaText}>
+            <Text style={styles.cardMetaText} numberOfLines={1}>
               {item.quartier ? `${item.quartier}, ` : ''}{item.ville}
             </Text>
             {dist !== null && (
               <>
-                <Text style={styles.dot}>·</Text>
-                <Ionicons name="navigate-outline" size={11} color={theme.primary} />
-                <Text style={[styles.resultMetaText, { color: theme.primary }]}>
+                <Text style={styles.cardMetaDot}>·</Text>
+                <Text style={[styles.cardMetaText, { color: theme.primary }]}>
                   {formatDistance(dist)}
                 </Text>
               </>
             )}
           </View>
         </View>
-        <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
       </TouchableOpacity>
     );
   };
@@ -466,6 +484,7 @@ export default function SearchScreen({ navigation }: Props) {
             data={searchResults}
             keyExtractor={(item) => item.id}
             renderItem={renderResult}
+            numColumns={2}
             contentContainerStyle={[styles.resultsList, { paddingBottom: tabBarSpace + SPACING.lg }]}
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={
@@ -922,60 +941,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     padding: SPACING.lg,
     // paddingBottom ajoute a l'usage : hauteur reelle de la tab bar flottante
   },
-  resultCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.surface,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-    borderWidth: isDark ? 1 : 0,
-    borderColor: theme.borderLight,
-    ...SHADOWS.sm,
-  },
-  resultImage: {
-    width: 76,
-    height: 76,
-    borderRadius: RADIUS.md,
-    backgroundColor: theme.surfaceMuted,
-  },
-  resultInfo: { flex: 1, marginLeft: SPACING.md, gap: 3 },
-  resultTitleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  resultTitle: {
-    fontSize: FONTS.md,
-    fontWeight: FONTS.semibold,
-    color: theme.textPrimary,
-  },
-  resultPrice: {
-    ...TYPOGRAPHY.price,
-    fontSize: FONTS.md,
-    color: theme.primary,
-  },
-  resultMeta: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  resultMetaText: { fontSize: FONTS.xs, color: theme.textMuted },
   dot: { fontSize: FONTS.xs, color: theme.textMuted, marginHorizontal: 1 },
-  profileCardBorder: {
-    borderColor: theme.primary + '33',
-    borderWidth: 1,
-  },
-  resultImageProfile: {
-    width: 76,
-    height: 76,
-    borderRadius: RADIUS.full,
-    backgroundColor: theme.surfaceMuted,
-  },
-  profileHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    justifyContent: 'flex-start',
-  },
-  profileName: {
-    fontSize: FONTS.md,
-    fontWeight: FONTS.bold,
-    color: theme.textPrimary,
-    flexShrink: 1,
-  },
   proBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -989,23 +955,32 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     fontSize: 9,
     fontWeight: 'bold',
   },
-  particulierBadge: {
-    backgroundColor: theme.surfaceMuted,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: RADIUS.xs,
+  cardBadgePos: { position: 'absolute', top: SPACING.sm, left: SPACING.sm },
+
+  // Grille de résultats (même carte que l'accueil)
+  card: {
+    width: CARD_WIDTH, marginBottom: SPACING.lg,
+    backgroundColor: theme.surface, borderRadius: RADIUS.lg,
+    overflow: 'hidden', borderWidth: isDark ? 1 : 0, borderColor: theme.borderLight,
+    ...SHADOWS.sm,
   },
-  particulierBadgeText: {
-    color: theme.textMuted,
-    fontSize: 9,
-    fontWeight: 'semibold',
+  cardImageContainer: { width: '100%', height: CARD_WIDTH, position: 'relative' },
+  cardImage: { width: '100%', height: '100%', backgroundColor: theme.surfaceMuted },
+  imagePlaceholder: { justifyContent: 'center', alignItems: 'center' },
+  favoriteButton: {
+    position: 'absolute', top: SPACING.sm, right: SPACING.sm,
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center',
   },
-  profileBio: {
-    color: theme.textMuted,
-    fontSize: FONTS.sm,
-    marginTop: 2,
-    marginBottom: 4,
+  cardInfo: { padding: SPACING.md },
+  cardTitle: {
+    fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textPrimary,
+    lineHeight: 18, marginBottom: SPACING.xs,
   },
+  cardPrice: { ...TYPOGRAPHY.price, fontSize: FONTS.md, color: theme.primary, marginBottom: SPACING.xs },
+  cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  cardMetaText: { fontSize: FONTS.xs, color: theme.textMuted },
+  cardMetaDot: { fontSize: FONTS.xs, color: theme.textMuted, marginHorizontal: 2 },
 
   // Boutiques
   sectionSubHeaderTitle: {
