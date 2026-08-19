@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import Gradient from '../components/Gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { FONTS, SPACING, RADIUS, SHADOWS, METIER_CATEGORIES } from '../constants/theme';
 import { useTheme } from '../contexts/ThemeContext';
@@ -38,7 +38,7 @@ export default function DecouverteProScreen({ navigation }: Props) {
               style={styles.tileWrapper}
               onPress={() => navigation.navigate('DecouverteProShopList', { categorieMetier: cat.id, label: cat.label })}
             >
-              <LinearGradient
+              <Gradient
                 colors={cat.gradient as [string, string]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -54,7 +54,7 @@ export default function DecouverteProScreen({ navigation }: Props) {
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.85)" />
-              </LinearGradient>
+              </Gradient>
             </TouchableOpacity>
           );
         })}

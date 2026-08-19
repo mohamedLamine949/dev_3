@@ -15,7 +15,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import Gradient from '../components/Gradient';
 import { FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, SUBCATEGORIES, TYPOGRAPHY } from '../constants/theme';
 import { useAnnonces, ANNONCES_PAGE_SIZE } from '../hooks/useAnnonces';
 import { Annonce } from '../lib/supabase';
@@ -490,7 +490,7 @@ export default function HomeScreen({ navigation }: Props) {
         {/* Découverte Pro : point d'entrée vers l'annuaire des boutiques PRO */}
         <View style={styles.bannerContainer}>
           <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('DecouvertePro')}>
-            <LinearGradient
+            <Gradient
               colors={['#0b4023', '#15803d', '#1f9450']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -527,7 +527,7 @@ export default function HomeScreen({ navigation }: Props) {
                   <Ionicons name="arrow-forward" size={13} color="#fff" />
                 </View>
               </View>
-            </LinearGradient>
+            </Gradient>
           </TouchableOpacity>
         </View>
 
