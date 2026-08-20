@@ -25,6 +25,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../lib/supabase';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { getEffectivePlanKey } from '../lib/subscription';
+import { useEntitlements } from '../hooks/useEntitlements';
 import { useTabBarSpace } from '../hooks/useTabBarSpace';
 import { formatPrix } from '../lib/format';
 
@@ -73,6 +74,15 @@ export default function PostAnnonceScreen({ navigation }: any) {
   // retombe automatiquement sur 'particulier' → le paywall se réaffiche.
   const currentPlanKey = getEffectivePlanKey(user);
   const currentPlan = PLANS_CONFIG[currentPlanKey as keyof typeof PLANS_CONFIG] || PLANS_CONFIG.particulier;
+
+  // Droits effectifs — le serveur decide, l'ecran affiche (§11.3). Tant que la
+  // migration de phase 1 n'est pas appliquee, `ent` retombe automatiquement sur
+  // le calcul local ci-dessus : comportement strictement identique.
+  const { entitlements: ent, refresh: refreshDroits } = useEntitlements(user, monthlyCount, paymentsEnabled);
+  const quotaLabel = ent.creditsMensuels === null ? 'illimite' : String(ent.creditsMensuels);
+  const planLabel = ent.planCode === 'pro' ? 'Flash Pro'
+                  : ent.planCode === 'vendeur' ? 'Flash Vendeur'
+                  : currentPlan.nom;
 
   // Pre-fill phone from user profile & check monthly posts count
   useEffect(() => {
@@ -294,21 +304,20 @@ export default function PostAnnonceScreen({ navigation }: any) {
       return;
     }
 
-    // Interrupteur maître (app_config.payments_enabled) : si la monétisation est
-    // désactivée (phase de lancement gratuite), on publie directement, sans quota.
-    if (!paymentsEnabled) {
+    // La decision vient du serveur. En FREE_LAUNCH et SHADOW, `blocageActif`
+    // est faux : on publie sans quota, comme aujourd'hui. En SOFT_PAYWALL,
+    // l'offre s'affiche mais la publication reste autorisee (§11.1) ; seul
+    // LIVE refuse effectivement.
+    if (!ent.blocageActif) {
       publishFree();
       return;
     }
 
-    // Determine eligibility based on Business Model rules
-    const isPro = currentPlanKey === 'professionnel';
-    const isWithinQuota = monthlyCount < currentPlan.quotaMensuel;
+    const illimite = ent.creditsMensuels === null;
 
-    if (isPro || isWithinQuota) {
-      // Free publication under quota or PRO plan!
-      if (!isPro) setMonthlyCount((c) => c + 1); // maj optimiste du compteur mensuel
-      publishAnnonceDirectly(0, isPro ? 'PLAN_PRO' : `QUOTA_${currentPlanKey.toUpperCase()}`);
+    if (ent.peutPublier) {
+      if (!illimite) setMonthlyCount((c) => c + 1); // maj optimiste du compteur mensuel
+      publishAnnonceDirectly(0, illimite ? 'PLAN_PRO' : `QUOTA_${ent.planCode.toUpperCase()}`);
     } else {
       // Quota exceeded! Show subscription options modal
       isProcessingRef.current = false;
@@ -606,7 +615,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
           />
 
           {/* Coût & Quota Info */}
-          {!paymentsEnabled ? (
+          {!ent.paywallVisible ? (
             <View style={styles.costCard}>
               <View style={styles.costRow}>
                 <Text style={styles.costLabel}>Frais de publication</Text>
@@ -624,16 +633,16 @@ export default function PostAnnonceScreen({ navigation }: any) {
             <View style={styles.costCard}>
               <View style={styles.costRow}>
                 <Text style={styles.costLabel}>Formule actuelle</Text>
-                <Text style={[styles.costValue, { fontSize: FONTS.md }]}>{currentPlan.nom}</Text>
+                <Text style={[styles.costValue, { fontSize: FONTS.md }]}>{planLabel}</Text>
               </View>
               <View style={styles.costDivider} />
               <View style={styles.costRow}>
                 <Text style={styles.costLabel}>Frais de dépôt cette annonce</Text>
                 <Text style={styles.costValue}>
-                  {currentPlanKey === 'professionnel'
-                    ? '0 FCFA (Illimité PRO)'
-                    : monthlyCount < currentPlan.quotaMensuel
-                      ? '0 FCFA (Inclus dans quota)'
+                  {ent.creditsMensuels === null
+                    ? '0 FCFA (illimité avec Flash Pro)'
+                    : ent.peutPublier
+                      ? '0 FCFA (inclus dans vos crédits)'
                       : formatPrix(unitPrice)}
                 </Text>
               </View>
@@ -641,9 +650,9 @@ export default function PostAnnonceScreen({ navigation }: any) {
               <View style={styles.costInfo}>
                 <Ionicons name="information-circle-outline" size={18} color={theme.primary} />
                 <Text style={styles.costInfoText}>
-                  {currentPlanKey === 'professionnel'
-                    ? 'En tant que membre PRO, toutes vos publications sont illimitées et gratuites.'
-                    : `Vous avez publié ${monthlyCount} / ${currentPlan.quotaMensuel} annonces ce mois-ci. Les ${currentPlan.quotaMensuel} premières annonces de chaque mois sont gratuites.`}
+                  {ent.creditsMensuels === null
+                    ? 'Avec Flash Pro, toutes vos publications sont incluses.'
+                    : `Vous avez publié ${ent.creditsUtilises} annonce${ent.creditsUtilises > 1 ? 's' : ''} sur ${quotaLabel} ce mois-ci. Vos crédits se remettent à zéro le 1er du mois.`}
                 </Text>
               </View>
             </View>
@@ -663,11 +672,15 @@ export default function PostAnnonceScreen({ navigation }: any) {
         >
           <Ionicons name="flash" size={20} color={theme.textInverse} />
           <Text style={styles.ctaText}>
-            {!paymentsEnabled
+            {/* §7.5 : le bouton annonce « gratuitement » ou le prix exact,
+                jamais un libelle vague avant l'ouverture du paiement. */}
+            {!ent.blocageActif
               ? 'Publier gratuitement'
-              : currentPlanKey === 'professionnel' || monthlyCount < currentPlan.quotaMensuel
-              ? "Publier l'annonce (Gratuit)"
-              : 'Publier mon annonce'}
+              : ent.creditsMensuels === null
+              ? 'Publier gratuitement'
+              : ent.peutPublier
+              ? `Publier (1 crédit sur ${ent.creditsRestants} restants)`
+              : `Publier — ${formatPrix(unitPrice)}`}
           </Text>
         </TouchableOpacity>
       </View>
@@ -708,7 +721,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
             {paymentStep === 'quota_choice' && (
               <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 460 }}>
                 <Text style={{ fontSize: FONTS.sm, color: theme.textSecondary, marginBottom: SPACING.lg, lineHeight: 20 }}>
-                  Vous avez utilisé votre quota gratuit de {currentPlan.quotaMensuel} annonces ce mois-ci ({monthlyCount}/{currentPlan.quotaMensuel}). Choisissez une formule pour publier votre annonce :
+                  Vous avez utilisé vos {quotaLabel} crédits de publication ce mois-ci ({ent.creditsUtilises}/{quotaLabel}). Choisissez une formule pour publier votre annonce :
                 </Text>
 
                 {/* Option PRO 5000 FCFA (Recommandée) */}
