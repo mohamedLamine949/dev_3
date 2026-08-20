@@ -51,6 +51,7 @@ import CommandesScreen from '../screens/CommandesScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import AdminModerationScreen from '../screens/AdminModerationScreen';
 import SignalementsScreen from '../screens/SignalementsScreen';
+import DemandeDevisScreen from '../screens/DemandeDevisScreen';
 import PublierActionSheet, { OPTION_ANNONCE, OPTION_PRODUIT, OPTION_PRESTATION, ChoixPublication } from '../components/PublierActionSheet';
 import TermsModal from '../components/TermsModal';
 import NotificationManager from '../components/NotificationManager';
@@ -551,6 +552,11 @@ export default function AppNavigator() {
           name="Signalements"
           component={SignalementsScreen}
           options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="DemandeDevis"
+          component={DemandeDevisScreen}
+          options={{ animation: 'slide_from_bottom' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

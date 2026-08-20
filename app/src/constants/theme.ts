@@ -302,6 +302,24 @@ export const TYPES_ACTIVITE = [
   },
 ] as const;
 
+// Disponibilite d'un prestataire — la premiere question que se pose un client
+// qui a une fuite d'eau. Choix manuel plutot qu'un agenda : au lancement, un
+// calendrier complet serait abandonne avant d'etre rempli.
+export const DISPONIBILITES = [
+  { id: 'aujourdhui',   label: "Disponible aujourd'hui", icon: 'flash-outline',    couleur: '#15803d' },
+  { id: 'semaine',      label: 'Cette semaine',          icon: 'calendar-outline', couleur: '#0369a1' },
+  { id: 'rdv',          label: 'Sur rendez-vous',        icon: 'time-outline',     couleur: '#6b7280' },
+  { id: 'indisponible', label: 'Indisponible',           icon: 'close-circle-outline', couleur: '#dc2626' },
+] as const;
+
+/** Dates proposees dans la demande de devis. Pas de calendrier au lancement. */
+export const DATES_SOUHAITEES = [
+  { id: 'aujourdhui', label: "Aujourd'hui" },
+  { id: 'demain',     label: 'Demain' },
+  { id: 'semaine',    label: 'Cette semaine' },
+  { id: 'autre',      label: 'Autre date' },
+] as const;
+
 // Modes de tarification d'une prestation. « Sur devis » existe pour qu'un
 // prestataire qui ne peut pas annoncer un prix ferme ne soit pas obligé
 // d'en inventer un — l'acheteur se sentirait trompé au premier contact.

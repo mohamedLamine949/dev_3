@@ -11,7 +11,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useSellerAvis } from '../hooks/useAvis';
 import { useBoutiqueFollow } from '../hooks/useBoutiqueFollow';
 import { formatPrix } from '../lib/format';
-import { libellePrix } from '../constants/theme';
+import { libellePrix, DISPONIBILITES } from '../constants/theme';
 import { enregistrerContact, enregistrerContactBoutique } from '../lib/contactTracking';
 
 const { width: W } = Dimensions.get('window');
@@ -75,6 +75,13 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
 
   // Commander = créer une VRAIE commande (pas un message) : le vendeur la
   // gère depuis « Commandes reçues », le client la suit depuis « Mes commandes ».
+  // Une vitrine de services se lit comme une fiche de professionnel : action
+  // principale unique et collee en bas, pas un bouton par carte.
+  const estPrestataire =
+    vendeur?.type_activite === 'services' || vendeur?.type_activite === 'mixte';
+  const dispo = DISPONIBILITES.find(d => d.id === (vendeur?.disponibilite || 'rdv'));
+  const premierePrestation = produits.find(p => p.listing_kind === 'pro_service');
+
   function commander(p: Annonce) {
     // Une prestation ne se « commande » pas : on demande un devis (§8.4).
     const estPrestation = p.listing_kind === 'pro_service';
@@ -181,7 +188,16 @@ La boutique sera notifiée et vous répondra.`,
           )}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: SPACING.sm }}>
             <Text style={styles.nom}>{nomBoutique}</Text>
+            {/* Deux badges DISTINCTS : « Pro » dit abonnement actif,
+                « Vérifié » dit identité contrôlée. Les confondre trompe
+                l'acheteur sur la seule chose qui compte pour lui. */}
             <View style={styles.proBadge}><Text style={styles.proBadgeText}>PRO</Text></View>
+            {vendeur?.verification_status === 'verified' && (
+              <View style={styles.verifieBadge}>
+                <Ionicons name="shield-checkmark" size={11} color="#fff" />
+                <Text style={styles.verifieBadgeText}>Vérifié</Text>
+              </View>
+            )}
             <View style={[styles.ouvertBadge, vendeur?.ouvert_maintenant === false && styles.ouvertBadgeFerme]}>
               <View style={[styles.ouvertBadgeDot, { backgroundColor: vendeur?.ouvert_maintenant !== false ? '#4ade80' : '#9ca3af' }]} />
               <Text style={styles.ouvertBadgeText}>{vendeur?.ouvert_maintenant !== false ? 'Ouvert' : 'Fermé'}</Text>
@@ -191,6 +207,13 @@ La boutique sera notifiée et vous répondra.`,
             <View style={styles.noteRow}>
               <Ionicons name="star" size={14} color="#f59e0b" />
               <Text style={styles.noteText}>{avgNote.toFixed(1)} / 5 · {avis.length} avis</Text>
+            </View>
+          )}
+          {/* La premiere question d'un client qui a une fuite d'eau. */}
+          {estPrestataire && dispo && (
+            <View style={[styles.dispoChip, { backgroundColor: dispo.couleur + '18' }]}>
+              <Ionicons name={dispo.icon as any} size={14} color={dispo.couleur} />
+              <Text style={[styles.dispoTexte, { color: dispo.couleur }]}>{dispo.label}</Text>
             </View>
           )}
           {vendeur?.bio ? <Text style={styles.bio} numberOfLines={3}>{vendeur.bio}</Text> : null}
@@ -350,6 +373,20 @@ La boutique sera notifiée et vous répondra.`,
                     <Text style={styles.cardPrix} numberOfLines={1}>
                       {libellePrix(p.prix, p.mode_tarif, formatPrix)}
                     </Text>
+                    {/* Ce qu'un client veut savoir avant de demander : combien
+                        de temps, et jusqu'ou le pro se deplace. */}
+                    {!!p.duree_indicative && (
+                      <View style={styles.cardMetaRow}>
+                        <Ionicons name="time-outline" size={11} color={theme.textMuted} />
+                        <Text style={styles.cardMeta} numberOfLines={1}>{p.duree_indicative}</Text>
+                      </View>
+                    )}
+                    {!!p.condition_deplacement && (
+                      <View style={styles.cardMetaRow}>
+                        <Ionicons name="navigate-outline" size={11} color={theme.textMuted} />
+                        <Text style={styles.cardMeta} numberOfLines={1}>{p.condition_deplacement}</Text>
+                      </View>
+                    )}
                     {!isOwner && (
                       <TouchableOpacity
                         style={[styles.commanderBtn, enRupture && styles.commanderBtnOff]}
@@ -422,6 +459,60 @@ La boutique sera notifiée et vous répondra.`,
           })()
         )}
       </ScrollView>
+
+      {/* Action principale FIXE (règle de conception : une action principale
+          par écran, toujours visible et explicitement nommée). Un client qui
+          fait défiler un portfolio ne doit jamais avoir à remonter pour
+          demander un devis. Réservée aux prestataires : sur une boutique de
+          produits, l'action porte sur un article précis, pas sur la boutique. */}
+      {estPrestataire && !isOwner && (
+        <View style={styles.barreAction}>
+          {vendeur?.telephone ? (
+            <TouchableOpacity
+              style={styles.actionSecondaire}
+              onPress={() => {
+                enregistrerContactBoutique(vendeurId, 'appel');
+                Linking.openURL(`tel:${vendeur.telephone}`);
+              }}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Appeler"
+            >
+              <Ionicons name="call" size={19} color={theme.primary} />
+              <Text style={styles.actionSecondaireTexte}>Appeler</Text>
+            </TouchableOpacity>
+          ) : null}
+          {vendeur?.whatsapp ? (
+            <TouchableOpacity
+              style={styles.actionSecondaire}
+              onPress={() => {
+                enregistrerContactBoutique(vendeurId, 'whatsapp');
+                Linking.openURL(`https://wa.me/${vendeur.whatsapp?.replace(/[^0-9]/g, '')}`);
+              }}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="WhatsApp"
+            >
+              <Ionicons name="logo-whatsapp" size={19} color={theme.primary} />
+              <Text style={styles.actionSecondaireTexte}>WhatsApp</Text>
+            </TouchableOpacity>
+          ) : null}
+          <TouchableOpacity
+            style={styles.actionPrincipale}
+            onPress={() => navigation.navigate('DemandeDevis', {
+              vendeurId,
+              vendeurNom: nomBoutique,
+              prestations: produits.filter(p => p.listing_kind === 'pro_service'),
+            })}
+            activeOpacity={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="Demander un devis"
+          >
+            <Ionicons name="document-text-outline" size={19} color="#fff" />
+            <Text style={styles.actionPrincipaleTexte}>Demander un devis</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -442,6 +533,39 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   backPos: { top: Platform.OS === 'ios' ? 56 : 42, left: SPACING.lg },
   sharePos: { top: Platform.OS === 'ios' ? 56 : 42, right: SPACING.lg },
 
+  cardMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  cardMeta: { flex: 1, fontSize: 11, color: theme.textMuted },
+  verifieBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: '#0369a1', borderRadius: RADIUS.full,
+    paddingHorizontal: 7, paddingVertical: 2,
+  },
+  verifieBadgeText: { fontSize: 10, fontWeight: FONTS.extrabold, color: '#fff' },
+  dispoChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'center', marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.md, paddingVertical: 6, borderRadius: RADIUS.full,
+  },
+  dispoTexte: { fontSize: FONTS.sm, fontWeight: FONTS.bold },
+  barreAction: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: Platform.OS === 'ios' ? SPACING.xxl : SPACING.lg,
+    backgroundColor: theme.surface,
+    borderTopWidth: 1, borderTopColor: theme.borderLight,
+  },
+  actionSecondaire: {
+    width: 62, minHeight: 52, borderRadius: RADIUS.lg,
+    borderWidth: 1, borderColor: theme.borderLight,
+    justifyContent: 'center', alignItems: 'center', gap: 2,
+  },
+  actionSecondaireTexte: { fontSize: 10, fontWeight: FONTS.semibold, color: theme.primary },
+  actionPrincipale: {
+    flex: 1, minHeight: 52, borderRadius: RADIUS.lg, backgroundColor: theme.primary,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm,
+  },
+  actionPrincipaleTexte: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
   identity: { alignItems: 'center', marginTop: -34, paddingHorizontal: SPACING.lg },
   logo: {
     width: 68, height: 68, borderRadius: RADIUS.lg,

@@ -46,6 +46,8 @@ export default function AjouterProduitScreen({ navigation, route }: Props) {
   const [prix, setPrix] = useState('');
   const [stock, setStock] = useState('1');
   const [modeTarif, setModeTarif] = useState<'fixe' | 'a_partir_de' | 'sur_devis'>('fixe');
+  const [dureeIndicative, setDureeIndicative] = useState('');
+  const [conditionDeplacement, setConditionDeplacement] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -147,6 +149,8 @@ export default function AjouterProduitScreen({ navigation, route }: Props) {
           catalogue_id: catalogueId,
           listing_kind: estPrestation ? 'pro_service' : 'pro_product',
           mode_tarif: estPrestation ? modeTarif : 'fixe',
+          duree_indicative: estPrestation ? (dureeIndicative.trim() || null) : null,
+          condition_deplacement: estPrestation ? (conditionDeplacement.trim() || null) : null,
         } as any,
         images
       );
@@ -296,6 +300,31 @@ export default function AjouterProduitScreen({ navigation, route }: Props) {
               </View>
             )}
           </View>
+
+          {/* Ce qu'un client demande toujours avant de s'engager : combien de
+              temps, et jusqu'ou vous vous deplacez (§ vitrine Services). */}
+          {estPrestation && (
+            <>
+              <Text style={styles.fieldLabel}>Durée indicative (facultatif)</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="Ex. 1 à 2 heures"
+                placeholderTextColor={theme.textMuted}
+                value={dureeIndicative}
+                onChangeText={setDureeIndicative}
+                maxLength={40}
+              />
+              <Text style={styles.fieldLabel}>Déplacement (facultatif)</Text>
+              <TextInput
+                style={styles.fieldInput}
+                placeholder="Ex. Bamako, déplacement offert"
+                placeholderTextColor={theme.textMuted}
+                value={conditionDeplacement}
+                onChangeText={setConditionDeplacement}
+                maxLength={60}
+              />
+            </>
+          )}
 
           {/* Description */}
           <Text style={styles.fieldLabel}>Description (facultatif)</Text>

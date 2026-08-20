@@ -54,6 +54,13 @@ export interface User {
   zone_intervention?: string | null;
   accepte_deplacement?: boolean;
   delai_reponse?: string | null;
+  // Vitrine services v2 (migration_p4_vitrine_services.sql)
+  disponibilite?: 'aujourdhui' | 'semaine' | 'rdv' | 'indisponible';
+  // Etat de CONTROLE, sans rapport avec l'abonnement : seul 'verified'
+  // affiche le badge Verifie.
+  verification_status?: 'unverified' | 'phone_verified' | 'document_pending'
+                      | 'verified' | 'rejected' | 'suspended';
+  date_verification?: string | null;
 }
 
 export interface Annonce {
@@ -84,6 +91,9 @@ export interface Annonce {
   listing_kind?: 'private_ad' | 'seller_ad' | 'pro_product' | 'pro_service' | null;
   // Phase 2 : un prestataire ne peut pas toujours annoncer un prix ferme.
   mode_tarif?: 'fixe' | 'a_partir_de' | 'sur_devis';
+  duree_indicative?: string | null;
+  condition_deplacement?: string | null;
+  moderation_status?: 'pending' | 'approved' | 'limited' | 'rejected' | 'under_review';
   // Joined
   images?: ImageAnnonce[];
   user?: User;
@@ -123,6 +133,11 @@ export interface Commande {
   type_demande?: 'commande' | 'devis';
   montant_devis?: number | null;
   date_souhaitee?: string | null;
+  // Demande de devis guidee (migration_p4)
+  photo_url?: string | null;
+  audio_url?: string | null;
+  zone_demandee?: string | null;
+  telephone_client?: string | null;
   date_creation: string;
   date_maj: string;
   // Joined

@@ -5,7 +5,7 @@ import {
   Modal, KeyboardAvoidingView, Share, Switch, Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FONTS, SPACING, RADIUS, SHADOWS, METIER_CATEGORIES, TYPES_ACTIVITE } from '../constants/theme';
+import { FONTS, SPACING, RADIUS, SHADOWS, METIER_CATEGORIES, TYPES_ACTIVITE, DISPONIBILITES } from '../constants/theme';
 import { supabase, Annonce, Catalogue } from '../lib/supabase';
 import TintedChip from '../components/TintedChip';
 import { formatNombre } from '../lib/format';
@@ -89,6 +89,7 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
   const [typeActivite, setTypeActivite] = useState<'produits' | 'services' | 'mixte'>('produits');
   const [zoneIntervention, setZoneIntervention] = useState('');
   const [delaiReponse, setDelaiReponse] = useState('');
+  const [disponibilite, setDisponibilite] = useState<string>('rdv');
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const isPro = user?.type_compte === 'professionnel';
@@ -149,6 +150,7 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
     setTypeActivite((user?.type_activite as any) || 'produits');
     setZoneIntervention(user?.zone_intervention || '');
     setDelaiReponse(user?.delai_reponse || '');
+    setDisponibilite(user?.disponibilite || 'rdv');
     setEditVisible(true);
   }
 
@@ -179,6 +181,7 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
             type_activite: typeActivite,
             zone_intervention: zoneIntervention.trim() || null,
             delai_reponse: delaiReponse.trim() || null,
+            disponibilite: disponibilite,
           })
           .eq('id', session.user.id);
         if (!error) {
@@ -1090,6 +1093,23 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
                   les deux informations que l'acheteur cherche (§8.4). */}
               {typeActivite !== 'produits' && (
                 <>
+                  {/* La premiere question d'un client presse. Un choix simple
+                      plutot qu'un agenda : au lancement, un calendrier complet
+                      serait abandonne avant d'etre rempli. */}
+                  <Text style={styles.fieldLabel}>Votre disponibilité</Text>
+                  <View style={styles.chipsRow}>
+                    {DISPONIBILITES.map(d => (
+                      <TintedChip
+                        key={d.id}
+                        icon={d.icon}
+                        label={d.label}
+                        color={d.couleur}
+                        active={disponibilite === d.id}
+                        onPress={() => setDisponibilite(d.id)}
+                      />
+                    ))}
+                  </View>
+
                   <Text style={styles.fieldLabel}>Zone d'intervention</Text>
                   <Text style={styles.fieldHint}>
                     Où vous déplacez-vous ? Indiquez une zone, jamais votre adresse exacte.
