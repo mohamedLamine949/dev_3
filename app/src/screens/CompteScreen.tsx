@@ -247,9 +247,17 @@ export default function CompteScreen({ navigation }: Props) {
   }
   if (isAdmin) {
     lignesPlus.push({
+      cle: 'signalements',
+      icone: 'flag-outline',
+      titre: 'Signalements',
+      detail: 'File de modération',
+      onPress: () => navigation.navigate('Signalements'),
+    });
+    lignesPlus.push({
       cle: 'moderation',
       icone: 'shield-checkmark-outline',
-      titre: 'Modération',
+      titre: 'Modération campagne',
+      detail: 'Annonces du programme partenaire',
       onPress: () => navigation.navigate('AdminModeration'),
     });
   }

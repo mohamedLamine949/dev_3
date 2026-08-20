@@ -27,13 +27,19 @@ interface ReportModalProps {
   targetName: string; // e.g. the ad title or the user's name
 }
 
+/**
+ * Motifs de signalement (§16.4). Le `code` n'est pas cosmetique : il fixe la
+ * priorite de traitement dans la file de moderation. Une fraude et un danger
+ * passent devant un doublon.
+ */
 const MOTIFS = [
-  'Fraude ou Arnaque',
-  'Contenu inapproprié / injurieux',
-  'Objet interdit ou illégal',
-  'Harcèlement',
-  'Autre motif',
-];
+  { code: 'fraude',           label: 'Fraude ou arnaque' },
+  { code: 'danger',           label: 'Danger pour les personnes' },
+  { code: 'contenu_interdit', label: 'Contenu interdit ou choquant' },
+  { code: 'harcelement',      label: 'Harcèlement' },
+  { code: 'doublon',          label: 'Annonce en double' },
+  { code: 'info_incorrecte',  label: 'Information incorrecte' },
+] as const;
 
 export default function ReportModal({
   isVisible,
@@ -57,17 +63,31 @@ export default function ReportModal({
     try {
       setSubmitting(true);
 
+      const motif = MOTIFS.find(m => m.code === selectedMotif);
       const reportData = {
         signataire_id: session?.user?.id || null, // peut être anonyme si non connecté, ou lié
         annonce_id: annonceId || null,
         cible_user_id: cibleUserId || null,
-        motif: selectedMotif,
+        // Cible explicite : la file de moderation traite annonces, profils,
+        // boutiques, messages et avis dans une seule liste (§16.4).
+        cible_type: annonceId ? 'annonce' : 'profil',
+        cible_id: annonceId || cibleUserId || null,
+        motif_code: selectedMotif,
+        motif: motif?.label || selectedMotif,
         details: details.trim() || null,
       };
 
-      const { error } = await supabase
-        .from('signalements')
-        .insert(reportData);
+      let { error } = await supabase.from('signalements').insert(reportData);
+
+      // Repli : tant que la migration de moderation n'est pas appliquee, les
+      // colonnes cible_type / cible_id / motif_code n'existent pas. Un
+      // signalement qui echoue est pire qu'inutile — l'utilisateur croit avoir
+      // alerte alors que rien n'est parti. On reessaie donc au format ancien.
+      if (error) {
+        const { cible_type, cible_id, motif_code, ...ancienFormat } = reportData as any;
+        const secondEssai = await supabase.from('signalements').insert(ancienFormat);
+        error = secondEssai.error;
+      }
 
       if (error) throw error;
 
@@ -217,13 +237,14 @@ export default function ReportModal({
             {/* Motifs */}
             <Text style={styles.sectionTitle}>Motif du signalement *</Text>
             <View style={styles.motifList}>
-              {MOTIFS.map((motif) => {
-                const isSelected = selectedMotif === motif;
+              {MOTIFS.map((m) => {
+                const motif = m.label;
+                const isSelected = selectedMotif === m.code;
                 return (
                   <TouchableOpacity
-                    key={motif}
+                    key={m.code}
                     style={[styles.motifButton, isSelected && styles.motifButtonSelected]}
-                    onPress={() => setSelectedMotif(motif)}
+                    onPress={() => setSelectedMotif(m.code)}
                     activeOpacity={0.7}
                   >
                     <Text style={[styles.motifText, isSelected && styles.motifTextSelected]}>

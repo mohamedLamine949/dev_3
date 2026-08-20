@@ -20,6 +20,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { supabase, Message } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useChat, getOrCreateConversation, useConversationPresence } from '../hooks/useChat';
+import ReportModal from '../components/ReportModal';
 
 function formatTime(dateStr: string): string {
   if (!dateStr) return '';
@@ -50,6 +51,7 @@ export default function ChatConversationScreen({ route, navigation }: any) {
   const { messages, loading, sendMessage } = useChat(activeConversationId, currentUserId);
   const otherOnline = useConversationPresence(activeConversationId, currentUserId);
   const [inputText, setInputText] = useState(route.params?.prefill || '');
+  const [signalementVisible, setSignalementVisible] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
@@ -206,7 +208,29 @@ export default function ChatConversationScreen({ route, navigation }: any) {
             </Text>
           </View>
         </TouchableOpacity>
+
+        {/* §7.7 : « prevoir blocage et signalement depuis la conversation ».
+            C'est souvent la que l'arnaque se revele — apres le premier
+            contact, pas dans l'annonce. */}
+        {otherUser?.id && (
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => setSignalementVisible(true)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Signaler cette conversation"
+          >
+            <Ionicons name="flag-outline" size={19} color={theme.textMuted} />
+          </TouchableOpacity>
+        )}
       </View>
+
+      <ReportModal
+        isVisible={signalementVisible}
+        onClose={() => setSignalementVisible(false)}
+        cibleUserId={otherUser?.id}
+        targetName={otherUserName || 'cet utilisateur'}
+      />
 
       <FlatList
         ref={flatListRef}

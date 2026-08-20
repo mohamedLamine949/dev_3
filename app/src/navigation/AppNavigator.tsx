@@ -50,6 +50,7 @@ import AjouterProduitScreen from '../screens/AjouterProduitScreen';
 import CommandesScreen from '../screens/CommandesScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import AdminModerationScreen from '../screens/AdminModerationScreen';
+import SignalementsScreen from '../screens/SignalementsScreen';
 import PublierActionSheet, { OPTION_ANNONCE, OPTION_PRODUIT, OPTION_PRESTATION, ChoixPublication } from '../components/PublierActionSheet';
 import TermsModal from '../components/TermsModal';
 import NotificationManager from '../components/NotificationManager';
@@ -544,6 +545,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="AdminModeration"
           component={AdminModerationScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="Signalements"
+          component={SignalementsScreen}
           options={{ animation: 'slide_from_right' }}
         />
       </Stack.Navigator>

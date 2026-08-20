@@ -103,6 +103,24 @@ export function useAnnonces(options?: {
     paginated,
   ]);
 
+  /**
+   * Retire du fil et de la recherche ce que la moderation a limite (§16.6).
+   *
+   * « Une annonce limitee n'est pas forcement supprimee : elle peut etre
+   * retiree des recommandations en attendant une verification. » Elle reste
+   * accessible par son lien direct — le proprietaire ne perd rien — mais elle
+   * cesse d'etre poussee aux acheteurs.
+   *
+   * Le filtre est applique APRES la requete et non dedans : si la migration de
+   * moderation n'est pas encore appliquee, la colonne n'existe pas et une
+   * clause SQL la referencant casserait tout le fil d'accueil.
+   */
+  const retirerLesLimitees = (rows: Annonce[]) =>
+    rows.filter(a => {
+      const statut = (a as any).moderation_status;
+      return !statut || statut === 'approved';
+    });
+
   const applySearch = useCallback((rows: Annonce[]) => {
     if (!isSearching) return rows;
     // filterByRelevance ne garde que le meilleur niveau de correspondance :
@@ -146,7 +164,7 @@ export function useAnnonces(options?: {
 
       pageRef.current = 1;
       setHasMore(paginated && rows.length === pageSize);
-      setAnnonces(applySearch(rows));
+      setAnnonces(applySearch(retirerLesLimitees(rows)));
     } catch (err: any) {
       if (timedOut) return;
       clearTimeout(timeoutId);
@@ -180,7 +198,7 @@ export function useAnnonces(options?: {
       // classement et peut faire réapparaître une ligne déjà affichée.
       setAnnonces(prev => {
         const seen = new Set(prev.map(a => a.id));
-        return [...prev, ...rows.filter(a => !seen.has(a.id))];
+        return [...prev, ...retirerLesLimitees(rows).filter(a => !seen.has(a.id))];
       });
     } catch (err) {
       console.error('Erreur loadMore annonces:', err);
