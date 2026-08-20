@@ -25,6 +25,7 @@ import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useTabBarSpace } from '../hooks/useTabBarSpace';
+import { useProStatus, estPro } from '../hooks/useProStatus';
 import { SkeletonCard } from '../components/SkeletonLoader';
 import { formatPrixCompact as formatPrix } from '../lib/format';
 
@@ -109,6 +110,9 @@ export default function SearchScreen({ navigation }: Props) {
   const { location } = useLocation();
   const { session } = useAuth();
   const { favorisIds, refetch: refetchFavoris } = useFavoris(session?.user?.id);
+  // Statut PRO valide par le serveur : un abonnement expire ne doit plus
+  // beneficier du bonus de recherche ni du carrousel boutiques (§11.7).
+  const { proIds } = useProStatus();
   const inResultsMode = debouncedSearch.length > 0 || selectedCategory !== null;
 
   const handleToggleFavori = async (annonceId: string) => {
@@ -169,7 +173,7 @@ export default function SearchScreen({ navigation }: Props) {
       return;
     }
 
-    const proIds = new Set(users.filter(u => u.type_compte === 'professionnel').map(u => u.id));
+    const proIdsEffectifs = new Set(users.filter(u => estPro(u, proIds)).map(u => u.id));
     // Le bonus PRO s'ajoute au score, il ne le multiplie pas : sinon il
     // franchissait les paliers de pertinence et faisait remonter une annonce
     // approximative d'un PRO au-dessus d'une correspondance exacte.
@@ -177,7 +181,7 @@ export default function SearchScreen({ navigation }: Props) {
       annonces.map(annonce => ({
         ...annonce,
         isUserProfile: false,
-        searchScore: scoreAnnonce(query, annonce) + (proIds.has(annonce.user_id) ? 3 : 0),
+        searchScore: scoreAnnonce(query, annonce) + (proIdsEffectifs.has(annonce.user_id) ? 3 : 0),
       }))
     );
 
@@ -187,7 +191,7 @@ export default function SearchScreen({ navigation }: Props) {
 
     setSearchTier(relevanceTier(scoredAnnonces));
     setSearchResults(mergeResults(scoredAnnonces, scoredUsers));
-  }, [annonces, users, debouncedSearch]);
+  }, [annonces, users, debouncedSearch, proIds]);
 
   const loading = loadingAnnonces || loadingUsers;
 
@@ -198,11 +202,11 @@ export default function SearchScreen({ navigation }: Props) {
       if (!r.isUserProfile && r.user_id) counts[r.user_id] = (counts[r.user_id] || 0) + 1;
     });
     return users
-      .filter(u => u.type_compte === 'professionnel' && counts[u.id])
+      .filter(u => estPro(u, proIds) && counts[u.id])
       .map(u => ({ ...u, nbProduits: counts[u.id] }))
       .sort((a, b) => b.nbProduits - a.nbProduits)
       .slice(0, 8);
-  }, [users, searchResults]);
+  }, [users, searchResults, proIds]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -215,7 +219,7 @@ export default function SearchScreen({ navigation }: Props) {
 
     if (item.isUserProfile) {
       const authorName = `${item.prenom || ''} ${item.nom || ''}`.trim() || 'Utilisateur';
-      const isPro = item.type_compte === 'professionnel';
+      const isPro = estPro(item, proIds);
 
       return (
         <TouchableOpacity
@@ -270,7 +274,7 @@ export default function SearchScreen({ navigation }: Props) {
                 <Ionicons name="image-outline" size={32} color={theme.border} />
               </View>
           }
-          {item.user?.type_compte === 'professionnel' && (
+          {estPro(item.user, proIds) && (
             <View style={[styles.proBadge, styles.cardBadgePos]}>
               <Ionicons name="checkmark-circle" size={10} color="#fff" style={{ marginRight: 2 }} />
               <Text style={styles.proBadgeText}>PRO</Text>

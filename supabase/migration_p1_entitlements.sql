@@ -252,6 +252,63 @@ BEGIN
   v_mode        := COALESCE(v_mode, 'FREE_LAUNCH');
   v_grace_hours := COALESCE(v_grace_hours, 72);
 
+  -- ------------------------------------------------------------------
+  -- OVERLAY DE LANCEMENT (§12.4)
+  -- ------------------------------------------------------------------
+  -- Tant qu'on ne facture personne, le statut declare suffit : on ne verifie
+  -- AUCUNE date. Sans cela, un compte passe PRO pendant la phase gratuite
+  -- perdrait sa boutique et sa place dans l'annuaire au bout de 30 jours,
+  -- sanctionne pour un abonnement qu'on ne lui demande pas encore.
+  -- Constat du 2026-08-20 qui a motive ce garde-fou : sur 12 comptes PRO,
+  -- 1 n'a aucune date d'abonnement et 9 arrivaient a echeance sous 7 jours.
+  IF v_mode IN ('FREE_LAUNCH', 'SHADOW') THEN
+    SELECT CASE u.type_compte
+             WHEN 'professionnel' THEN 'pro'
+             WHEN 'vendeur'       THEN 'vendeur'
+             ELSE 'gratuit'
+           END
+      INTO v_plan_code
+    FROM public.users u WHERE u.id = p_user_id;
+
+    v_plan_code := COALESCE(v_plan_code, 'gratuit');
+    v_statut    := CASE WHEN v_plan_code = 'gratuit' THEN 'aucun' ELSE 'lancement' END;
+
+    SELECT * INTO v_ent
+    FROM public.plan_entitlements
+    WHERE plan_code = v_plan_code
+    ORDER BY version DESC LIMIT 1;
+
+    SELECT COUNT(*) INTO v_utilises
+    FROM public.annonces a
+    WHERE a.user_id = p_user_id
+      AND a.date_creation >= v_debut_mois
+      AND COALESCE(a.listing_kind, 'private_ad') IN ('private_ad', 'seller_ad');
+
+    RETURN jsonb_build_object(
+      'user_id',            p_user_id,
+      'monetization_mode',  v_mode,
+      'plan_code',          v_plan_code,
+      'plan_statut',        v_statut,
+      'valid_until',        NULL,
+      'en_grace',           FALSE,
+      'paywall_visible',    FALSE,
+      'blocage_actif',      FALSE,
+      'credits_mensuels',   v_ent.credits_mensuels,
+      'credits_utilises',   v_utilises,
+      'credits_restants',   CASE WHEN v_ent.credits_mensuels IS NULL THEN NULL
+                                 ELSE GREATEST(v_ent.credits_mensuels - v_utilises, 0) END,
+      'peut_publier',       TRUE,
+      'peut_avoir_boutique', COALESCE(v_ent.peut_avoir_boutique, FALSE),
+      'peut_voir_stats',     COALESCE(v_ent.peut_voir_stats, FALSE),
+      'credits_boost',       COALESCE(v_ent.credits_boost, 0),
+      'badge_public',        COALESCE(v_ent.badge_public, 'aucun'),
+      'prochaine_remise_a_zero', (v_debut_mois + INTERVAL '1 month')
+    );
+  END IF;
+
+  -- ------------------------------------------------------------------
+  -- Monetisation active : la date fait foi.
+  -- ------------------------------------------------------------------
   -- Abonnement le plus favorable encore dans sa fenetre (grace comprise).
   SELECT s.plan_code, s.plan_version, s.valid_until
     INTO v_sub
@@ -350,7 +407,16 @@ GRANT EXECUTE ON FUNCTION public.mes_droits() TO authenticated;
 CREATE OR REPLACE VIEW public.v_entitlements_publics AS
 SELECT
   u.id AS user_id,
-  COALESCE(
+  -- Overlay de lancement : tant qu'on ne facture personne, le statut declare
+  -- suffit. Sinon une boutique disparaitrait de l'annuaire pour non-paiement
+  -- d'un abonnement qu'on ne lui reclame pas (§12.4).
+  CASE WHEN c.mode IN ('FREE_LAUNCH', 'SHADOW') THEN
+    CASE u.type_compte
+      WHEN 'professionnel' THEN 'pro'
+      WHEN 'vendeur'       THEN 'vendeur'
+      ELSE 'gratuit'
+    END
+  ELSE COALESCE(
     (SELECT p.code
      FROM public.subscriptions s
      JOIN public.plans p ON p.code = s.plan_code
@@ -371,14 +437,16 @@ SELECT
       THEN 'vendeur'
       ELSE 'gratuit'
     END
-  ) AS plan_public
+  ) END AS plan_public
 FROM public.users u
 CROSS JOIN LATERAL (
   -- COALESCE et non un simple SELECT : si la ligne de configuration venait a
   -- manquer, un CROSS JOIN classique renverrait zero ligne et ferait
   -- disparaitre TOUS les badges Pro d'un coup.
   SELECT COALESCE((SELECT ac.pro_grace_hours FROM public.app_config ac WHERE ac.id = 1), 72)
-         AS pro_grace_hours
+         AS pro_grace_hours,
+         COALESCE((SELECT ac.monetization_mode FROM public.app_config ac WHERE ac.id = 1), 'FREE_LAUNCH')
+         AS mode
 ) c;
 
 GRANT SELECT ON public.v_entitlements_publics TO anon, authenticated;

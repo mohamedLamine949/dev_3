@@ -236,22 +236,79 @@ export function useMesAnnonces(userId: string | undefined) {
 /**
  * Créer une nouvelle annonce
  */
+/** UUID v4 sans dépendance native — sert de clé d'idempotence de publication. */
+function uuidV4(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/** La RPC n'existe pas encore : migration de phase 1b non appliquée. */
+function rpcAbsente(error: any): boolean {
+  const code = error?.code || '';
+  const message = String(error?.message || '');
+  return code === '42883' || code === 'PGRST202' || /Could not find the function/i.test(message);
+}
+
 export async function createAnnonce(
   annonceData: Omit<Annonce, 'id' | 'date_creation' | 'images' | 'user'>,
   imageUris: string[]
 ): Promise<{ annonce: Annonce | null; error: string | null }> {
   try {
-    // 1. Insérer l'annonce
-    console.log("📝 [CreateAnnonce] Insertion de l'annonce...", annonceData.titre);
-    const { data: annonce, error: insertError } = await supabase
-      .from('annonces')
-      .insert(annonceData)
-      .select()
-      .single();
+    // 1. Publier l'annonce.
+    //
+    // La publication passe par une RPC transactionnelle (§12.5) : elle
+    // verrouille le compte, relit les droits et insère dans la même
+    // transaction. Deux appuis rapides ne créent donc qu'une annonce et ne
+    // consomment qu'un crédit, et un client modifié ne peut pas contourner le
+    // quota. La clé d'idempotence rend l'appel rejouable après une coupure
+    // réseau sans risquer un doublon.
+    //
+    // Repli : tant que `migration_p1b_publication.sql` n'est pas appliquée,
+    // on retombe sur l'insertion directe d'avant — comportement identique.
+    console.log("📝 [CreateAnnonce] Publication de l'annonce...", annonceData.titre);
 
-    if (insertError) {
-      console.error("❌ [CreateAnnonce Error] Insertion annonce:", insertError);
-      throw insertError;
+    let annonce: any = null;
+    const cleIdempotence = uuidV4();
+
+    const { data: resultat, error: rpcError } = await supabase.rpc('publier_annonce', {
+      p_annonce: annonceData,
+      p_idempotency_key: cleIdempotence,
+    });
+
+    if (rpcError && !rpcAbsente(rpcError)) {
+      console.error("❌ [CreateAnnonce Error] publier_annonce:", rpcError);
+      throw rpcError;
+    }
+
+    if (!rpcError && resultat?.annonce_id) {
+      const { data: ligne, error: relectureError } = await supabase
+        .from('annonces')
+        .select('*')
+        .eq('id', resultat.annonce_id)
+        .single();
+      if (relectureError) throw relectureError;
+      annonce = ligne;
+      console.log(
+        "✅ [CreateAnnonce] Publiee par le serveur — credits restants :",
+        resultat.credits_restants
+      );
+    } else {
+      // Repli : insertion directe (comportement d'avant la phase 1b).
+      const { data: insere, error: insertError } = await supabase
+        .from('annonces')
+        .insert(annonceData)
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error("❌ [CreateAnnonce Error] Insertion annonce:", insertError);
+        throw insertError;
+      }
+      annonce = insere;
+      console.log("✅ [CreateAnnonce] Inseree en repli local");
     }
 
     console.log("✅ [CreateAnnonce] Annonce créée avec ID:", annonce.id);

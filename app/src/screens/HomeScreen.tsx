@@ -23,6 +23,7 @@ import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useTabBarSpace } from '../hooks/useTabBarSpace';
+import { useProStatus, estPro } from '../hooks/useProStatus';
 import { useFavoris, toggleFavori } from '../hooks/useFavoris';
 import { getRecentAnnonces } from '../lib/recentStorage';
 import { SkeletonCard, SkeletonCategories } from '../components/SkeletonLoader';
@@ -189,6 +190,8 @@ export default function HomeScreen({ navigation }: Props) {
   const { session, user } = useAuth();
   const { favorisIds, refetch: refetchFavoris } = useFavoris(session?.user?.id);
   const { shops: proShops, total: proTotal } = useDecouverteProPreview();
+  // Badge PRO valide par le serveur : un abonnement expire ne le porte plus (§11.7).
+  const { proIds } = useProStatus();
   const [recentAnnonces, setRecentAnnonces] = useState<Annonce[]>([]);
 
   const loadRecent = useCallback(async () => {
@@ -286,7 +289,7 @@ export default function HomeScreen({ navigation }: Props) {
           }
           {/* Badges : PRO + NEUF */}
           <View style={styles.badgeStack}>
-            {(item as any).user?.type_compte === 'professionnel' && (
+            {estPro((item as any).user, proIds) && (
               <View style={[styles.badge, { backgroundColor: theme.primary }]}>
                 <Ionicons name="checkmark-circle" size={10} color="#fff" style={{ marginRight: 2 }} />
                 <Text style={styles.badgeText}>PRO</Text>
