@@ -19,7 +19,7 @@ import { useTheme } from '../contexts/ThemeContext';
  * serait de la friction pure.
  */
 
-export type ChoixPublication = 'annonce' | 'produit';
+export type ChoixPublication = 'annonce' | 'produit' | 'prestation';
 
 interface Option {
   cle: ChoixPublication;
@@ -40,6 +40,13 @@ export const OPTION_ANNONCE: Option = {
   icone: 'pricetag-outline',
   titre: 'Vendre un objet',
   detail: 'Une annonce visible par tous les acheteurs',
+};
+
+export const OPTION_PRESTATION: Option = {
+  cle: 'prestation',
+  icone: 'construct-outline',
+  titre: 'Ajouter une prestation',
+  detail: 'Un service que vous proposez, avec ou sans prix fixe',
 };
 
 export const OPTION_PRODUIT: Option = {

@@ -48,6 +48,12 @@ export interface User {
   categorie_metier?: string | null;
   // Statut boutique (migration_ouvert_et_follow.sql)
   ouvert_maintenant?: boolean;
+  // Activite du professionnel (migration_p2_services.sql) — axe independant
+  // du plan paye et du type de compte : configure formulaires et vitrine.
+  type_activite?: 'produits' | 'services' | 'mixte';
+  zone_intervention?: string | null;
+  accepte_deplacement?: boolean;
+  delai_reponse?: string | null;
 }
 
 export interface Annonce {
@@ -73,6 +79,11 @@ export interface Annonce {
   stock?: number | null;
   visible?: boolean;
   catalogue_id?: string | null;
+  // Phase 1 : distingue une annonce de particulier d'un produit ou d'une
+  // prestation de boutique (migration_p1_entitlements.sql).
+  listing_kind?: 'private_ad' | 'seller_ad' | 'pro_product' | 'pro_service' | null;
+  // Phase 2 : un prestataire ne peut pas toujours annoncer un prix ferme.
+  mode_tarif?: 'fixe' | 'a_partir_de' | 'sur_devis';
   // Joined
   images?: ImageAnnonce[];
   user?: User;
@@ -88,7 +99,13 @@ export interface Catalogue {
   date_creation: string;
 }
 
-export type CommandeStatut = 'nouvelle' | 'confirmee' | 'livree' | 'refusee' | 'annulee';
+// Deux circuits partagent la table `commandes` (§8.6) :
+//   produits : nouvelle -> confirmee -> livree
+//   services : nouvelle -> precisions -> devis_envoye -> accepte -> en_cours -> termine
+// Les deux peuvent finir en refusee ou annulee.
+export type CommandeStatut =
+  | 'nouvelle' | 'confirmee' | 'livree' | 'refusee' | 'annulee'
+  | 'precisions' | 'devis_envoye' | 'accepte' | 'en_cours' | 'termine';
 
 export interface Commande {
   id: string;
@@ -102,6 +119,10 @@ export interface Commande {
   note_client?: string | null;
   statut: CommandeStatut;
   reponse_vendeur?: string | null;
+  // Demande de devis (migration_p2_services.sql)
+  type_demande?: 'commande' | 'devis';
+  montant_devis?: number | null;
+  date_souhaitee?: string | null;
   date_creation: string;
   date_maj: string;
   // Joined

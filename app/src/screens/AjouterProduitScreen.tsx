@@ -5,7 +5,7 @@ import {
   Modal, KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES } from '../constants/theme';
+import { FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, MODES_TARIF } from '../constants/theme';
 import { supabase, Catalogue } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -16,6 +16,7 @@ const MAX_IMAGES = 4;
 
 interface Props {
   navigation: any;
+  route?: any;
 }
 
 /**
@@ -24,9 +25,19 @@ interface Props {
  * d'état ou de sous-catégorie : le produit hérite de la catégorie de son
  * catalogue et vit dans la table annonces (infra recherche réutilisée).
  */
-export default function AjouterProduitScreen({ navigation }: Props) {
+export default function AjouterProduitScreen({ navigation, route }: Props) {
   const { theme, isDark } = useTheme();
   const { session, user } = useAuth();
+
+  // Le meme ecran sert aux produits et aux prestations. Une prestation n'a pas
+  // de stock — le mot n'a aucun sens pour un menuisier — et peut etre annoncee
+  // sans prix ferme (§8.4). Le choix vient de la feuille d'action, avec repli
+  // sur l'activite declaree de la boutique.
+  const estPrestation: boolean =
+    route?.params?.kind === 'prestation' ||
+    (route?.params?.kind === undefined && user?.type_activite === 'services');
+
+  const motObjet = estPrestation ? 'prestation' : 'produit';
 
   const [catalogues, setCatalogues] = useState<Catalogue[]>([]);
   const [catalogueId, setCatalogueId] = useState<string | null>(null);
@@ -34,6 +45,7 @@ export default function AjouterProduitScreen({ navigation }: Props) {
   const [description, setDescription] = useState('');
   const [prix, setPrix] = useState('');
   const [stock, setStock] = useState('1');
+  const [modeTarif, setModeTarif] = useState<'fixe' | 'a_partir_de' | 'sur_devis'>('fixe');
   const [images, setImages] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -103,9 +115,13 @@ export default function AjouterProduitScreen({ navigation }: Props) {
 
   const prixNum = parseInt(prix.replace(/[^0-9]/g, ''), 10) || 0;
   const stockNum = parseInt(stock.replace(/[^0-9]/g, ''), 10);
+  const prixExige = !(estPrestation && modeTarif === 'sur_devis');
   const canSubmit =
-    !!catalogueId && nom.trim().length >= 3 && prixNum > 0 &&
-    images.length > 0 && !isNaN(stockNum) && !saving;
+    !!catalogueId && nom.trim().length >= 3 &&
+    (!prixExige || prixNum > 0) &&
+    images.length > 0 &&
+    (estPrestation || !isNaN(stockNum)) &&
+    !saving;
 
   async function publier() {
     if (!canSubmit || !session) return;
@@ -124,14 +140,20 @@ export default function AjouterProduitScreen({ navigation }: Props) {
           est_payee: true, // produit de boutique : pas de frais de dépôt
           ville: 'Bamako',
           quartier: user?.quartier_boutique || undefined,
-          stock: stockNum,
+          // Une prestation n'a pas de stock : NULL et non 0, qui afficherait
+          // « Rupture » sur la vitrine.
+          stock: estPrestation ? null : stockNum,
           visible: true,
           catalogue_id: catalogueId,
+          listing_kind: estPrestation ? 'pro_service' : 'pro_product',
+          mode_tarif: estPrestation ? modeTarif : 'fixe',
         } as any,
         images
       );
       if (error) throw new Error(error);
-      Alert.alert('Produit en ligne', `« ${annonce?.titre} » est visible dans votre boutique.`, [
+      Alert.alert(
+        estPrestation ? 'Prestation en ligne' : 'Produit en ligne',
+        `« ${annonce?.titre} » est visible dans votre vitrine.`, [
         { text: 'Ajouter un autre', onPress: () => { setNom(''); setDescription(''); setPrix(''); setStock('1'); setImages([]); } },
         { text: 'Voir ma boutique', onPress: () => navigation.replace('MaBoutique') },
       ]);
@@ -200,49 +222,86 @@ export default function AjouterProduitScreen({ navigation }: Props) {
           </View>
 
           {/* Nom */}
-          <Text style={styles.fieldLabel}>Nom du produit</Text>
+          <Text style={styles.fieldLabel}>
+            {estPrestation ? 'Nom de la prestation' : 'Nom du produit'}
+          </Text>
           <TextInput
             style={styles.fieldInput}
-            placeholder="Ex. iPhone 13 128 Go"
+            placeholder={estPrestation ? 'Ex. Pose de carrelage' : 'Ex. iPhone 13 128 Go'}
             placeholderTextColor={theme.textMuted}
             value={nom}
             onChangeText={setNom}
             maxLength={60}
           />
 
+          {/* Tarification — une prestation ne peut pas toujours annoncer un
+              prix ferme ; l'obliger reviendrait a lui faire inventer un
+              chiffre faux, et l'acheteur se sentirait trompe (§7.6). */}
+          {estPrestation && (
+            <>
+              <Text style={styles.fieldLabel}>Tarification</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm }}>
+                {MODES_TARIF.map(m => (
+                  <TouchableOpacity
+                    key={m.id}
+                    style={[styles.tarifChip, modeTarif === m.id && styles.tarifChipActive]}
+                    onPress={() => setModeTarif(m.id as any)}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: modeTarif === m.id }}
+                  >
+                    <Text style={[styles.tarifChipText, modeTarif === m.id && styles.tarifChipTextActive]}>
+                      {m.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={styles.fieldHintTarif}>
+                {MODES_TARIF.find(m => m.id === modeTarif)?.aide}
+              </Text>
+            </>
+          )}
+
           {/* Prix + stock */}
           <View style={{ flexDirection: 'row', gap: SPACING.md }}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.fieldLabel}>Prix (FCFA)</Text>
-              <TextInput
-                style={styles.fieldInput}
-                placeholder="150 000"
-                placeholderTextColor={theme.textMuted}
-                value={prix}
-                onChangeText={(t) => setPrix(t.replace(/[^0-9]/g, ''))}
-                keyboardType="number-pad"
-                maxLength={9}
-              />
-            </View>
-            <View style={{ width: 110 }}>
-              <Text style={styles.fieldLabel}>Stock</Text>
-              <TextInput
-                style={styles.fieldInput}
-                placeholder="1"
-                placeholderTextColor={theme.textMuted}
-                value={stock}
-                onChangeText={(t) => setStock(t.replace(/[^0-9]/g, ''))}
-                keyboardType="number-pad"
-                maxLength={3}
-              />
-            </View>
+            {prixExige && (
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>
+                  {modeTarif === 'a_partir_de' ? 'À partir de (FCFA)' : 'Prix (FCFA)'}
+                </Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  placeholder="150 000"
+                  placeholderTextColor={theme.textMuted}
+                  value={prix}
+                  onChangeText={(t) => setPrix(t.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  maxLength={9}
+                />
+              </View>
+            )}
+            {/* Le mot « stock » n'existe pas pour une prestation. */}
+            {!estPrestation && (
+              <View style={{ width: 110 }}>
+                <Text style={styles.fieldLabel}>Stock</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  placeholder="1"
+                  placeholderTextColor={theme.textMuted}
+                  value={stock}
+                  onChangeText={(t) => setStock(t.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  maxLength={3}
+                />
+              </View>
+            )}
           </View>
 
           {/* Description */}
           <Text style={styles.fieldLabel}>Description (facultatif)</Text>
           <TextInput
             style={[styles.fieldInput, { height: 90, textAlignVertical: 'top' }]}
-            placeholder="État, couleur, garantie…"
+            placeholder={estPrestation ? "Ce que comprend la prestation, vos délais…" : "État, couleur, garantie…"}
             placeholderTextColor={theme.textMuted}
             value={description}
             onChangeText={setDescription}
@@ -331,6 +390,28 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   fieldLabel: {
     fontSize: FONTS.xs, fontWeight: FONTS.semibold, color: theme.textSecondary,
     textTransform: 'uppercase', letterSpacing: 0.5, marginTop: SPACING.lg, marginBottom: 6,
+  },
+  tarifChip: {
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: theme.borderLight,
+    backgroundColor: theme.surface,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  tarifChipActive: {
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
+  },
+  tarifChipText: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textSecondary },
+  tarifChipTextActive: { color: '#fff' },
+  fieldHintTarif: {
+    fontSize: FONTS.xs,
+    color: theme.textMuted,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.sm,
   },
   fieldInput: {
     backgroundColor: theme.surface, borderRadius: RADIUS.md, paddingHorizontal: SPACING.lg,

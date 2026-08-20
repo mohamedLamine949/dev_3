@@ -49,7 +49,7 @@ import AjouterProduitScreen from '../screens/AjouterProduitScreen';
 import CommandesScreen from '../screens/CommandesScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import AdminModerationScreen from '../screens/AdminModerationScreen';
-import PublierActionSheet, { OPTION_ANNONCE, OPTION_PRODUIT, ChoixPublication } from '../components/PublierActionSheet';
+import PublierActionSheet, { OPTION_ANNONCE, OPTION_PRODUIT, OPTION_PRESTATION, ChoixPublication } from '../components/PublierActionSheet';
 import TermsModal from '../components/TermsModal';
 import NotificationManager from '../components/NotificationManager';
 import DeviceIdSync from '../components/DeviceIdSync';
@@ -313,12 +313,29 @@ function MainTabs() {
   // DEMANDE au lieu de le rediriger en silence (§6.2). Un particulier n'a
   // qu'une option : lui imposer une feuille intermediaire serait de la
   // friction pure, on ouvre directement le formulaire.
-  const aPlusieursChoix = user?.type_compte === 'professionnel';
+  const estPro = user?.type_compte === 'professionnel';
+  const activite = user?.type_activite || 'produits';
+
+  // La feuille ne propose que ce que ce compte peut reellement publier.
+  const optionsPublication = React.useMemo(() => {
+    if (!estPro) return [];
+    const options = [];
+    if (activite === 'produits' || activite === 'mixte') options.push(OPTION_PRODUIT);
+    if (activite === 'services' || activite === 'mixte') options.push(OPTION_PRESTATION);
+    options.push(OPTION_ANNONCE);
+    return options;
+  }, [estPro, activite]);
+
+  const aPlusieursChoix = optionsPublication.length > 1;
 
   const allerVers = (cle: ChoixPublication) => {
     setChoixVisible(false);
     if (!navigationRef.isReady()) return;
-    navigationRef.navigate(cle === 'produit' ? ('AjouterProduit' as never) : ('Publier' as never));
+    if (cle === 'annonce') {
+      navigationRef.navigate('Publier' as never);
+      return;
+    }
+    (navigationRef.navigate as any)('AjouterProduit', { kind: cle });
   };
 
   return (
@@ -347,7 +364,7 @@ function MainTabs() {
 
       <PublierActionSheet
         visible={choixVisible}
-        options={[OPTION_PRODUIT, OPTION_ANNONCE]}
+        options={optionsPublication}
         onChoisir={allerVers}
         onFermer={() => setChoixVisible(false)}
       />

@@ -275,6 +275,53 @@ export const CATEGORIES = [
   { id: 'services', label: 'Services', icon: 'build-outline' },
 ];
 
+// ─────────────────────────────────────────────
+// 🧰 Activité d'un professionnel (§4.1, §8.4)
+// ─────────────────────────────────────────────
+// Axe indépendant du plan payé : un prestataire peut être au plan gratuit,
+// une entreprise peut vendre des produits. Ce champ ne configure que les
+// formulaires et la vitrine.
+export const TYPES_ACTIVITE = [
+  {
+    id: 'produits',
+    label: 'Je vends des produits',
+    detail: 'Articles avec un prix et un stock',
+    icon: 'cube-outline',
+  },
+  {
+    id: 'services',
+    label: 'Je propose des services',
+    detail: 'Prestations, interventions, réalisations',
+    icon: 'construct-outline',
+  },
+  {
+    id: 'mixte',
+    label: 'Les deux',
+    detail: 'Produits et prestations dans la même vitrine',
+    icon: 'layers-outline',
+  },
+] as const;
+
+// Modes de tarification d'une prestation. « Sur devis » existe pour qu'un
+// prestataire qui ne peut pas annoncer un prix ferme ne soit pas obligé
+// d'en inventer un — l'acheteur se sentirait trompé au premier contact.
+export const MODES_TARIF = [
+  { id: 'fixe',        label: 'Prix fixe',    aide: 'Le prix affiché est le prix payé' },
+  { id: 'a_partir_de', label: 'À partir de',  aide: 'Un point de départ, ajusté selon le travail' },
+  { id: 'sur_devis',   label: 'Sur devis',    aide: 'Aucun prix affiché, vous chiffrez au cas par cas' },
+] as const;
+
+/** Prix affichable d'une publication, selon son mode de tarification. */
+export function libellePrix(
+  prix: number,
+  modeTarif?: string | null,
+  formater: (n: number) => string = n => String(n)
+): string {
+  if (modeTarif === 'sur_devis') return 'Sur devis';
+  if (modeTarif === 'a_partir_de') return `À partir de ${formater(prix)}`;
+  return formater(prix);
+}
+
 // Taxonomie "Découverte Pro" — indépendante de CATEGORIES (annonces).
 // Regroupe les boutiques PRO par métier plutôt que par catégorie produit :
 // une boutique choisit son `categorie_metier` une fois dans "Ma boutique",

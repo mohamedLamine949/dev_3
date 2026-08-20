@@ -10,6 +10,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSellerAvis } from '../hooks/useAvis';
 import { useBoutiqueFollow } from '../hooks/useBoutiqueFollow';
+import { formatPrix } from '../lib/format';
+import { libellePrix } from '../constants/theme';
 
 const { width: W } = Dimensions.get('window');
 const CARD_W = (W - SPACING.lg * 2 - SPACING.md) / 2;
@@ -73,8 +75,12 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
   // Commander = créer une VRAIE commande (pas un message) : le vendeur la
   // gère depuis « Commandes reçues », le client la suit depuis « Mes commandes ».
   function commander(p: Annonce) {
+    // Une prestation ne se « commande » pas : on demande un devis (§8.4).
+    const estPrestation = p.listing_kind === 'pro_service';
     if (!session) {
-      Alert.alert('Connexion requise', 'Créez un compte pour commander auprès de cette boutique.', [
+      Alert.alert('Connexion requise', estPrestation
+        ? 'Créez un compte pour demander un devis à ce professionnel.'
+        : 'Créez un compte pour commander auprès de cette boutique.', [
         { text: 'Annuler', style: 'cancel' },
         { text: 'Se connecter', onPress: () => navigation.navigate('Login') },
       ]);
@@ -82,12 +88,16 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
     }
     if (isOwner || commandeEnCours) return;
     Alert.alert(
-      'Commander ce produit ?',
-      `${p.titre} — ${Number(p.prix).toLocaleString('fr-FR')} FCFA\nLa boutique sera notifiée et vous répondra.`,
+      estPrestation ? 'Demander un devis ?' : 'Commander ce produit ?',
+      estPrestation
+        ? `${p.titre}
+Le professionnel sera notifié et vous proposera un montant.`
+        : `${p.titre} — ${formatPrix(p.prix)}
+La boutique sera notifiée et vous répondra.`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
-          text: 'Commander',
+          text: estPrestation ? 'Demander un devis' : 'Commander',
           onPress: async () => {
             setCommandeEnCours(p.id);
             const { error } = await supabase.from('commandes').insert({
@@ -96,14 +106,17 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
               produit_id: p.id,
               catalogue_id: p.catalogue_id || null,
               produit_titre: p.titre,
-              prix: p.prix,
+              // Une demande de devis part sans montant : le prestataire le
+              // chiffrera dans `montant_devis`.
+              prix: estPrestation ? 0 : p.prix,
               quantite: 1,
+              type_demande: estPrestation ? 'devis' : 'commande',
             });
             setCommandeEnCours(null);
             if (error) {
               Alert.alert('Erreur', error.message);
             } else {
-              Alert.alert('Commande envoyée', 'La boutique vient d\'être notifiée. Suivez votre commande dans « Mes commandes ».', [
+              Alert.alert(estPrestation ? 'Demande envoyée' : 'Commande envoyée', 'La boutique vient d\'être notifiée. Suivez votre commande dans « Mes commandes ».', [
                 { text: 'OK' },
                 { text: 'Mes commandes', onPress: () => navigation.navigate('Commandes', { mode: 'client' }) },
               ]);
@@ -197,6 +210,20 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
               <Text style={styles.infoText}>{vendeur.horaires}</Text>
             </View>
           )}
+          {/* Les deux informations qu'un client cherche chez un prestataire :
+              jusqu'ou il se deplace, et sous combien de temps il repond. */}
+          {vendeur?.zone_intervention && (
+            <View style={styles.infoRow}>
+              <Ionicons name="navigate-outline" size={17} color={theme.primary} />
+              <Text style={styles.infoText}>Intervient : {vendeur.zone_intervention}</Text>
+            </View>
+          )}
+          {vendeur?.delai_reponse && (
+            <View style={styles.infoRow}>
+              <Ionicons name="chatbubble-ellipses-outline" size={17} color={theme.primary} />
+              <Text style={styles.infoText}>Répond {vendeur.delai_reponse}</Text>
+            </View>
+          )}
           {livraisonMeta && (
             <View style={styles.infoRow}>
               <Ionicons name={livraisonMeta.icon as any} size={17} color={theme.primary} />
@@ -261,10 +288,20 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
         {/* ---- Catalogue par rayons ---- */}
         {produits.length === 0 ? (
           <>
-            <Text style={styles.sectionLabel}>Catalogue</Text>
+            <Text style={styles.sectionLabel}>
+              {vendeur?.type_activite === 'services' ? 'Prestations' : 'Catalogue'}
+            </Text>
             <View style={styles.emptyBox}>
-              <Ionicons name="cube-outline" size={40} color={theme.borderLight} />
-              <Text style={styles.emptyText}>Cette boutique n'a pas encore de produits en ligne.</Text>
+              <Ionicons
+                name={vendeur?.type_activite === 'services' ? 'construct-outline' : 'cube-outline'}
+                size={40}
+                color={theme.borderLight}
+              />
+              <Text style={styles.emptyText}>
+                {vendeur?.type_activite === 'services'
+                  ? "Ce professionnel n'a pas encore publié de prestation."
+                  : "Cette boutique n'a pas encore de produits en ligne."}
+              </Text>
             </View>
           </>
         ) : (
@@ -273,7 +310,10 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
               const img = p.images && p.images.length > 0
                 ? [...p.images].sort((a, b) => (a.ordre || 0) - (b.ordre || 0))[0].image_url
                 : null;
+              // `stock === 0` seulement : une prestation a un stock NULL et ne
+              // doit jamais afficher « Rupture ».
               const enRupture = p.stock === 0;
+              const estPrestation = p.listing_kind === 'pro_service';
               const masque = p.visible === false; // visible seulement en aperçu propriétaire
               return (
                 <TouchableOpacity
@@ -299,7 +339,9 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
                   )}
                   <View style={styles.cardBody}>
                     <Text style={styles.cardTitre} numberOfLines={1}>{p.titre}</Text>
-                    <Text style={styles.cardPrix}>{Number(p.prix).toLocaleString('fr-FR')} F</Text>
+                    <Text style={styles.cardPrix} numberOfLines={1}>
+                      {libellePrix(p.prix, p.mode_tarif, formatPrix)}
+                    </Text>
                     {!isOwner && (
                       <TouchableOpacity
                         style={[styles.commanderBtn, enRupture && styles.commanderBtnOff]}
@@ -311,9 +353,13 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
                           <ActivityIndicator color="#fff" size="small" />
                         ) : (
                           <>
-                            <Ionicons name="bag-check-outline" size={13} color={enRupture ? theme.textMuted : '#fff'} />
+                            <Ionicons
+                              name={estPrestation ? 'document-text-outline' : 'bag-check-outline'}
+                              size={13}
+                              color={enRupture ? theme.textMuted : '#fff'}
+                            />
                             <Text style={[styles.commanderText, enRupture && { color: theme.textMuted }]}>
-                              {enRupture ? 'Épuisé' : 'Commander'}
+                              {enRupture ? 'Épuisé' : estPrestation ? 'Demander un devis' : 'Commander'}
                             </Text>
                           </>
                         )}
@@ -325,19 +371,43 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
             };
 
             // Regroupe par rayon (catalogue) ; les produits non rangés vont dans « Autres »
-            const groupes = [
+            // §8.5 demande deux onglets Produits / Services pour une activite
+            // mixte. On prefere deux SECTIONS nommees a des onglets : pour un
+            // public peu lecteur, un onglet cache la moitie de l'offre derriere
+            // une interaction, ce que la regle « zero interaction cachee »
+            // deconseille. Tout reste visible en faisant defiler.
+            const prestations = produits.filter(p => p.listing_kind === 'pro_service');
+            const articles = produits.filter(p => p.listing_kind !== 'pro_service');
+
+            const groupesDe = (liste: Annonce[], suffixe: string) => [
               ...catalogues
-                .map(c => ({ nom: c.nom, items: produits.filter(p => p.catalogue_id === c.id) }))
+                .map(c => ({
+                  nom: c.nom + suffixe,
+                  items: liste.filter(p => p.catalogue_id === c.id),
+                }))
                 .filter(g => g.items.length > 0),
               {
-                nom: catalogues.length > 0 ? 'Autres' : 'Catalogue',
-                items: produits.filter(p => !p.catalogue_id || !catalogues.some(c => c.id === p.catalogue_id)),
+                nom: (catalogues.length > 0 ? 'Autres' : 'Catalogue') + suffixe,
+                items: liste.filter(p => !p.catalogue_id || !catalogues.some(c => c.id === p.catalogue_id)),
               },
             ].filter(g => g.items.length > 0);
 
+            type Groupe = { nom: string; items: Annonce[]; entete?: boolean };
+            const melange: Groupe[] = [
+              { nom: 'Produits', items: [], entete: true },
+              ...groupesDe(articles, ''),
+              { nom: 'Prestations', items: [], entete: true },
+              ...groupesDe(prestations, ''),
+            ];
+            const groupes: Groupe[] = prestations.length > 0 && articles.length > 0
+              ? melange.filter(g => g.entete || g.items.length > 0)
+              : groupesDe(produits, '');
+
             return groupes.map(g => (
               <View key={g.nom}>
-                <Text style={styles.sectionLabel}>{g.nom} ({g.items.length})</Text>
+                <Text style={g.entete ? styles.familleLabel : styles.sectionLabel}>
+                  {g.entete ? g.nom : `${g.nom} (${g.items.length})`}
+                </Text>
                 <View style={styles.grid}>{g.items.map(renderCard)}</View>
               </View>
             ));
@@ -409,6 +479,13 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   contactBtnText: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: '#fff' },
 
+  familleLabel: {
+    fontSize: FONTS.lg,
+    fontWeight: FONTS.extrabold,
+    color: theme.textPrimary,
+    marginTop: SPACING.xl,
+    marginBottom: SPACING.xs,
+  },
   sectionLabel: {
     fontSize: FONTS.xs, fontWeight: FONTS.bold, color: theme.textSecondary,
     textTransform: 'uppercase', letterSpacing: 0.5,

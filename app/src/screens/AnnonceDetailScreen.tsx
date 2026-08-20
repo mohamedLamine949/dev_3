@@ -31,6 +31,7 @@ import { addToRecent } from '../lib/recentStorage';
 import { hapticMedium } from '../lib/haptics';
 import { sellerDisplayName, sellerInitial } from '../lib/seller';
 import { formatPrix } from '../lib/format';
+import { libellePrix } from '../constants/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -130,7 +131,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `${annonce.titre} - ${formatPrix(annonce.prix)} sur Flash Market 🇲🇱`,
+        message: `${annonce.titre} - ${libellePrix(annonce.prix, (annonce as any).mode_tarif, formatPrix)} sur Flash Market 🇲🇱`,
       });
     } catch {}
   };
@@ -289,7 +290,11 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
         <View style={styles.detailContainer}>
           {/* Prix et titre */}
           <View style={styles.priceRow}>
-            <Text style={styles.price}>{formatPrix(annonce.prix)}</Text>
+            {/* Une prestation « sur devis » n'a pas de prix : afficher
+                « 0 FCFA » laisserait croire a la gratuite. */}
+            <Text style={styles.price}>
+              {libellePrix(annonce.prix, (annonce as any).mode_tarif, formatPrix)}
+            </Text>
             <View style={styles.negotiableBadge}>
               <Text style={styles.negotiableText}>Négociable</Text>
             </View>

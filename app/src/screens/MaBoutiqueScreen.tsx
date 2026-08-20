@@ -5,7 +5,7 @@ import {
   Modal, KeyboardAvoidingView, Share, Switch, Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { FONTS, SPACING, RADIUS, SHADOWS, METIER_CATEGORIES } from '../constants/theme';
+import { FONTS, SPACING, RADIUS, SHADOWS, METIER_CATEGORIES, TYPES_ACTIVITE } from '../constants/theme';
 import { supabase, Annonce, Catalogue } from '../lib/supabase';
 import TintedChip from '../components/TintedChip';
 import ProduitGestionSheet from '../components/ProduitGestionSheet';
@@ -68,6 +68,9 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
   const [livraison, setLivraison] = useState<string | null>(null);
   const [fraisLivraison, setFraisLivraison] = useState('');
   const [categorieMetier, setCategorieMetier] = useState<string | null>(null);
+  const [typeActivite, setTypeActivite] = useState<'produits' | 'services' | 'mixte'>('produits');
+  const [zoneIntervention, setZoneIntervention] = useState('');
+  const [delaiReponse, setDelaiReponse] = useState('');
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const isPro = user?.type_compte === 'professionnel';
@@ -119,6 +122,9 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
     setLivraison(user?.livraison || null);
     setFraisLivraison(user?.frais_livraison || '');
     setCategorieMetier(user?.categorie_metier || null);
+    setTypeActivite((user?.type_activite as any) || 'produits');
+    setZoneIntervention(user?.zone_intervention || '');
+    setDelaiReponse(user?.delai_reponse || '');
     setEditVisible(true);
   }
 
@@ -146,6 +152,9 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
             livraison: livraison,
             frais_livraison: fraisLivraison.trim() || null,
             categorie_metier: categorieMetier,
+            type_activite: typeActivite,
+            zone_intervention: zoneIntervention.trim() || null,
+            delai_reponse: delaiReponse.trim() || null,
           })
           .eq('id', session.user.id);
         if (!error) {
@@ -482,7 +491,9 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
 
         {/* ---- Catalogue ---- */}
         <View style={styles.catalogueHead}>
-          <Text style={styles.sectionLabel}>Catalogue ({produits.length})</Text>
+          <Text style={styles.sectionLabel}>
+            {user?.type_activite === 'services' ? 'Mes prestations' : 'Catalogue'} ({produits.length})
+          </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.lg }}>
             {catalogues.length > 0 && (
               <TouchableOpacity
@@ -533,9 +544,17 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
         ) : produits.length === 0 ? (
           <View style={styles.emptyBox}>
             <Ionicons name="cube-outline" size={40} color={theme.borderLight} />
-            <Text style={styles.emptyText}>Votre catalogue est vide.</Text>
+            <Text style={styles.emptyText}>
+              {user?.type_activite === 'services'
+                ? "Vous n'avez pas encore publié de prestation."
+                : 'Votre catalogue est vide.'}
+            </Text>
             <TouchableOpacity style={styles.ctaBtn} onPress={() => navigation.navigate('AjouterProduit')} activeOpacity={0.85}>
-              <Text style={styles.ctaText}>Ajouter mon premier produit</Text>
+              <Text style={styles.ctaText}>
+                {user?.type_activite === 'services'
+                  ? 'Ajouter ma première prestation'
+                  : 'Ajouter mon premier produit'}
+              </Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -763,6 +782,52 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
                   />
                 </>
               )}
+              <Text style={styles.fieldLabel}>Votre activité</Text>
+              <Text style={styles.fieldHint}>
+                Détermine ce que vous publiez et comment votre vitrine s'affiche.
+              </Text>
+              <View style={styles.chipsRow}>
+                {TYPES_ACTIVITE.map(t => (
+                  <TintedChip
+                    key={t.id}
+                    icon={t.icon}
+                    label={t.label}
+                    color={theme.primary}
+                    active={typeActivite === t.id}
+                    onPress={() => setTypeActivite(t.id as any)}
+                  />
+                ))}
+              </View>
+
+              {/* Champs propres au prestataire : le mot « stock » n'a aucun
+                  sens pour lui, mais sa zone et son delai de reponse sont
+                  les deux informations que l'acheteur cherche (§8.4). */}
+              {typeActivite !== 'produits' && (
+                <>
+                  <Text style={styles.fieldLabel}>Zone d'intervention</Text>
+                  <Text style={styles.fieldHint}>
+                    Où vous déplacez-vous ? Indiquez une zone, jamais votre adresse exacte.
+                  </Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={zoneIntervention}
+                    onChangeText={setZoneIntervention}
+                    placeholder="Ex. Bamako et environs"
+                    placeholderTextColor={theme.textMuted}
+                    maxLength={80}
+                  />
+                  <Text style={styles.fieldLabel}>Délai de réponse habituel</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={delaiReponse}
+                    onChangeText={setDelaiReponse}
+                    placeholder="Ex. sous 2 heures"
+                    placeholderTextColor={theme.textMuted}
+                    maxLength={40}
+                  />
+                </>
+              )}
+
               <Text style={styles.fieldLabel}>Catégorie métier</Text>
               <Text style={styles.fieldHint}>
                 Détermine où votre boutique apparaît dans « Nos Professionnels ».

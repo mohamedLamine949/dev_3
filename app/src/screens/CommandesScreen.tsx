@@ -10,25 +10,44 @@ import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { supabase, Commande, CommandeStatut } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { formatPrix } from '../lib/format';
 
 interface Props {
   navigation: any;
   route: any;
 }
 
+// Deux circuits, une seule table (§8.6).
+//   produits : nouvelle -> confirmee -> livree
+//   services : nouvelle -> precisions -> devis_envoye -> accepte -> en_cours -> termine
 const STATUT_META: Record<CommandeStatut, { label: string; color: string; bg: string; icon: string }> = {
-  nouvelle: { label: 'Nouvelle', color: '#d97706', bg: '#fef3c7', icon: 'sparkles-outline' },
-  confirmee: { label: 'Confirmée', color: '#15803d', bg: '#dcfce7', icon: 'checkmark-circle-outline' },
-  livree: { label: 'Livrée', color: '#0369a1', bg: '#e0f2fe', icon: 'cube-outline' },
-  refusee: { label: 'Refusée', color: '#dc2626', bg: '#fee2e2', icon: 'close-circle-outline' },
-  annulee: { label: 'Annulée', color: '#6b7280', bg: '#f3f4f6', icon: 'ban-outline' },
+  nouvelle:     { label: 'Nouvelle',        color: '#d97706', bg: '#fef3c7', icon: 'sparkles-outline' },
+  confirmee:    { label: 'Confirmée',       color: '#15803d', bg: '#dcfce7', icon: 'checkmark-circle-outline' },
+  livree:       { label: 'Livrée',          color: '#0369a1', bg: '#e0f2fe', icon: 'cube-outline' },
+  refusee:      { label: 'Refusée',         color: '#dc2626', bg: '#fee2e2', icon: 'close-circle-outline' },
+  annulee:      { label: 'Annulée',         color: '#6b7280', bg: '#f3f4f6', icon: 'ban-outline' },
+  precisions:   { label: 'Précisions demandées', color: '#7c3aed', bg: '#ede9fe', icon: 'help-circle-outline' },
+  devis_envoye: { label: 'Devis envoyé',    color: '#0369a1', bg: '#e0f2fe', icon: 'document-text-outline' },
+  accepte:      { label: 'Devis accepté',   color: '#15803d', bg: '#dcfce7', icon: 'checkmark-done-outline' },
+  en_cours:     { label: 'En cours',        color: '#d97706', bg: '#fef3c7', icon: 'hammer-outline' },
+  termine:      { label: 'Terminée',        color: '#0369a1', bg: '#e0f2fe', icon: 'ribbon-outline' },
 };
+
+/** Le vocabulaire suit le circuit : on ne parle pas de « livraison » pour une intervention. */
+function estDevis(c: Commande): boolean {
+  return c.type_demande === 'devis';
+}
 
 const FILTRES_VENDEUR = [
   { key: 'nouvelle', label: 'Nouvelles' },
-  { key: 'confirmee', label: 'En cours' },
+  { key: 'en_traitement', label: 'En cours' },
   { key: 'all', label: 'Toutes' },
 ] as const;
+
+// « En cours » regroupe tous les etats intermediaires des deux circuits :
+// sinon un devis envoye disparaissait de la vue du prestataire.
+const STATUTS_EN_TRAITEMENT: CommandeStatut[] =
+  ['confirmee', 'precisions', 'devis_envoye', 'accepte', 'en_cours'];
 
 const REPONSE_DEFAUT = 'Commande bien reçue. Nous vous contactons pour organiser la remise.';
 
@@ -52,6 +71,10 @@ export default function CommandesScreen({ navigation, route }: Props) {
   const [reponseTarget, setReponseTarget] = useState<Commande | null>(null);
   const [reponseText, setReponseText] = useState(REPONSE_DEFAUT);
   const [sending, setSending] = useState(false);
+
+  // Chiffrage d'un devis (circuit service)
+  const [devisTarget, setDevisTarget] = useState<Commande | null>(null);
+  const [montantDevis, setMontantDevis] = useState('');
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
@@ -92,6 +115,28 @@ export default function CommandesScreen({ navigation, route }: Props) {
     }
   }
 
+  async function envoyerDevis() {
+    if (!devisTarget) return;
+    const montant = parseInt(montantDevis.replace(/[^0-9]/g, ''), 10);
+    if (!isFinite(montant) || montant <= 0) {
+      Alert.alert('Montant manquant', 'Indiquez le montant de votre devis.');
+      return;
+    }
+    setSending(true);
+    const { error } = await supabase
+      .from('commandes')
+      .update({ statut: 'devis_envoye', montant_devis: montant })
+      .eq('id', devisTarget.id);
+    setSending(false);
+    if (error) {
+      Alert.alert('Erreur', error.message);
+      return;
+    }
+    setDevisTarget(null);
+    setMontantDevis('');
+    fetchCommandes();
+  }
+
   async function confirmerCommande() {
     if (!reponseTarget) return;
     setSending(true);
@@ -109,7 +154,11 @@ export default function CommandesScreen({ navigation, route }: Props) {
     }
   }
 
-  const list = filtre === 'all' ? commandes : commandes.filter(c => c.statut === filtre);
+  const list = filtre === 'all'
+    ? commandes
+    : filtre === 'en_traitement'
+      ? commandes.filter(c => STATUTS_EN_TRAITEMENT.includes(c.statut))
+      : commandes.filter(c => c.statut === filtre);
   const nbNouvelles = commandes.filter(c => c.statut === 'nouvelle').length;
 
   function renderCommande({ item: c }: { item: Commande }) {
@@ -125,9 +174,16 @@ export default function CommandesScreen({ navigation, route }: Props) {
         <View style={styles.cardHead}>
           <View style={{ flex: 1 }}>
             <Text style={styles.cardTitre} numberOfLines={1}>{c.produit_titre}</Text>
+            {/* Une demande de devis n'a pas de prix tant qu'il n'est pas
+                chiffre : afficher « 0 FCFA » laisserait croire a la gratuite. */}
             <Text style={styles.cardPrix}>
-              {c.quantite > 1 ? `${c.quantite} × ` : ''}{Number(c.prix).toLocaleString('fr-FR')} FCFA
-              {c.quantite > 1 ? `  =  ${(c.quantite * c.prix).toLocaleString('fr-FR')} F` : ''}
+              {estDevis(c)
+                ? c.montant_devis
+                  ? `Devis : ${formatPrix(c.montant_devis)}`
+                  : 'Montant à chiffrer'
+                : `${c.quantite > 1 ? `${c.quantite} × ` : ''}${formatPrix(c.prix)}${
+                    c.quantite > 1 ? `  =  ${formatPrix(c.quantite * c.prix)}` : ''
+                  }`}
             </Text>
           </View>
           <View style={[styles.statutBadge, { backgroundColor: meta.bg }]}>
@@ -185,7 +241,7 @@ export default function CommandesScreen({ navigation, route }: Props) {
               </TouchableOpacity>
             </>
           )}
-          {mode === 'vendeur' && c.statut === 'confirmee' && (
+          {mode === 'vendeur' && c.statut === 'confirmee' && !estDevis(c) && (
             <TouchableOpacity
               style={[styles.actionBtn, styles.actionPrimary]}
               onPress={() => updateCommande(c, { statut: 'livree' }, 'Marquer cette commande comme livrée ?')}
@@ -194,7 +250,45 @@ export default function CommandesScreen({ navigation, route }: Props) {
               <Text style={styles.actionPrimaryText}>Marquer livrée</Text>
             </TouchableOpacity>
           )}
-          {mode === 'client' && c.statut === 'nouvelle' && (
+
+          {/* Circuit service : chiffrer, demarrer, terminer (§8.6) */}
+          {mode === 'vendeur' && estDevis(c) && c.statut === 'confirmee' && (
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionPrimary]}
+              onPress={() => { setDevisTarget(c); setMontantDevis(''); }}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.actionPrimaryText}>Envoyer un devis</Text>
+            </TouchableOpacity>
+          )}
+          {mode === 'vendeur' && estDevis(c) && c.statut === 'accepte' && (
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionPrimary]}
+              onPress={() => updateCommande(c, { statut: 'en_cours' }, 'Démarrer cette intervention ?')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.actionPrimaryText}>Démarrer</Text>
+            </TouchableOpacity>
+          )}
+          {mode === 'vendeur' && estDevis(c) && c.statut === 'en_cours' && (
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionPrimary]}
+              onPress={() => updateCommande(c, { statut: 'termine' }, 'Marquer cette intervention comme terminée ?')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.actionPrimaryText}>Marquer terminée</Text>
+            </TouchableOpacity>
+          )}
+          {mode === 'client' && estDevis(c) && c.statut === 'devis_envoye' && (
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionPrimary]}
+              onPress={() => updateCommande(c, { statut: 'accepte' }, 'Accepter ce devis ?')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.actionPrimaryText}>Accepter le devis</Text>
+            </TouchableOpacity>
+          )}
+          {mode === 'client' && ['nouvelle', 'precisions', 'devis_envoye'].includes(c.statut) && (
             <TouchableOpacity
               style={[styles.actionBtn, styles.actionDanger]}
               onPress={() => updateCommande(c, { statut: 'annulee' }, 'Annuler votre commande ?')}
@@ -291,6 +385,54 @@ export default function CommandesScreen({ navigation, route }: Props) {
       )}
 
       {/* Modal réponse de confirmation */}
+      {/* Chiffrage d'un devis (circuit service, §8.6) */}
+      <Modal
+        visible={!!devisTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDevisTarget(null)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Votre devis</Text>
+            <Text style={styles.modalSub} numberOfLines={2}>{devisTarget?.produit_titre}</Text>
+            <TextInput
+              style={[styles.reponseInput, { height: 52, textAlignVertical: 'center' }]}
+              value={montantDevis}
+              onChangeText={setMontantDevis}
+              placeholder="Montant en FCFA"
+              placeholderTextColor={theme.textMuted}
+              keyboardType="number-pad"
+              autoFocus
+            />
+            <Text style={styles.modalSub}>
+              Le client recevra ce montant et pourra l'accepter. Rien n'est payé
+              dans l'application : vous convenez du règlement entre vous.
+            </Text>
+            <View style={{ flexDirection: 'row', gap: SPACING.md, marginTop: SPACING.lg }}>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionGhost]}
+                onPress={() => setDevisTarget(null)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.actionGhostText}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionPrimary, sending && { opacity: 0.6 }]}
+                onPress={envoyerDevis}
+                disabled={sending}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.actionPrimaryText}>{sending ? 'Envoi…' : 'Envoyer'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       <Modal visible={!!reponseTarget} animationType="fade" transparent onRequestClose={() => setReponseTarget(null)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
           <View style={styles.modalBox}>
