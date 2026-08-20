@@ -16,13 +16,24 @@
 --   5. DÉPLANIFIE explicitement `annonces-expiration`.
 --
 -- ⚠️ POINT CRITIQUE — pourquoi l'expiration est déplanifiée ici
--- `process_annonces_expiration()` ne fait aucune exception pour les comptes
--- professionnels, et les produits de boutique sont stockés dans la même table
--- que les annonces. La réactiver en l'état ferait passer les catalogues PRO
--- en `expire` à 30 jours puis les SUPPRIMERAIT à 60 jours — exactement la
--- permanence que le PRO paie 5 000 F/mois. Elle ne doit être replanifiée
--- qu'après l'ajout de `listing_kind` et des règles de durée de vie par type
--- de publication (phase 1, §12.6).
+--
+-- Deux raisons, une technique et une produit.
+--
+-- Technique : `process_annonces_expiration()` ne fait aucune exception pour
+-- les comptes professionnels, et les produits de boutique sont stockés dans
+-- la même table que les annonces. La réactiver en l'état ferait passer les
+-- catalogues PRO en `expire` à 30 jours puis les SUPPRIMERAIT à 60 jours —
+-- exactement la permanence que le PRO paie 5 000 F/mois.
+--
+-- Produit (décision du 2026-08-20) : AUCUNE annonce n'expire, pour personne,
+-- tant que le catalogue reste petit. Avec une quarantaine d'annonces actives,
+-- appliquer une durée de vie de 30 jours viderait la vitrine au moment précis
+-- où elle doit paraître pleine. L'expiration sera rouverte quand le trafic et
+-- le volume la justifieront — pas avant.
+--
+-- La réactivation suppose donc DEUX conditions, pas une : le volume atteint,
+-- ET des règles de durée de vie par type de publication (`listing_kind`) qui
+-- protègent les catalogues PRO.
 -- =========================================================================
 
 BEGIN;
@@ -121,7 +132,7 @@ INSERT INTO public.job_expectations (job_name, max_silence, description, enabled
   ('notifications-digest',   INTERVAL '2 days', 'Digest quotidien',                                  TRUE),
   ('notifications-relance',  INTERVAL '2 days', 'Relance des conversations sans reponse',            TRUE),
   ('boutiques-stats-hebdo',  INTERVAL '8 days', 'Recapitulatif hebdomadaire des boutiques PRO',      TRUE),
-  ('annonces-expiration',    INTERVAL '2 days', 'DESACTIVE en phase 0 — voir en-tete de migration',  FALSE)
+  ('annonces-expiration',    INTERVAL '2 days', 'DESACTIVE — decision produit : rien n''expire tant que le volume est faible', FALSE)
 ON CONFLICT (job_name) DO UPDATE
   SET max_silence = EXCLUDED.max_silence,
       description = EXCLUDED.description,
