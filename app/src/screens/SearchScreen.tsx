@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { FONTS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, CATEGORIES, SUBCATEGORIES, getSousCategorieLabel, ETAT_ARTICLE } from '../constants/theme';
-import { scoreAnnonce, scoreUser } from '../lib/relevance';
+import { scoreAnnonce, scoreUser, filterByRelevance, relevanceTier } from '../lib/relevance';
 import { supabase, Annonce, User } from '../lib/supabase';
 import { useAnnonces } from '../hooks/useAnnonces';
 import { useFavoris, toggleFavori } from '../hooks/useFavoris';
@@ -105,6 +105,9 @@ export default function SearchScreen({ navigation }: Props) {
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  // Niveau de correspondance des résultats : sert à prévenir l'utilisateur
+  // quand on n'a pas trouvé son mot exact et qu'on propose des approchants.
+  const [searchTier, setSearchTier] = useState<'exact' | 'partial' | 'weak' | 'none'>('exact');
 
   const { location } = useLocation();
   const { session } = useAuth();
@@ -138,7 +141,12 @@ export default function SearchScreen({ navigation }: Props) {
       setLoadingUsers(true);
       const fetchUsers = async () => {
         try {
-          const { data, error } = await supabase.from('users').select('*');
+          // Colonnes strictement nécessaires au scoring et à la carte vendeur
+          // (un `select('*')` sur tous les utilisateurs à chaque frappe pesait
+          // lourd en egress pour rien).
+          const { data, error } = await supabase
+            .from('users')
+            .select('id, prenom, nom, nom_boutique, bio, avatar_url, type_compte, categorie_metier');
           if (data) {
             setUsers(data as User[]);
           } else if (error) {
@@ -159,34 +167,29 @@ export default function SearchScreen({ navigation }: Props) {
   useEffect(() => {
     const query = debouncedSearch.trim();
     if (!query) {
+      setSearchTier('exact');
       setSearchResults(annonces.map(a => ({ ...a, isUserProfile: false })));
       return;
     }
 
     const proIds = new Set(users.filter(u => u.type_compte === 'professionnel').map(u => u.id));
-    const scoredAnnonces = annonces
-      .map(annonce => {
-        const score = scoreAnnonce(query, annonce);
-        return {
-          ...annonce,
-          isUserProfile: false,
-          searchScore: score * (proIds.has(annonce.user_id) ? 1.12 : 1),
-        };
-      })
-      .filter(a => a.searchScore > 0);
+    // Le bonus PRO s'ajoute au score, il ne le multiplie pas : sinon il
+    // franchissait les paliers de pertinence et faisait remonter une annonce
+    // approximative d'un PRO au-dessus d'une correspondance exacte.
+    const scoredAnnonces = filterByRelevance(
+      annonces.map(annonce => ({
+        ...annonce,
+        isUserProfile: false,
+        searchScore: scoreAnnonce(query, annonce) + (proIds.has(annonce.user_id) ? 3 : 0),
+      }))
+    );
 
-    const scoredUsers = users
-      .map(user => {
-        const score = scoreUser(query, user);
-        return { ...user, isUserProfile: true, searchScore: score };
-      })
-      .filter(u => u.searchScore > 0);
+    const scoredUsers = filterByRelevance(
+      users.map(user => ({ ...user, isUserProfile: true, searchScore: scoreUser(query, user) }))
+    );
 
-    scoredAnnonces.sort((a, b) => b.searchScore - a.searchScore);
-    scoredUsers.sort((a, b) => b.searchScore - a.searchScore);
-
-    const merged = mergeResults(scoredAnnonces, scoredUsers);
-    setSearchResults(merged);
+    setSearchTier(relevanceTier(scoredAnnonces));
+    setSearchResults(mergeResults(scoredAnnonces, scoredUsers));
   }, [annonces, users, debouncedSearch]);
 
   const loading = loadingAnnonces || loadingUsers;
@@ -532,6 +535,18 @@ export default function SearchScreen({ navigation }: Props) {
                       </ScrollView>
                     </View>
                   )}
+                  {/* Honnêteté des résultats : on dit clairement quand le mot
+                      cherché n'a pas été trouvé et qu'on montre des proches. */}
+                  {debouncedSearch.trim().length > 0 && searchTier !== 'exact' && (
+                    <View style={styles.approxBanner}>
+                      <Ionicons name="information-circle" size={17} color={theme.primary} />
+                      <Text style={styles.approxText}>
+                        {searchTier === 'weak'
+                          ? `Aucune annonce ne contient « ${debouncedSearch.trim()} ». Voici la catégorie la plus proche.`
+                          : `Rien d'exact pour « ${debouncedSearch.trim()} ». Voici les annonces les plus proches.`}
+                      </Text>
+                    </View>
+                  )}
                   <Text style={styles.resultCount}>
                     {searchResults.length} résultat{searchResults.length !== 1 ? 's' : ''}
                     {activeCatLabel ? ` · ${activeCatLabel}` : ''}
@@ -786,6 +801,23 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   resultCount: {
     fontSize: FONTS.sm,
     color: theme.textMuted,
+    fontWeight: FONTS.medium,
+  },
+
+  approxBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    backgroundColor: theme.primary + '14',
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  approxText: {
+    flex: 1,
+    fontSize: FONTS.sm,
+    color: theme.text,
     fontWeight: FONTS.medium,
   },
 

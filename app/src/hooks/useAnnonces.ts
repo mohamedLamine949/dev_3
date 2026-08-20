@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, Annonce, ImageAnnonce } from '../lib/supabase';
-import { scoreAnnonce } from '../lib/relevance';
+import { scoreAnnonce, filterByRelevance } from '../lib/relevance';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 import { UPLOAD_CACHE_CONTROL } from '../lib/imageOptimizer';
@@ -105,10 +105,12 @@ export function useAnnonces(options?: {
 
   const applySearch = useCallback((rows: Annonce[]) => {
     if (!isSearching) return rows;
-    return rows
-      .map(a => ({ ...a, searchScore: scoreAnnonce(searchTerm, a) }))
-      .filter(a => (a as any).searchScore > 0)
-      .sort((a, b) => (b as any).searchScore - (a as any).searchScore);
+    // filterByRelevance ne garde que le meilleur niveau de correspondance :
+    // s'il existe une annonce dont le titre contient les mots cherchés, les
+    // simples voisines de catégorie sont écartées.
+    return filterByRelevance(
+      rows.map(a => ({ ...a, searchScore: scoreAnnonce(searchTerm, a) }))
+    ) as Annonce[];
   }, [isSearching, searchTerm]);
 
   const fetchAnnonces = useCallback(async () => {

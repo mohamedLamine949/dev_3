@@ -402,6 +402,12 @@ export const SUBCATEGORIES: Record<string, SousCategorie[]> = {
   ],
 };
 
+// Libelle lisible d'une categorie (utilise par le scoring de recherche).
+export function getCategorieLabel(id?: string | null): string | null {
+  if (!id) return null;
+  return CATEGORIES.find((c) => c.id === id)?.label ?? null;
+}
+
 export function getSousCategorieLabel(id?: string | null): string | null {
   if (!id) return null;
   for (const subs of Object.values(SUBCATEGORIES)) {
