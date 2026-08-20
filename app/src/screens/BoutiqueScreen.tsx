@@ -12,6 +12,7 @@ import { useSellerAvis } from '../hooks/useAvis';
 import { useBoutiqueFollow } from '../hooks/useBoutiqueFollow';
 import { formatPrix } from '../lib/format';
 import { libellePrix } from '../constants/theme';
+import { enregistrerContact, enregistrerContactBoutique } from '../lib/contactTracking';
 
 const { width: W } = Dimensions.get('window');
 const CARD_W = (W - SPACING.lg * 2 - SPACING.md) / 2;
@@ -100,6 +101,7 @@ La boutique sera notifiée et vous répondra.`,
           text: estPrestation ? 'Demander un devis' : 'Commander',
           onPress: async () => {
             setCommandeEnCours(p.id);
+            enregistrerContact(p.id, estPrestation ? 'devis' : 'commande');
             const { error } = await supabase.from('commandes').insert({
               vendeur_id: vendeurId,
               client_id: session.user.id,
@@ -265,7 +267,10 @@ La boutique sera notifiée et vous répondra.`,
             {vendeur?.telephone && (
               <TouchableOpacity
                 style={styles.contactBtn}
-                onPress={() => Linking.openURL(`tel:${vendeur.telephone}`)}
+                onPress={() => {
+                  enregistrerContactBoutique(vendeurId, 'appel');
+                  Linking.openURL(`tel:${vendeur.telephone}`);
+                }}
                 activeOpacity={0.85}
               >
                 <Ionicons name="call" size={16} color="#fff" />
@@ -275,7 +280,10 @@ La boutique sera notifiée et vous répondra.`,
             {vendeur?.whatsapp && (
               <TouchableOpacity
                 style={[styles.contactBtn, { backgroundColor: '#25D366' }]}
-                onPress={() => Linking.openURL(`https://wa.me/${vendeur.whatsapp?.replace(/[^0-9]/g, '')}`)}
+                onPress={() => {
+                  enregistrerContactBoutique(vendeurId, 'whatsapp');
+                  Linking.openURL(`https://wa.me/${vendeur.whatsapp?.replace(/[^0-9]/g, '')}`);
+                }}
                 activeOpacity={0.85}
               >
                 <Ionicons name="logo-whatsapp" size={16} color="#fff" />

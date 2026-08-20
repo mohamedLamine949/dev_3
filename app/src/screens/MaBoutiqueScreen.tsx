@@ -67,6 +67,10 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
   const [catEditNom, setCatEditNom] = useState('');
   const [catEditBusy, setCatEditBusy] = useState(false);
   const [gestionRayonsVisible, setGestionRayonsVisible] = useState(false);
+  // Mises en relation sur 30 jours (§3.4). `null` = vue absente (migration pas
+  // encore appliquee) : on affiche alors le message d'attente plutot que des
+  // zeros, qui laisseraient croire que personne ne s'interesse a la boutique.
+  const [contacts, setContacts] = useState<any | null>(null);
   // Navigation interne de l'Espace Pro (§6.4). « Demandes » n'est pas un
   // onglet de contenu : il ouvre l'ecran dedie, deja complet.
   const [onglet, setOnglet] = useState<'apercu' | 'catalogue' | 'performances' | 'vitrine'>('apercu');
@@ -115,6 +119,12 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
       .order('date_creation', { ascending: false })
       .limit(400)
       .then(({ data }) => setCommandes((data as any[]) || []));
+    supabase
+      .from('v_contacts_vendeur_30j')
+      .select('*')
+      .eq('vendeur_id', session.user.id)
+      .maybeSingle()
+      .then(({ data, error }) => setContacts(error ? null : (data ?? { total: 0 })));
   }, [session]);
 
   useEffect(() => {
@@ -676,6 +686,50 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
                 <Text style={styles.statValue}>{masques.length}</Text>
                 <Text style={styles.statLabel}>Masqués</Text>
               </View>
+            </View>
+
+            {/* La metrique centrale du produit : combien de personnes vous ont
+                reellement contacte (§3.4). Elle prime sur les vues. */}
+            <View style={styles.perfCard}>
+              <Text style={styles.tachesTitre}>Contacts reçus — 30 derniers jours</Text>
+              {contacts === null ? (
+                <Text style={styles.perfAide}>
+                  La mesure des contacts n'est pas encore active sur votre boutique.
+                </Text>
+              ) : (
+                <>
+                  <View style={styles.perfLigne}>
+                    <Ionicons name="people-outline" size={17} color={theme.primary} />
+                    <Text style={styles.perfTitre}>Personnes qui vous ont contacté</Text>
+                    <Text style={styles.perfValeur}>{formatNombre(contacts.total || 0)}</Text>
+                  </View>
+                  <View style={styles.perfLigne}>
+                    <Ionicons name="logo-whatsapp" size={17} color={theme.textMuted} />
+                    <Text style={styles.perfTitre}>WhatsApp</Text>
+                    <Text style={styles.perfValeur}>{formatNombre(contacts.whatsapp || 0)}</Text>
+                  </View>
+                  <View style={styles.perfLigne}>
+                    <Ionicons name="call-outline" size={17} color={theme.textMuted} />
+                    <Text style={styles.perfTitre}>Appels</Text>
+                    <Text style={styles.perfValeur}>{formatNombre(contacts.appels || 0)}</Text>
+                  </View>
+                  <View style={styles.perfLigne}>
+                    <Ionicons name="chatbubble-outline" size={17} color={theme.textMuted} />
+                    <Text style={styles.perfTitre}>Messages</Text>
+                    <Text style={styles.perfValeur}>{formatNombre(contacts.messages || 0)}</Text>
+                  </View>
+                  <View style={styles.perfLigne}>
+                    <Ionicons name="receipt-outline" size={17} color={theme.textMuted} />
+                    <Text style={styles.perfTitre}>Commandes et devis</Text>
+                    <Text style={styles.perfValeur}>{formatNombre(contacts.demandes || 0)}</Text>
+                  </View>
+                  <Text style={styles.perfAide}>
+                    {(contacts.total || 0) === 0
+                      ? "Personne ne vous a encore contacté sur cette période. Une photo nette et un prix clair changent beaucoup."
+                      : "Un même visiteur qui revient dans la journée n’est compté qu’une fois."}
+                  </Text>
+                </>
+              )}
             </View>
 
             <View style={styles.perfCard}>

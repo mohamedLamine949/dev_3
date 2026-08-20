@@ -32,6 +32,7 @@ import { hapticMedium } from '../lib/haptics';
 import { sellerDisplayName, sellerInitial } from '../lib/seller';
 import { formatPrix } from '../lib/format';
 import { libellePrix } from '../constants/theme';
+import { enregistrerContact } from '../lib/contactTracking';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -174,6 +175,7 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
       );
       return;
     }
+    enregistrerContact(annonce.id, 'message');
     navigation.navigate('ChatConversation', {
       annonceId: annonce.id,
       vendeurId: annonce.user_id,
@@ -521,9 +523,13 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
           style={styles.ctaPhoneButton}
           activeOpacity={0.8}
           onPress={() => {
+            // La mesure part en parallele : elle ne doit jamais retarder
+            // l'ouverture du telephone ou de WhatsApp (§3.4).
             if (seller?.telephone) {
+              enregistrerContact(annonce.id, 'appel');
               Linking.openURL(`tel:${seller.telephone}`);
             } else if (seller?.whatsapp) {
+              enregistrerContact(annonce.id, 'whatsapp');
               Linking.openURL(`https://wa.me/${seller.whatsapp.replace(/[^0-9]/g, '')}`);
             } else {
               handleContact();
