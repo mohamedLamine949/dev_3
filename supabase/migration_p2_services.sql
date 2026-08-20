@@ -150,6 +150,144 @@ WHERE type_compte = 'professionnel'
 -- creees via le nouveau formulaire portent `pro_service`. Convertir
 -- automatiquement reviendrait a reinterpreter son travail a sa place.
 
+-- =========================================================================
+-- 4 bis. La publication atomique doit connaître les prestations
+-- =========================================================================
+-- `publier_annonce()` (phase 1b) imposait `pro_product` à tout compte PRO et
+-- ignorait `mode_tarif` : une prestation « sur devis » aurait été enregistrée
+-- comme un produit à prix fixe de 0 FCFA. On la remplace pour qu'elle
+-- reconnaisse le type demandé et le mode de tarification.
+CREATE OR REPLACE FUNCTION public.publier_annonce(
+  p_annonce         JSONB,
+  p_idempotency_key UUID DEFAULT NULL
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_uid          UUID := auth.uid();
+  v_droits       JSONB;
+  v_kind         TEXT;
+  v_kind_demande TEXT;
+  v_mode_tarif   TEXT;
+  v_existante    public.annonces%ROWTYPE;
+  v_nouvelle_id  UUID;
+  v_duree        INTERVAL;
+  v_prix         NUMERIC;
+  v_titre        TEXT;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'AUTH_REQUISE' USING HINT = 'Connectez-vous pour publier.';
+  END IF;
+
+  IF p_idempotency_key IS NOT NULL THEN
+    SELECT * INTO v_existante FROM public.annonces WHERE idempotency_key = p_idempotency_key;
+    IF FOUND THEN
+      RETURN jsonb_build_object(
+        'annonce_id', v_existante.id, 'listing_kind', v_existante.listing_kind, 'deja_publiee', TRUE);
+    END IF;
+  END IF;
+
+  PERFORM 1 FROM public.users WHERE id = v_uid FOR UPDATE;
+
+  v_titre := NULLIF(TRIM(COALESCE(p_annonce->>'titre', '')), '');
+  v_prix  := COALESCE(NULLIF(p_annonce->>'prix', ''), '0')::NUMERIC;
+
+  IF v_titre IS NULL THEN
+    RAISE EXCEPTION 'TITRE_REQUIS' USING HINT = 'Donnez un titre a votre annonce.';
+  END IF;
+  IF v_prix < 0 THEN
+    RAISE EXCEPTION 'PRIX_INVALIDE' USING HINT = 'Indiquez un prix valide.';
+  END IF;
+  IF NULLIF(TRIM(COALESCE(p_annonce->>'categorie', '')), '') IS NULL THEN
+    RAISE EXCEPTION 'CATEGORIE_REQUISE' USING HINT = 'Choisissez une categorie.';
+  END IF;
+
+  v_droits := public.get_effective_entitlements(v_uid);
+
+  -- Le client peut DEMANDER une prestation ; il ne peut pas s'auto-attribuer
+  -- un type reserve au plan Pro. Le serveur arbitre.
+  v_kind_demande := p_annonce->>'listing_kind';
+  IF v_droits->>'plan_code' = 'pro' THEN
+    v_kind := CASE WHEN v_kind_demande = 'pro_service' THEN 'pro_service' ELSE 'pro_product' END;
+  ELSIF v_droits->>'plan_code' = 'vendeur' THEN
+    v_kind := 'seller_ad';
+  ELSE
+    v_kind := 'private_ad';
+  END IF;
+
+  -- Le mode de tarification n'a de sens que pour une prestation.
+  v_mode_tarif := COALESCE(NULLIF(p_annonce->>'mode_tarif', ''), 'fixe');
+  IF v_kind <> 'pro_service' OR v_mode_tarif NOT IN ('fixe', 'a_partir_de', 'sur_devis') THEN
+    v_mode_tarif := 'fixe';
+  END IF;
+
+  -- Un prix nul n'est acceptable que « sur devis ».
+  IF v_prix = 0 AND v_mode_tarif <> 'sur_devis' THEN
+    RAISE EXCEPTION 'PRIX_INVALIDE' USING HINT = 'Indiquez un prix, ou choisissez « sur devis ».';
+  END IF;
+
+  IF (v_droits->>'blocage_actif')::BOOLEAN
+     AND NOT (v_droits->>'peut_publier')::BOOLEAN
+     AND COALESCE(p_annonce->>'id_transaction_paiement', 'FREE_QUOTA') IN ('FREE_QUOTA', '')
+  THEN
+    RAISE EXCEPTION 'QUOTA_EPUISE' USING HINT = 'Vos credits de publication du mois sont epuises.';
+  END IF;
+
+  v_duree := public.duree_de_vie(v_kind);
+
+  INSERT INTO public.annonces (
+    user_id, titre, description, prix, categorie, sous_categorie,
+    etat_article, ville, quartier, latitude, longitude,
+    statut, est_payee, id_transaction_paiement, montant_depot,
+    listing_kind, mode_tarif, stock, visible, catalogue_id,
+    published_at, expires_at, idempotency_key
+  ) VALUES (
+    v_uid, v_titre,
+    NULLIF(p_annonce->>'description', ''),
+    v_prix,
+    p_annonce->>'categorie',
+    NULLIF(p_annonce->>'sous_categorie', ''),
+    COALESCE(NULLIF(p_annonce->>'etat_article', ''), 'non_specifie'),
+    COALESCE(NULLIF(p_annonce->>'ville', ''), 'Mali'),
+    NULLIF(p_annonce->>'quartier', ''),
+    NULLIF(p_annonce->>'latitude', '')::DOUBLE PRECISION,
+    NULLIF(p_annonce->>'longitude', '')::DOUBLE PRECISION,
+    'active', TRUE,
+    COALESCE(NULLIF(p_annonce->>'id_transaction_paiement', ''), 'FREE_QUOTA'),
+    COALESCE(NULLIF(p_annonce->>'montant_depot', ''), '0')::NUMERIC,
+    v_kind, v_mode_tarif,
+    -- Une prestation n'a pas de stock : NULL, jamais 0 qui afficherait
+    -- « Rupture » sur la vitrine.
+    CASE WHEN v_kind = 'pro_service' THEN NULL
+         ELSE NULLIF(p_annonce->>'stock', '')::INTEGER END,
+    COALESCE(NULLIF(p_annonce->>'visible', '')::BOOLEAN, TRUE),
+    NULLIF(p_annonce->>'catalogue_id', '')::UUID,
+    NOW(),
+    CASE WHEN v_duree IS NULL THEN NULL ELSE NOW() + v_duree END,
+    p_idempotency_key
+  )
+  RETURNING id INTO v_nouvelle_id;
+
+  IF v_kind IN ('private_ad', 'seller_ad') THEN
+    INSERT INTO public.publication_ledger (user_id, annonce_id, delta, raison)
+    VALUES (v_uid, v_nouvelle_id, -1, 'publication');
+  END IF;
+
+  v_droits := public.get_effective_entitlements(v_uid);
+
+  RETURN jsonb_build_object(
+    'annonce_id',       v_nouvelle_id,
+    'listing_kind',     v_kind,
+    'mode_tarif',       v_mode_tarif,
+    'deja_publiee',     FALSE,
+    'credits_restants', v_droits->'credits_restants',
+    'credits_utilises', v_droits->'credits_utilises'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+
+REVOKE ALL ON FUNCTION public.publier_annonce(JSONB, UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.publier_annonce(JSONB, UUID) TO authenticated;
+
 COMMIT;
 
 -- =========================================================================

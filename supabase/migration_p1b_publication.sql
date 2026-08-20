@@ -151,7 +151,8 @@ BEGIN
     user_id, titre, description, prix, categorie, sous_categorie,
     etat_article, ville, quartier, latitude, longitude,
     statut, est_payee, id_transaction_paiement, montant_depot,
-    listing_kind, published_at, expires_at, idempotency_key
+    listing_kind, stock, visible, catalogue_id,
+    published_at, expires_at, idempotency_key
   ) VALUES (
     v_uid,
     v_titre,
@@ -169,6 +170,11 @@ BEGIN
     COALESCE(NULLIF(p_annonce->>'id_transaction_paiement', ''), 'FREE_QUOTA'),
     COALESCE(NULLIF(p_annonce->>'montant_depot', ''), '0')::NUMERIC,
     v_kind,
+    -- Un produit de boutique porte un stock, une visibilite et un rayon :
+    -- les omettre les faisait disparaitre du catalogue a la publication.
+    NULLIF(p_annonce->>'stock', '')::INTEGER,
+    COALESCE(NULLIF(p_annonce->>'visible', '')::BOOLEAN, TRUE),
+    NULLIF(p_annonce->>'catalogue_id', '')::UUID,
     NOW(),
     CASE WHEN v_duree IS NULL THEN NULL ELSE NOW() + v_duree END,
     p_idempotency_key
