@@ -44,8 +44,9 @@ export default function NotificationsScreen({ navigation }: any) {
       // Diriger vers "Mes annonces" où se trouve le bouton de renouvellement
       navigation.navigate('MesAnnonces');
     } else if (item.type === 'avis') {
-      // L'avis reçu est visible dans l'onglet Avis du profil
-      navigation.navigate('ProfileMain');
+      // Les avis vivent dans l'onglet Avis de la page profil, qui est
+      // desormais un ecran empile derriere Compte (§6.3).
+      navigation.navigate('MonProfil');
     } else if (item.type === 'chat' && item.donnees?.conversationId) {
       navigation.navigate('ChatConversation', {
         conversationId: item.donnees.conversationId,
