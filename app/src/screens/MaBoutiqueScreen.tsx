@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FONTS, SPACING, RADIUS, SHADOWS, METIER_CATEGORIES, TYPES_ACTIVITE } from '../constants/theme';
 import { supabase, Annonce, Catalogue } from '../lib/supabase';
 import TintedChip from '../components/TintedChip';
+import { formatNombre } from '../lib/format';
 import ProduitGestionSheet from '../components/ProduitGestionSheet';
 
 const { width: W } = Dimensions.get('window');
@@ -18,6 +19,16 @@ import { useTheme } from '../contexts/ThemeContext';
 interface Props {
   navigation: any;
 }
+
+// §6.4 : cinq entrees. « Demandes » ouvre l'ecran dedie plutot que de
+// dupliquer une liste deja complete ailleurs.
+const ONGLETS_PRO = [
+  { cle: 'apercu',       label: "Vue d'ensemble", icone: 'speedometer-outline' },
+  { cle: 'catalogue',    label: 'Catalogue',      icone: 'grid-outline' },
+  { cle: 'demandes',     label: 'Demandes',       icone: 'receipt-outline' },
+  { cle: 'performances', label: 'Performances',   icone: 'stats-chart-outline' },
+  { cle: 'vitrine',      label: 'Ma vitrine',     icone: 'eye-outline' },
+] as const;
 
 const LIVRAISON_OPTIONS = [
   { key: 'disponible', label: 'Livraison disponible', icon: 'bicycle-outline' },
@@ -56,6 +67,9 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
   const [catEditNom, setCatEditNom] = useState('');
   const [catEditBusy, setCatEditBusy] = useState(false);
   const [gestionRayonsVisible, setGestionRayonsVisible] = useState(false);
+  // Navigation interne de l'Espace Pro (§6.4). « Demandes » n'est pas un
+  // onglet de contenu : il ouvre l'ecran dedie, deja complet.
+  const [onglet, setOnglet] = useState<'apercu' | 'catalogue' | 'performances' | 'vitrine'>('apercu');
   const [editVisible, setEditVisible] = useState(false);
   const [saving, setSaving] = useState(false);
   const [gestionTarget, setGestionTarget] = useState<Annonce | null>(null);
@@ -243,6 +257,45 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
 
   // Stats visuelles du mois en cours (règle : tout doit être visuel)
   const nbNouvellesCommandes = commandes.filter(c => c.statut === 'nouvelle').length;
+
+  // §8.2 : « Les trois cartes Commandes, Livrees, Recettes sont insuffisantes
+  // lorsque tout est a zero. Les vues et les favoris montrent de la valeur
+  // avant la premiere vente. » Ces deux chiffres existent deja en base — il
+  // suffisait de les afficher.
+  const totalVues = produits.reduce((s, p) => s + (p.nombre_vues || 0), 0);
+  const produitsLesPlusVus = [...produits]
+    .sort((a, b) => (b.nombre_vues || 0) - (a.nombre_vues || 0))
+    .slice(0, 5);
+  const enRupture = produits.filter(p => p.stock === 0 && p.statut !== 'vendu');
+  const masques = produits.filter(p => p.visible === false);
+
+  // Taches prioritaires (§8.2) : ce qui demande une action, dans l'ordre ou
+  // ca coute de l'argent au commercant.
+  const taches: { cle: string; icone: string; texte: string; onPress: () => void }[] = [];
+  if (nbNouvellesCommandes > 0) {
+    taches.push({
+      cle: 'demandes',
+      icone: 'receipt-outline',
+      texte: `${nbNouvellesCommandes} demande${nbNouvellesCommandes > 1 ? 's' : ''} sans reponse`,
+      onPress: () => navigation.navigate('Commandes', { mode: 'vendeur' }),
+    });
+  }
+  if (enRupture.length > 0) {
+    taches.push({
+      cle: 'rupture',
+      icone: 'alert-circle-outline',
+      texte: `${enRupture.length} produit${enRupture.length > 1 ? 's' : ''} en rupture`,
+      onPress: () => setOnglet('catalogue'),
+    });
+  }
+  if (produits.length === 0) {
+    taches.push({
+      cle: 'vide',
+      icone: 'cube-outline',
+      texte: 'Votre vitrine est vide : ajoutez votre premier article',
+      onPress: () => navigation.navigate('AjouterProduit'),
+    });
+  }
   const debutMois = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   const commandesMois = commandes.filter(c =>
     new Date(c.date_creation) >= debutMois && c.statut !== 'annulee' && c.statut !== 'refusee'
@@ -394,6 +447,97 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
           </View>
         </View>
 
+        {/* ---- Navigation interne de l'Espace Pro (§6.4) ---- */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.ongletsRow}
+        >
+          {ONGLETS_PRO.map(o => (
+            <TouchableOpacity
+              key={o.cle}
+              style={[styles.ongletChip, onglet === o.cle && styles.ongletChipActif]}
+              onPress={() => {
+                if (o.cle === 'demandes') {
+                  navigation.navigate('Commandes', { mode: 'vendeur' });
+                  return;
+                }
+                setOnglet(o.cle as any);
+              }}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityState={{ selected: onglet === o.cle }}
+            >
+              <Ionicons
+                name={o.icone as any}
+                size={15}
+                color={onglet === o.cle ? '#fff' : theme.textSecondary}
+              />
+              <Text style={[styles.ongletTexte, onglet === o.cle && styles.ongletTexteActif]}>
+                {o.label}
+              </Text>
+              {o.cle === 'demandes' && nbNouvellesCommandes > 0 && (
+                <View style={styles.ongletPastille}>
+                  <Text style={styles.ongletPastilleTexte}>{nbNouvellesCommandes}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* ---- Vue d'ensemble : actions rapides puis taches (§8.2) ---- */}
+        {onglet === 'apercu' && (
+          <>
+            <View style={styles.actionsRapides}>
+              {[
+                { cle: 'ajouter', icone: 'add-circle-outline', label: 'Ajouter',
+                  onPress: () => navigation.navigate('AjouterProduit') },
+                { cle: 'vitrine', icone: 'eye-outline', label: 'Ma vitrine',
+                  onPress: () => navigation.navigate('Boutique', { vendeurId: session?.user.id }) },
+                { cle: 'partager', icone: 'share-social-outline', label: 'Partager',
+                  onPress: shareBoutique },
+                { cle: 'demandes', icone: 'receipt-outline', label: 'Demandes',
+                  onPress: () => navigation.navigate('Commandes', { mode: 'vendeur' }) },
+              ].map(a => (
+                <TouchableOpacity
+                  key={a.cle}
+                  style={styles.actionRapide}
+                  onPress={a.onPress}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={a.label}
+                >
+                  <View style={styles.actionRapideIcone}>
+                    <Ionicons name={a.icone as any} size={20} color={theme.primary} />
+                  </View>
+                  <Text style={styles.actionRapideTexte}>{a.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {taches.length > 0 && (
+              <View style={styles.tachesCard}>
+                <Text style={styles.tachesTitre}>À faire</Text>
+                {taches.map(t => (
+                  <TouchableOpacity
+                    key={t.cle}
+                    style={styles.tacheRow}
+                    onPress={t.onPress}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name={t.icone as any} size={17} color={theme.secondary || '#d97706'} />
+                    <Text style={styles.tacheTexte}>{t.texte}</Text>
+                    <Ionicons name="chevron-forward" size={16} color={theme.textMuted} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </>
+        )}
+
+        {onglet === 'vitrine' && (
+          <>
         {/* ---- Lien partageable ---- */}
         {user?.boutique_slug && (
           <TouchableOpacity style={styles.linkCard} onPress={shareBoutique} activeOpacity={0.8}>
@@ -403,6 +547,10 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
           </TouchableOpacity>
         )}
 
+          </>
+        )}
+        {onglet === 'apercu' && (
+          <>
         {/* ---- Ouvert maintenant ---- */}
         <View style={styles.ouvertCard}>
           <View style={[styles.ouvertDot, { backgroundColor: user?.ouvert_maintenant !== false ? theme.primary : theme.textMuted }]} />
@@ -418,6 +566,10 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
           />
         </View>
 
+          </>
+        )}
+        {onglet === 'vitrine' && (
+          <>
         {/* ---- Livraison ---- */}
         {user?.livraison && (
           <View style={styles.livraisonCard}>
@@ -432,6 +584,10 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
           </View>
         )}
 
+          </>
+        )}
+        {onglet === 'apercu' && (
+          <>
         {/* ---- Commandes reçues ---- */}
         <TouchableOpacity
           style={styles.commandesCard}
@@ -457,6 +613,10 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
           <Ionicons name="chevron-forward" size={18} color="#fff" />
         </TouchableOpacity>
 
+          </>
+        )}
+        {(onglet === 'apercu' || onglet === 'performances') && (
+          <>
         {/* ---- Ce mois-ci : le tableau de bord visuel du vendeur ---- */}
         <Text style={[styles.sectionLabel, { marginTop: SPACING.xl }]}>Ce mois-ci</Text>
         <View style={styles.statsRow}>
@@ -489,6 +649,76 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
           </View>
         )}
 
+          </>
+        )}
+        {/* ---- Performances : la preuve avant la premiere vente (§8.2) ---- */}
+        {onglet === 'performances' && (
+          <>
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <View style={styles.statIconCircle}>
+                  <Ionicons name="eye-outline" size={16} color={theme.primary} />
+                </View>
+                <Text style={styles.statValue}>{formatNombre(totalVues)}</Text>
+                <Text style={styles.statLabel}>Vues au total</Text>
+              </View>
+              <View style={styles.statCard}>
+                <View style={styles.statIconCircle}>
+                  <Ionicons name="cube-outline" size={16} color={theme.primary} />
+                </View>
+                <Text style={styles.statValue}>{produits.length}</Text>
+                <Text style={styles.statLabel}>En vitrine</Text>
+              </View>
+              <View style={styles.statCard}>
+                <View style={styles.statIconCircle}>
+                  <Ionicons name="eye-off-outline" size={16} color={theme.primary} />
+                </View>
+                <Text style={styles.statValue}>{masques.length}</Text>
+                <Text style={styles.statLabel}>Masqués</Text>
+              </View>
+            </View>
+
+            <View style={styles.perfCard}>
+              <Text style={styles.tachesTitre}>Ce qui attire le plus</Text>
+              {produitsLesPlusVus.length === 0 ? (
+                <Text style={styles.perfAide}>
+                  Rien à mesurer pour l'instant. Dès que vous publiez, vous verrez
+                  ici ce que vos clients regardent le plus.
+                </Text>
+              ) : (
+                <>
+                  {produitsLesPlusVus.map((p, i) => (
+                    <View key={p.id} style={styles.perfLigne}>
+                      <Text style={styles.perfRang}>{i + 1}.</Text>
+                      <Text style={styles.perfTitre} numberOfLines={1}>{p.titre}</Text>
+                      <Text style={styles.perfValeur}>{formatNombre(p.nombre_vues || 0)} vues</Text>
+                    </View>
+                  ))}
+                  <Text style={styles.perfAide}>
+                    Un article très vu mais jamais commandé se joue souvent sur la
+                    photo ou le prix.
+                  </Text>
+                </>
+              )}
+            </View>
+          </>
+        )}
+
+        {/* ---- Ma vitrine : voir ce que voit le client ---- */}
+        {onglet === 'vitrine' && (
+          <TouchableOpacity
+            style={styles.apercuBtn}
+            onPress={() => navigation.navigate('Boutique', { vendeurId: session?.user.id })}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+          >
+            <Ionicons name="eye-outline" size={18} color="#fff" />
+            <Text style={styles.apercuBtnTexte}>Voir ma vitrine comme un client</Text>
+          </TouchableOpacity>
+        )}
+
+        {onglet === 'catalogue' && (
+          <>
         {/* ---- Catalogue ---- */}
         <View style={styles.catalogueHead}>
           <Text style={styles.sectionLabel}>
@@ -616,6 +846,8 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
             navigation.navigate('EditAnnonce', { annonce: p });
           }}
         />
+          </>
+        )}
         </View>
       </ScrollView>
 
@@ -960,6 +1192,111 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   commandesTitle: { fontSize: FONTS.md, fontWeight: FONTS.extrabold, color: '#fff' },
   commandesSub: { fontSize: FONTS.xs, color: 'rgba(255,255,255,0.85)', marginTop: 1 },
 
+  apercuBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.lg,
+    minHeight: 52,
+    borderRadius: RADIUS.lg,
+    backgroundColor: theme.primary,
+  },
+  apercuBtnTexte: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
+  actionsRapides: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.lg,
+  },
+  actionRapide: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: SPACING.md,
+    borderRadius: RADIUS.lg,
+    backgroundColor: theme.surface,
+    borderWidth: 1,
+    borderColor: theme.borderLight,
+    minHeight: 78,
+    justifyContent: 'center',
+  },
+  actionRapideIcone: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: theme.primaryFaded,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  actionRapideTexte: {
+    fontSize: 11, fontWeight: FONTS.semibold, color: theme.textSecondary, textAlign: 'center',
+  },
+  tachesCard: {
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.lg,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    backgroundColor: theme.surface,
+    borderWidth: 1,
+    borderColor: theme.borderLight,
+  },
+  tachesTitre: {
+    fontSize: FONTS.xs, fontWeight: FONTS.bold, color: theme.textMuted,
+    textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: SPACING.sm,
+  },
+  tacheRow: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.md, minHeight: 48,
+  },
+  tacheTexte: { flex: 1, fontSize: FONTS.sm, color: theme.textPrimary, fontWeight: FONTS.medium },
+  perfCard: {
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.lg,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    backgroundColor: theme.surface,
+    borderWidth: 1,
+    borderColor: theme.borderLight,
+  },
+  perfLigne: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
+    paddingVertical: SPACING.sm,
+  },
+  perfRang: {
+    width: 22, fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.textMuted,
+  },
+  perfTitre: { flex: 1, fontSize: FONTS.sm, color: theme.textPrimary },
+  perfValeur: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.primary },
+  perfAide: { fontSize: FONTS.xs, color: theme.textMuted, lineHeight: 17, marginTop: SPACING.sm },
+  ongletsRow: {
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.md,
+  },
+  ongletChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    borderColor: theme.borderLight,
+    backgroundColor: theme.surface,
+    // Zone tactile confortable meme sur petit ecran (§15.4)
+    minHeight: 44,
+  },
+  ongletChipActif: { backgroundColor: theme.primary, borderColor: theme.primary },
+  ongletTexte: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textSecondary },
+  ongletTexteActif: { color: '#fff' },
+  ongletPastille: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 5,
+    backgroundColor: theme.error,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 2,
+  },
+  ongletPastilleTexte: { fontSize: 10, fontWeight: FONTS.bold, color: '#fff' },
   gererLink: {
     fontSize: FONTS.sm,
     fontWeight: FONTS.semibold,
