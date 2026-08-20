@@ -71,7 +71,7 @@ export default function LoginScreen({ navigation }: Props) {
     if (needsCompletion) {
       navigation.reset({ index: 0, routes: [{ name: 'CompleteProfile', params: { prefillName } }] });
     } else {
-      navigation.reset({ index: 0, routes: [{ name: 'Main', params: { screen: 'Profil' } }] });
+      navigation.reset({ index: 0, routes: [{ name: 'Main', params: { screen: 'Compte' } }] });
     }
   }
 
