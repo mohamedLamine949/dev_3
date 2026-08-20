@@ -53,6 +53,7 @@ function timeAgo(dateStr: string): string {
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { formatPrixCompact as formatPrix } from '../lib/format';
 import { diversifierParVendeur } from '../lib/feed';
+import EtatEcran from '../components/EtatEcran';
 
 // Couleur de fond pour les cercles catégorie
 const CAT_CIRCLE_COLORS: Record<string, string> = {
@@ -580,22 +581,11 @@ export default function HomeScreen({ navigation }: Props) {
       {loading && annonces.length === 0 ? (
         renderSkeleton()
       ) : error && annonces.length === 0 ? (
-        <View style={styles.errorContainer}>
-          <View style={styles.errorIconCircle}>
-            <Feather name="wifi-off" size={32} color={theme.textMuted} />
-          </View>
-          <Text style={styles.errorTitle}>Connexion impossible</Text>
-          <Text style={styles.errorSubtitle}>
-            {error || 'Vérifiez votre connexion internet ou réessayez dans quelques instants.'}
-          </Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={refetch}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.retryButtonText}>Réessayer</Text>
-          </TouchableOpacity>
-        </View>
+        <EtatEcran
+          variante="hors_ligne"
+          message={error || undefined}
+          onAction={refetch}
+        />
       ) : (
         <FlatList
           data={filAffiche}
@@ -633,15 +623,27 @@ export default function HomeScreen({ navigation }: Props) {
             />
           }
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconCircle}>
-                <Feather name="inbox" size={32} color={theme.textMuted} />
-              </View>
-              <Text style={styles.emptyTitle}>Aucune annonce trouvée</Text>
-              <Text style={styles.emptySubtitle}>
-                Essayez de modifier vos critères de recherche
-              </Text>
-            </View>
+            /* §7.10 : un etat vide propose toujours une action realiste.
+               « Modifiez vos criteres » n'en est pas une quand il n'y a
+               aucun critere : c'est une impasse. */
+            selectedCategory ? (
+              <EtatEcran
+                variante="vide"
+                titre="Rien dans cette catégorie"
+                message="Personne n'a encore publié ici. Revenez bientôt, ou regardez les autres catégories."
+                actionLabel="Voir toutes les annonces"
+                onAction={() => { setSelectedCategory(null); setSelectedSousCategorie(null); }}
+              />
+            ) : (
+              <EtatEcran
+                variante="vide"
+                icone="storefront-outline"
+                titre="Le marché est encore vide"
+                message="Soyez le premier à publier : votre annonce sera vue par tous les visiteurs."
+                actionLabel="Publier une annonce"
+                onAction={() => navigation.navigate('Publier')}
+              />
+            )
           }
         />
       )}

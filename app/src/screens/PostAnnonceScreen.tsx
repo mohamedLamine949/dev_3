@@ -26,6 +26,7 @@ import { supabase } from '../lib/supabase';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { getEffectivePlanKey } from '../lib/subscription';
 import { useEntitlements } from '../hooks/useEntitlements';
+import { sauverBrouillon, lireBrouillon, effacerBrouillon, BROUILLON_ANNONCE } from '../lib/brouillon';
 import { useTabBarSpace } from '../hooks/useTabBarSpace';
 import { formatPrix } from '../lib/format';
 
@@ -171,7 +172,43 @@ export default function PostAnnonceScreen({ navigation }: any) {
     setImages(images.filter((_, i) => i !== index));
   };
 
+  // §7.10 : la saisie est conservee sur l'appareil. Remplir une annonce prend
+  // plusieurs minutes, photos comprises ; la perdre sur une coupure suffit a
+  // faire abandonner la publication — et donc a priver le catalogue d'une
+  // annonce, ce qui est exactement le probleme de liquidite du produit.
+  const brouillonRepris = React.useRef(false);
+
+  useEffect(() => {
+    (async () => {
+      const b = await lireBrouillon<any>(BROUILLON_ANNONCE);
+      if (!b) { brouillonRepris.current = true; return; }
+      if (b.titre) setTitre(b.titre);
+      if (b.prix) setPrix(b.prix);
+      if (b.description) setDescription(b.description);
+      if (b.selectedCategory) setSelectedCategory(b.selectedCategory);
+      if (b.selectedSousCategorie) setSelectedSousCategorie(b.selectedSousCategorie);
+      if (b.selectedEtat) setSelectedEtat(b.selectedEtat);
+      if (b.quartier) setQuartier(b.quartier);
+      // Les photos ne sont pas restaurees : leurs URI temporaires ne survivent
+      // pas toujours au redemarrage de l'application. Mieux vaut redemander
+      // une photo que d'afficher une vignette cassee.
+      brouillonRepris.current = true;
+    })();
+  }, []);
+
+  useEffect(() => {
+    // On n'ecrase pas le brouillon avant de l'avoir lu.
+    if (!brouillonRepris.current) return;
+    const vide = !titre && !prix && !description && !selectedCategory && !quartier;
+    if (vide) return;
+    sauverBrouillon(BROUILLON_ANNONCE, {
+      titre, prix, description, selectedCategory, selectedSousCategorie,
+      selectedEtat, quartier,
+    });
+  }, [titre, prix, description, selectedCategory, selectedSousCategorie, selectedEtat, quartier]);
+
   const resetForm = () => {
+    effacerBrouillon(BROUILLON_ANNONCE);
     setImages([]);
     setTitre('');
     setPrix('');
