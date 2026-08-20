@@ -52,3 +52,38 @@ export function useBoutiqueFollow(boutiqueId: string | undefined, followerId: st
 
   return { isFollowing, followerCount, loading, busy, toggleFollow };
 }
+
+export interface BoutiqueFollower {
+  id: string;
+  prenom: string | null;
+  nom: string | null;
+  avatar_url: string | null;
+  date_creation: string;
+}
+
+// Liste des abonnés d'une boutique, pour l'affichage côté PRO ("qui me suit").
+// Distinct de useBoutiqueFollow (qui ne renvoie que le compteur + l'état de
+// l'utilisateur courant) pour ne rien changer à son comportement existant.
+export function useShopFollowers(boutiqueId: string | undefined) {
+  const [followers, setFollowers] = useState<BoutiqueFollower[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refetch = useCallback(async () => {
+    if (!boutiqueId) return;
+    setLoading(true);
+    const { data } = await supabase
+      .from('boutique_follows')
+      .select('date_creation, follower:follower_id(id, prenom, nom, avatar_url)')
+      .eq('boutique_id', boutiqueId)
+      .order('date_creation', { ascending: false });
+    const list = (data || [])
+      .map((row: any) => row.follower ? { ...row.follower, date_creation: row.date_creation } : null)
+      .filter(Boolean) as BoutiqueFollower[];
+    setFollowers(list);
+    setLoading(false);
+  }, [boutiqueId]);
+
+  useEffect(() => { refetch(); }, [refetch]);
+
+  return { followers, count: followers.length, loading, refetch };
+}

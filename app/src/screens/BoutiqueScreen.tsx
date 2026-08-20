@@ -297,6 +297,18 @@ La boutique sera notifiée et vous répondra.`,
           </TouchableOpacity>
         )}
 
+        {/* ---- Abonnés (vue du propriétaire sur sa propre vitrine) ---- */}
+        {isOwner && (
+          <View style={styles.followerInfoRow}>
+            <Ionicons name="people-outline" size={16} color={theme.primary} />
+            <Text style={styles.followerInfoText}>
+              {followerCount > 0
+                ? `${followerCount} abonné${followerCount > 1 ? 's' : ''}`
+                : "Aucun abonné pour l'instant"}
+            </Text>
+          </View>
+        )}
+
         {/* ---- Contact ---- */}
         {!isOwner && (vendeur?.telephone || vendeur?.whatsapp) && (
           <View style={styles.contactRow}>
@@ -631,6 +643,11 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   followBtnActive: { backgroundColor: theme.primaryFaded },
   followBtnText: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: '#fff' },
   followCount: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: 'rgba(255,255,255,0.85)' },
+  followerInfoRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    marginHorizontal: SPACING.lg, marginTop: SPACING.md,
+  },
+  followerInfoText: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.primary },
 
   contactRow: { flexDirection: 'row', gap: SPACING.sm, marginHorizontal: SPACING.lg, marginTop: SPACING.sm },
   contactBtn: {

@@ -15,6 +15,7 @@ import { pickImages } from '../lib/imagePicker';
 import { IMAGE_SIZES, UPLOAD_CACHE_CONTROL } from '../lib/imageOptimizer';
 import { decode } from 'base64-arraybuffer';
 import ProduitGestionSheet from '../components/ProduitGestionSheet';
+import { useShopFollowers } from '../hooks/useBoutiqueFollow';
 
 const { width: W } = Dimensions.get('window');
 const CARD_W = (W - SPACING.lg * 2 - SPACING.md) / 2;
@@ -99,6 +100,9 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
   // Portfolio avant/apres — ce qu'un artisan montre en premier.
   const { realisations, indisponible: realisationsIndispo, refetch: rechargerRealisations } =
     useRealisations(session?.user.id);
+  // Abonnés de la boutique, visibles côté PRO dans l'onglet Performances.
+  const { followers, count: followersCount, loading: followersLoading } =
+    useShopFollowers(user?.id);
   const [ajoutRealisation, setAjoutRealisation] = useState(false);
   const [photoAvant, setPhotoAvant] = useState<{ uri: string; base64?: string } | null>(null);
   const [photoApres, setPhotoApres] = useState<{ uri: string; base64?: string } | null>(null);
@@ -814,6 +818,34 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
                       ? "Personne ne vous a encore contacté sur cette période. Une photo nette et un prix clair changent beaucoup."
                       : "Un même visiteur qui revient dans la journée n’est compté qu’une fois."}
                   </Text>
+                </>
+              )}
+            </View>
+
+            <View style={styles.perfCard}>
+              <Text style={styles.tachesTitre}>Vos abonnés</Text>
+              {followersLoading ? (
+                <ActivityIndicator color={theme.primary} />
+              ) : followersCount === 0 ? (
+                <Text style={styles.perfAide}>
+                  Personne ne suit encore votre boutique. Les clients qui vous suivent la
+                  retrouvent plus facilement et voient vos nouveautés en premier.
+                </Text>
+              ) : (
+                <>
+                  <View style={styles.perfLigne}>
+                    <Ionicons name="people-outline" size={17} color={theme.primary} />
+                    <Text style={styles.perfTitre}>Personnes qui vous suivent</Text>
+                    <Text style={styles.perfValeur}>{formatNombre(followersCount)}</Text>
+                  </View>
+                  {followers.slice(0, 8).map((f) => (
+                    <View key={f.id} style={styles.perfLigne}>
+                      <Ionicons name="person-circle-outline" size={17} color={theme.textMuted} />
+                      <Text style={styles.perfTitre} numberOfLines={1}>
+                        {[f.prenom, f.nom].filter(Boolean).join(' ') || 'Utilisateur'}
+                      </Text>
+                    </View>
+                  ))}
                 </>
               )}
             </View>
