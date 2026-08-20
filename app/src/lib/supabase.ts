@@ -135,7 +135,6 @@ export interface Commande {
   date_souhaitee?: string | null;
   // Demande de devis guidee (migration_p4)
   photo_url?: string | null;
-  audio_url?: string | null;
   zone_demandee?: string | null;
   telephone_client?: string | null;
   date_creation: string;

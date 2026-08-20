@@ -29,9 +29,9 @@ import { enregistrerContact, enregistrerContactBoutique } from '../lib/contactTr
  * La photo passe avant la description : montrer une fuite d'eau est plus
  * rapide, plus juste et plus accessible que la décrire.
  *
- * Le message vocal prévu par la spécification n'est pas ici : l'enregistrement
- * audio exige un module natif, donc un nouveau build de l'application. Le
- * champ existe déjà en base pour l'accueillir sans nouvelle migration.
+ * Le message vocal envisagé au départ a été écarté : la photo remplit le même
+ * rôle d'accessibilité pour un public qui lit peu, sans coûter un module natif
+ * ni un passage par les stores.
  */
 
 interface Props {
