@@ -30,12 +30,10 @@ import { useTheme } from '../contexts/ThemeContext';
 import { addToRecent } from '../lib/recentStorage';
 import { hapticMedium } from '../lib/haptics';
 import { sellerDisplayName, sellerInitial } from '../lib/seller';
+import { formatPrix } from '../lib/format';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-function formatPrix(prix: number): string {
-  return prix.toLocaleString('fr-FR') + ' FCFA';
-}
 
 interface Props {
   route: any;

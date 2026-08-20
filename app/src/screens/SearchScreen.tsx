@@ -26,15 +26,12 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useTabBarSpace } from '../hooks/useTabBarSpace';
 import { SkeletonCard } from '../components/SkeletonLoader';
+import { formatPrixCompact as formatPrix } from '../lib/format';
 
 const { width: W } = Dimensions.get('window');
 const TILE_SIZE = (W - SPACING.lg * 2 - SPACING.md) / 2;
 const CARD_WIDTH = (W - SPACING.lg * 2 - SPACING.md) / 2;
 
-function formatPrix(prix: number): string {
-  if (prix >= 1000000) return (prix / 1000000).toFixed(prix % 1000000 === 0 ? 0 : 1) + 'M FCFA';
-  return prix.toLocaleString('fr-FR') + ' FCFA';
-}
 
 const CAT_COLORS: Record<string, string> = {
   telephonie_electronique: '#3B82F6',

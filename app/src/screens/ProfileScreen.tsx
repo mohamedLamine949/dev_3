@@ -18,14 +18,11 @@ import { getEffectivePlanKey, isSubscriptionExpired, subscriptionExpiryDate } fr
 import { pickImages } from '../lib/imagePicker';
 import { IMAGE_SIZES, UPLOAD_CACHE_CONTROL } from '../lib/imageOptimizer';
 import { decode } from 'base64-arraybuffer';
+import { formatPrixCompact as formatPrix } from '../lib/format';
 
 const { width: W } = Dimensions.get('window');
 const CARD_W = (W - SPACING.xl * 2 - SPACING.md) / 2;
 
-function formatPrix(prix: number): string {
-  if (prix >= 1000000) return (prix / 1000000).toFixed(1) + 'M FCFA';
-  return prix.toLocaleString('fr-FR') + ' FCFA';
-}
 
 function timeAgo(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -406,7 +403,7 @@ export default function ProfileScreen({ navigation }: Props) {
     if (!session) return;
     Alert.alert(
       'Repasser en compte particulier ?',
-      'Vous perdrez immédiatement le badge « Vérifié », la vitrine boutique et les avantages de votre formule actuelle. Votre abonnement en cours ne sera pas remboursé. Vous pourrez vous réabonner à tout moment.',
+      'Vous perdrez immédiatement le badge Pro, la vitrine boutique et les avantages de votre formule actuelle. Votre abonnement en cours ne sera pas remboursé. Vous pourrez vous réabonner à tout moment.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -569,28 +566,10 @@ export default function ProfileScreen({ navigation }: Props) {
               </TouchableOpacity>
             )}
 
-            {session && (!user?.email || user.email.endsWith('@phone.market')) && (
-              <View style={{ backgroundColor: theme.surface, borderRadius: RADIUS.lg, padding: SPACING.lg, marginBottom: SPACING.lg, borderWidth: 1, borderColor: theme.borderLight, ...SHADOWS.sm }}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.md, marginBottom: SPACING.md }}>
-                  <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: theme.primaryFaded, justifyContent: 'center', alignItems: 'center' }}>
-                    <Ionicons name="shield-half-outline" size={20} color={theme.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.textPrimary, marginBottom: 4 }}>Sécurisez votre compte</Text>
-                    <Text style={{ fontSize: FONTS.xs, color: theme.textSecondary, lineHeight: 18 }}>
-                      Associez une adresse e-mail pour certifier votre numéro de téléphone et récupérer votre compte en cas d'oubli de mot de passe.
-                    </Text>
-                  </View>
-                </View>
-                <TouchableOpacity 
-                  style={{ backgroundColor: theme.primaryFaded, paddingVertical: 10, borderRadius: RADIUS.md, alignItems: 'center' }}
-                  onPress={() => navigation.navigate('LinkEmail')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.primary }}>Lier mon adresse e-mail</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+            {/* La carte « Sécurisez votre compte » pointait vers un écran
+                LinkEmail qui n'a jamais existé : l'appui ne menait nulle part.
+                Retirée en attendant que le parcours de liaison d'e-mail soit
+                réellement construit (dossier directeur §18.1). */}
 
             {/* Offre de lancement (monétisation désactivée) */}
             {!paymentsEnabled ? (
@@ -642,7 +621,7 @@ export default function ProfileScreen({ navigation }: Props) {
                 {subExpired && (
                   <View style={{ marginTop: 8 }}>
                     <Text style={{ fontSize: FONTS.xs, color: theme.error, marginBottom: 10, lineHeight: 18 }}>
-                      Votre abonnement a expiré{expiryLabel ? ` le ${expiryLabel}` : ''}. Renouvelez pour retrouver vos annonces illimitées, la vitrine et le badge « Vérifié ».
+                      Votre abonnement a expiré{expiryLabel ? ` le ${expiryLabel}` : ''}. Renouvelez pour retrouver vos annonces illimitées, la vitrine boutique et le badge Pro.
                     </Text>
                     <TouchableOpacity
                       style={{ backgroundColor: theme.primary, paddingVertical: 10, borderRadius: RADIUS.md, alignItems: 'center' }}
@@ -671,7 +650,7 @@ export default function ProfileScreen({ navigation }: Props) {
                 {effectivePlanKey !== 'professionnel' && !subExpired && (
                   <View style={{ marginTop: 8 }}>
                     <Text style={{ fontSize: FONTS.xs, color: theme.textSecondary, marginBottom: 10, lineHeight: 18 }}>
-                      Passez au Plan PRO (5 000 F/mois) pour des annonces illimitées et permanentes, la vitrine boutique et le badge « Vérifié ». L'abonnement se fait au moment de publier.
+                      Passez au Plan PRO (5 000 F/mois) pour des annonces illimitées et permanentes, la vitrine boutique et le badge Pro. L'abonnement se fait au moment de publier.
                     </Text>
                     <TouchableOpacity
                       style={{ backgroundColor: theme.primary, paddingVertical: 10, borderRadius: RADIUS.md, alignItems: 'center' }}

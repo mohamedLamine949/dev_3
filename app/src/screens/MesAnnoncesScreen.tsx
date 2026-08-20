@@ -19,10 +19,8 @@ import { useMesAnnonces, updateAnnonceStatus, deleteAnnonceById } from '../hooks
 
 import { useTheme } from '../contexts/ThemeContext';
 import { useTabBarSpace } from '../hooks/useTabBarSpace';
+import { formatPrix } from '../lib/format';
 
-function formatPrix(prix: number): string {
-  return prix.toLocaleString('fr-FR') + ' FCFA';
-}
 
 function getStatusBadge(statut: string, est_payee: boolean, theme: any) {
   if (statut === 'vendu') return { bg: theme.surfaceMuted, text: theme.textMuted, label: 'Vendu' };

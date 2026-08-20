@@ -14,10 +14,8 @@ import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useHistoriqueVentes, Vente } from '../hooks/useHistoriqueVentes';
+import { formatPrix } from '../lib/format';
 
-function formatPrix(prix: number): string {
-  return prix.toLocaleString('fr-FR') + ' FCFA';
-}
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('fr-FR', {

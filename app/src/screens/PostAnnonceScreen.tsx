@@ -26,6 +26,7 @@ import { supabase } from '../lib/supabase';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { getEffectivePlanKey } from '../lib/subscription';
 import { useTabBarSpace } from '../hooks/useTabBarSpace';
+import { formatPrix } from '../lib/format';
 
 const MAX_IMAGES = 10;
 
@@ -633,7 +634,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
                     ? '0 FCFA (Illimité PRO)'
                     : monthlyCount < currentPlan.quotaMensuel
                       ? '0 FCFA (Inclus dans quota)'
-                      : `${unitPrice} FCFA`}
+                      : formatPrix(unitPrice)}
                 </Text>
               </View>
               <View style={styles.costDivider} />
@@ -725,7 +726,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
                   </Text>
                   <Text style={{ fontSize: FONTS.xs, color: theme.textSecondary, marginBottom: SPACING.md, lineHeight: 18 }}>
                     • Annonces illimitées & permanentes (n'expirent jamais){'\n'}
-                    • Vitrine professionnelle & Badge « Vérifié »{'\n'}
+                    • Vitrine professionnelle & badge Pro{'\n'}
                     • Visibilité maximale dans la recherche
                   </Text>
                   <TouchableOpacity
@@ -767,7 +768,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
                     🏷️ Paiement à l'unité
                   </Text>
                   <Text style={{ fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.textPrimary, marginBottom: 6 }}>
-                    {unitPrice} FCFA
+                    {formatPrix(unitPrice)}
                   </Text>
                   <Text style={{ fontSize: FONTS.xs, color: theme.textSecondary, marginBottom: SPACING.md }}>
                     Publier uniquement cette annonce sans abonnement
@@ -778,7 +779,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
                     activeOpacity={0.85}
                   >
                     <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textPrimary }}>
-                      Payer {unitPrice} FCFA via Mobile Money
+                      Payer {formatPrix(unitPrice)} via Mobile Money
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -847,7 +848,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
                 <Text style={[styles.processingTitle, { color: theme.success }]}>Annonce Publiée !</Text>
                 <Text style={styles.processingText}>
                   {paymentType === 'subscription_pro'
-                    ? "Félicitations ! Votre abonnement PRO est actif : annonces illimitées, vitrine et badge « Vérifié » !"
+                    ? "Félicitations ! Votre abonnement PRO est actif : annonces illimitées, vitrine boutique et badge Pro."
                     : paymentType === 'subscription_vendeur'
                     ? "Félicitations ! Votre abonnement Vendeur est actif et votre annonce est en ligne !"
                     : "Votre annonce est maintenant en ligne et visible par tous les acheteurs."}

@@ -10,11 +10,8 @@ import { useFavorisAnnonces, toggleFavori } from '../hooks/useFavoris';
 
 import { useTheme } from '../contexts/ThemeContext';
 import { useTabBarSpace } from '../hooks/useTabBarSpace';
+import { formatPrixCompact as formatPrix } from '../lib/format';
 
-function formatPrix(prix: number): string {
-  if (prix >= 1000000) return (prix / 1000000).toFixed(1) + 'M FCFA';
-  return prix.toLocaleString('fr-FR') + ' FCFA';
-}
 
 export default function FavorisScreen({ navigation }: any) {
   const { session } = useAuth();

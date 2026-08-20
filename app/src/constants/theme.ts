@@ -467,7 +467,7 @@ export const PLANS_CONFIG = {
     prix: 0,
     quotaMensuel: 3,
     dureeAnnonceJours: 30,
-    badgeVerifie: false,
+    badgePro: false,
     boutique: false,
     annoncesPermanentes: false,
     boost: 'Normale',
@@ -479,7 +479,7 @@ export const PLANS_CONFIG = {
     prix: 2000,
     quotaMensuel: 30,
     dureeAnnonceJours: 30,
-    badgeVerifie: false,
+    badgePro: false,
     boutique: false,
     annoncesPermanentes: false,
     boost: 'Léger',
@@ -491,7 +491,7 @@ export const PLANS_CONFIG = {
     prix: 5000, // Abonnement PRO (monétisation via interrupteur app_config.payments_enabled)
     quotaMensuel: Infinity,
     dureeAnnonceJours: null, // N'expire jamais
-    badgeVerifie: true,
+    badgePro: true,
     boutique: true,
     annoncesPermanentes: true,
     boost: 'Maximale',

@@ -18,6 +18,11 @@ export const TAB_BAR_HEIGHT = 48 + SPACING.sm * 2;
 // sans ce supplement il recouvre encore le milieu des boutons pleine largeur.
 export const TAB_BAR_FAB_OVERHANG = 22;
 
+// Respiration exigee par le dossier directeur (§6.6) : hauteur de la barre
+// + zone sure + 24 px. Sans cette marge, la derniere carte d'une liste affleure
+// la barre et parait coupee, meme quand elle reste techniquement touchable.
+export const TAB_BAR_CLEARANCE = 24;
+
 /** Marge sous la barre : zone sure iOS (indicateur home) ou marge fixe Android. */
 export function useTabBarBottomPadding() {
   const insets = useSafeAreaInsets();
@@ -31,5 +36,5 @@ export function useTabBarBottomPadding() {
  */
 export function useTabBarSpace() {
   const bottomPadding = useTabBarBottomPadding();
-  return TAB_BAR_HEIGHT + TAB_BAR_FAB_OVERHANG + bottomPadding;
+  return TAB_BAR_HEIGHT + TAB_BAR_FAB_OVERHANG + bottomPadding + TAB_BAR_CLEARANCE;
 }

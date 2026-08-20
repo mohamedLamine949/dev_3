@@ -36,12 +36,6 @@ const CARD_WIDTH = (SCREEN_WIDTH - SPACING.lg * 2 - SPACING.md) / 2;
 // Helpers
 // ─────────────────────────────────────────────
 
-function formatPrix(prix: number): string {
-  if (prix >= 1000000) {
-    return (prix / 1000000).toFixed(prix % 1000000 === 0 ? 0 : 1) + 'M FCFA';
-  }
-  return prix.toLocaleString('fr-FR') + ' FCFA';
-}
 
 function timeAgo(dateStr: string): string {
   if (!dateStr) return '';
@@ -56,6 +50,7 @@ function timeAgo(dateStr: string): string {
 }
 
 import { hapticLight, hapticMedium } from '../lib/haptics';
+import { formatPrixCompact as formatPrix } from '../lib/format';
 
 // Couleur de fond pour les cercles catégorie
 const CAT_CIRCLE_COLORS: Record<string, string> = {

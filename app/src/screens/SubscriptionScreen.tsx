@@ -29,7 +29,7 @@ const PLANS: {
     avantages: [
       "Annonces illimitées et permanentes (n'expirent jamais)",
       'Vitrine boutique professionnelle',
-      'Badge « Vérifié » — la confiance des acheteurs',
+      'Badge Pro affiché sur vos produits et votre vitrine',
       'Visibilité maximale dans la recherche',
       'Commandes structurées et statistiques',
     ],
