@@ -29,6 +29,7 @@ import PostAnnonceScreen from '../screens/PostAnnonceScreen';
 import MessagesScreen from '../screens/MessagesScreen';
 import ChatConversationScreen from '../screens/ChatConversationScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import CompteScreen from '../screens/CompteScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import LoginScreen from '../screens/LoginScreen';
 import CompleteProfileScreen from '../screens/CompleteProfileScreen';
@@ -107,7 +108,15 @@ function MessagesStack() {
 function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="ProfileMain" component={ProfileScreen} />
+      {/* §6.3 : l'espace prive est un tableau de bord sobre. L'ancienne page,
+          qui melangeait identite publique, edition, boutique et parrainage,
+          devient l'ecran « Mon profil », atteint depuis Compte. */}
+      <Stack.Screen name="ProfileMain" component={CompteScreen} />
+      <Stack.Screen
+        name="MonProfil"
+        component={ProfileScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
       <Stack.Screen
         name="Settings"
         component={SettingsScreen}

@@ -462,7 +462,23 @@ export default function ProfileScreen({ navigation }: Props) {
 
           {/* Top Bar - Titre et Paramètres */}
           <View style={styles.headerTop}>
-            <Text style={styles.headerTitle}>Profil</Text>
+            {/* L'ecran n'est plus la racine d'un onglet mais un ecran empile
+                depuis Compte : sans retour explicite, l'utilisateur y reste
+                coince (le geste de retour ne suffit pas sur Android). */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              {navigation.canGoBack?.() && (
+                <TouchableOpacity
+                  style={styles.settingsBtn}
+                  onPress={() => navigation.goBack()}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Retour"
+                >
+                  <Ionicons name="arrow-back" size={20} color="#fff" />
+                </TouchableOpacity>
+              )}
+              <Text style={styles.headerTitle}>Mon profil</Text>
+            </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               {session && user?.type_compte === 'professionnel' && (
                 <>
