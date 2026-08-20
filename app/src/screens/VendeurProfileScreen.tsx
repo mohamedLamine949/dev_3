@@ -100,6 +100,18 @@ export default function VendeurProfileScreen({ route, navigation }: any) {
           </View>
         </View>
         {a.commentaire ? <Text style={{ fontSize: FONTS.sm, color: theme.textSecondary, lineHeight: 20, marginTop: SPACING.sm }}>{a.commentaire}</Text> : null}
+        {/* La reponse du professionnel compte autant que l'avis : c'est elle
+            qui permet a l'acheteur de se faire une opinion complete. */}
+        {(a as any).reponse_pro ? (
+          <View style={{ marginTop: SPACING.sm, paddingLeft: SPACING.md, borderLeftWidth: 2, borderLeftColor: theme.primary }}>
+            <Text style={{ fontSize: FONTS.xs, fontWeight: FONTS.bold, color: theme.primary, marginBottom: 2 }}>
+              Réponse du professionnel
+            </Text>
+            <Text style={{ fontSize: FONTS.sm, color: theme.textSecondary, lineHeight: 19 }}>
+              {(a as any).reponse_pro}
+            </Text>
+          </View>
+        ) : null}
       </View>
     );
   }

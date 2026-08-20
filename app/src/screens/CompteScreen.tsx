@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
-  StatusBar, ActivityIndicator,
+  StatusBar, ActivityIndicator, Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -183,13 +183,6 @@ export default function CompteScreen({ navigation }: Props) {
   const lignesPro: Ligne[] = estPro
     ? [
         {
-          cle: 'boutique',
-          icone: 'storefront-outline',
-          titre: 'Ma boutique',
-          detail: user?.ouvert_maintenant === false ? 'Fermée en ce moment' : 'Ouverte',
-          onPress: () => navigation.navigate('MaBoutique'),
-        },
-        {
           cle: 'demandes',
           icone: 'receipt-outline',
           titre: 'Demandes reçues',
@@ -224,12 +217,25 @@ export default function CompteScreen({ navigation }: Props) {
       titre: 'Aide et conditions',
       onPress: () => navigation.navigate('Legal', { type: 'cgu' }),
     },
+    {
+      cle: 'deconnexion',
+      icone: 'log-out-outline',
+      titre: 'Se déconnecter',
+      // Enterree dans les parametres, elle etait introuvable. Une action
+      // aussi banale doit se voir (regle de conception 8).
+      onPress: () => {
+        Alert.alert('Se déconnecter', 'Voulez-vous vous déconnecter ?', [
+          { text: 'Non', style: 'cancel' },
+          { text: 'Se déconnecter', style: 'destructive', onPress: () => supabase.auth.signOut() },
+        ]);
+      },
+    },
   ];
 
-  // ─── « Plus » : fonctions occasionnelles, hors du chemin principal ────
-  const lignesPlus: Ligne[] = [];
+  // Le parrainage rejoint le bloc « Mon compte » : c'est une fonction du
+  // compte, pas une fonction annexe releguee en bas de page.
   if (campagne?.active && parrainRow) {
-    lignesPlus.push({
+    lignesCompte.splice(1, 0, {
       cle: 'partenaire',
       icone: 'gift-outline',
       titre: 'Programme partenaire',
@@ -238,13 +244,16 @@ export default function CompteScreen({ navigation }: Props) {
     });
   }
   if (campagne?.active && !parrainRow && !monParrainage) {
-    lignesPlus.push({
+    lignesCompte.splice(1, 0, {
       cle: 'code',
       icone: 'ticket-outline',
-      titre: 'J\'ai un code de parrainage',
+      titre: "J'ai un code de parrainage",
       onPress: () => navigation.navigate('SaisirCodeParrainage'),
     });
   }
+
+  // ─── « Plus » : administration seulement ──────────────────────────────
+  const lignesPlus: Ligne[] = [];
   if (isAdmin) {
     lignesPlus.push({
       cle: 'signalements',
@@ -319,6 +328,33 @@ export default function CompteScreen({ navigation }: Props) {
         )}
 
         {rendreGroupe('Mon activité de vente', lignesVente)}
+        {/* Carte VISUELLE plutot qu'une ligne de liste : c'est le point
+            d'entree du metier de l'utilisateur, il doit se voir au premier
+            coup d'oeil (spécification « une carte visuelle suffit »). */}
+        {estPro && (
+          <TouchableOpacity
+            style={styles.carteProFond}
+            onPress={() => navigation.navigate('MaBoutique')}
+            activeOpacity={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="Mon espace professionnel"
+          >
+            <View style={styles.carteProIcone}>
+              <Ionicons name="storefront" size={24} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.carteProTitre}>Mon espace professionnel</Text>
+              <Text style={styles.carteProDetail}>
+                {user?.ouvert_maintenant === false ? 'Boutique fermée' : 'Boutique ouverte'}
+                {nbDemandesRecues > 0
+                  ? ` · ${nbDemandesRecues} demande${nbDemandesRecues > 1 ? 's' : ''} à traiter`
+                  : ''}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.9)" />
+          </TouchableOpacity>
+        )}
+
         {rendreGroupe('Mon activité professionnelle', lignesPro)}
         {rendreGroupe('Mon compte', lignesCompte)}
         {rendreGroupe('Plus', lignesPlus)}
@@ -373,6 +409,19 @@ const createStyles = (theme: any, isDark: boolean) =>
     },
     actionSecondaireTexte: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.primary },
 
+    carteProFond: {
+      flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
+      marginTop: SPACING.lg, marginHorizontal: SPACING.lg,
+      backgroundColor: theme.primary, borderRadius: RADIUS.lg,
+      padding: SPACING.lg, minHeight: 84, ...SHADOWS.md,
+    },
+    carteProIcone: {
+      width: 46, height: 46, borderRadius: 23,
+      backgroundColor: 'rgba(255,255,255,0.22)',
+      justifyContent: 'center', alignItems: 'center',
+    },
+    carteProTitre: { fontSize: FONTS.md, fontWeight: FONTS.extrabold, color: '#fff' },
+    carteProDetail: { fontSize: FONTS.xs, color: 'rgba(255,255,255,0.9)', marginTop: 2 },
     groupe: { marginTop: SPACING.lg, paddingHorizontal: SPACING.lg },
     groupeTitre: {
       fontSize: FONTS.xs,

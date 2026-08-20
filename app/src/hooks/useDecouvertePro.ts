@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { User } from '../lib/supabase';
+import { rotationEquitable } from '../lib/rotationPro';
 
 /**
  * Restreint une liste de comptes aux PRO REELLEMENT valides.
@@ -37,26 +38,20 @@ export function useDecouverteProPreview(limit: number = 5) {
       // Le total doit refleter les boutiques REELLEMENT visibles : on compte
       // apres filtrage, sinon la carte annonce « 12 boutiques » alors que
       // l'annuaire n'en montre que 8.
-      const [{ data }, { data: tousLesPros }] = await Promise.all([
-        supabase
-          .from('users')
-          .select('id, prenom, nom, nom_boutique, avatar_url')
-          .eq('type_compte', 'professionnel')
-          .order('date_creation', { ascending: false })
-          .limit(limit),
-        supabase
-          .from('users')
-          .select('id')
-          .eq('type_compte', 'professionnel'),
-      ]);
+      // On charge TOUTES les boutiques valides puis on fait tourner, au lieu
+      // de prendre les plus recemment inscrites : sinon ce sont toujours les
+      // trois memes qui sont vues, et une boutique de juillet ne l'est jamais.
+      const { data } = await supabase
+        .from('users')
+        .select('id, prenom, nom, nom_boutique, avatar_url, banniere_url, quartier_boutique, horaires, disponibilite, ouvert_maintenant')
+        .eq('type_compte', 'professionnel');
       if (cancelled) return;
-      const [apercu, totalValides] = await Promise.all([
-        filtrerProsValides(((data as User[]) || []) as any),
-        filtrerProsValides(((tousLesPros as { id: string }[]) || []) as any),
-      ]);
+
+      const valides = await filtrerProsValides(((data as User[]) || []) as any) as User[];
       if (cancelled) return;
-      setShops(apercu as User[]);
-      setTotal(totalValides.length);
+
+      setShops(rotationEquitable(valides as any, Date.now(), limit).slice(0, limit) as User[]);
+      setTotal(valides.length);
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -115,8 +110,7 @@ export function useProShopsByMetier(categorieMetier: string | undefined) {
       .from('users')
       .select('*')
       .eq('type_compte', 'professionnel')
-      .eq('categorie_metier', categorieMetier)
-      .order('date_creation', { ascending: false });
+      .eq('categorie_metier', categorieMetier);
 
     const shopList = await filtrerProsValides((((users as User[]) || []) as any)) as User[];
     if (shopList.length === 0) {
@@ -136,7 +130,10 @@ export function useProShopsByMetier(categorieMetier: string | undefined) {
       counts[a.user_id] = (counts[a.user_id] || 0) + 1;
     });
 
-    setShops(shopList.map(s => ({ ...s, nbProduits: counts[s.id] || 0 })));
+    // La rotation prend en compte la qualite du profil, la disponibilite et
+    // la fraicheur du catalogue — et fait tourner a qualite egale.
+    const avecCompte = shopList.map(s => ({ ...s, nbProduits: counts[s.id] || 0 }));
+    setShops(rotationEquitable(avecCompte as any) as ProShopWithCount[]);
     setLoading(false);
   }, [categorieMetier]);
 

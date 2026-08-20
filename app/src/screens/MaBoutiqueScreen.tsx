@@ -9,6 +9,11 @@ import { FONTS, SPACING, RADIUS, SHADOWS, METIER_CATEGORIES, TYPES_ACTIVITE, DIS
 import { supabase, Annonce, Catalogue } from '../lib/supabase';
 import TintedChip from '../components/TintedChip';
 import { formatNombre } from '../lib/format';
+import { useRealisations, supprimerRealisation } from '../hooks/useRealisations';
+import RealisationCard from '../components/RealisationCard';
+import { pickImages } from '../lib/imagePicker';
+import { IMAGE_SIZES, UPLOAD_CACHE_CONTROL } from '../lib/imageOptimizer';
+import { decode } from 'base64-arraybuffer';
 import ProduitGestionSheet from '../components/ProduitGestionSheet';
 
 const { width: W } = Dimensions.get('window');
@@ -91,6 +96,15 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
   const [delaiReponse, setDelaiReponse] = useState('');
   const [disponibilite, setDisponibilite] = useState<string>('rdv');
 
+  // Portfolio avant/apres — ce qu'un artisan montre en premier.
+  const { realisations, indisponible: realisationsIndispo, refetch: rechargerRealisations } =
+    useRealisations(session?.user.id);
+  const [ajoutRealisation, setAjoutRealisation] = useState(false);
+  const [photoAvant, setPhotoAvant] = useState<{ uri: string; base64?: string } | null>(null);
+  const [photoApres, setPhotoApres] = useState<{ uri: string; base64?: string } | null>(null);
+  const [titreRealisation, setTitreRealisation] = useState('');
+  const [envoiRealisation, setEnvoiRealisation] = useState(false);
+
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
   const isPro = user?.type_compte === 'professionnel';
 
@@ -131,6 +145,75 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
   useEffect(() => {
     fetchProduits();
   }, [fetchProduits]);
+
+  async function choisirPhotoRealisation(quelle: 'avant' | 'apres') {
+    const assets = await pickImages(
+      { allowsMultipleSelection: false, base64: true },
+      { maxSize: IMAGE_SIZES.annonce, base64: true }
+    );
+    if (!assets || assets.length === 0) return;
+    const photo = { uri: assets[0].uri, base64: (assets[0] as any).base64 };
+    if (quelle === 'avant') setPhotoAvant(photo);
+    else setPhotoApres(photo);
+  }
+
+  async function envoyerPhoto(photo: { base64?: string } | null, suffixe: string): Promise<string | null> {
+    if (!photo?.base64 || !session) return null;
+    const nom = `realisations/${session.user.id}-${Date.now()}-${suffixe}.jpg`;
+    const { error } = await supabase.storage
+      .from('annonces-images')
+      .upload(nom, decode(photo.base64), {
+        contentType: 'image/jpeg', upsert: true, cacheControl: UPLOAD_CACHE_CONTROL,
+      });
+    if (error) return null;
+    return supabase.storage.from('annonces-images').getPublicUrl(nom).data.publicUrl;
+  }
+
+  async function enregistrerRealisation() {
+    if (!session || !photoApres) return;
+    setEnvoiRealisation(true);
+    const [avant, apres] = await Promise.all([
+      envoyerPhoto(photoAvant, 'avant'),
+      envoyerPhoto(photoApres, 'apres'),
+    ]);
+    if (!apres) {
+      setEnvoiRealisation(false);
+      Alert.alert('Envoi impossible', "La photo n'a pas pu être envoyée. Réessayez.");
+      return;
+    }
+    const { error } = await supabase.from('realisations').insert({
+      user_id: session.user.id,
+      titre: titreRealisation.trim() || null,
+      image_avant: avant,
+      image_apres: apres,
+      ordre: realisations.length,
+    });
+    setEnvoiRealisation(false);
+    if (error) {
+      Alert.alert('Erreur', error.message);
+      return;
+    }
+    setAjoutRealisation(false);
+    setPhotoAvant(null);
+    setPhotoApres(null);
+    setTitreRealisation('');
+    rechargerRealisations();
+  }
+
+  function confirmerSuppressionRealisation(id: string) {
+    Alert.alert('Supprimer', 'Retirer cette réalisation de votre vitrine ?', [
+      { text: 'Non', style: 'cancel' },
+      {
+        text: 'Supprimer',
+        style: 'destructive',
+        onPress: async () => {
+          const err = await supprimerRealisation(id);
+          if (err) Alert.alert('Erreur', err);
+          else rechargerRealisations();
+        },
+      },
+    ]);
+  }
 
   async function toggleOuvert() {
     if (!session) return;
@@ -761,6 +844,34 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
           </>
         )}
 
+        {/* ---- Réalisations : le portfolio du prestataire ---- */}
+        {onglet === 'vitrine' && !realisationsIndispo &&
+         (user?.type_activite === 'services' || user?.type_activite === 'mixte') && (
+          <View style={{ paddingHorizontal: SPACING.lg, marginBottom: SPACING.lg }}>
+            <View style={styles.catalogueHead}>
+              <Text style={styles.sectionLabel}>Réalisations ({realisations.length})</Text>
+              <TouchableOpacity onPress={() => setAjoutRealisation(true)} activeOpacity={0.8}>
+                <Text style={styles.addLink}>+ Ajouter</Text>
+              </TouchableOpacity>
+            </View>
+
+            {realisations.length === 0 ? (
+              <Text style={styles.rayonAide}>
+                Montrez ce que vous savez faire. Une photo du résultat suffit — la
+                photo « avant » est facultative.
+              </Text>
+            ) : (
+              realisations.map(r => (
+                <RealisationCard
+                  key={r.id}
+                  realisation={r}
+                  onSupprimer={() => confirmerSuppressionRealisation(r.id)}
+                />
+              ))
+            )}
+          </View>
+        )}
+
         {/* ---- Ma vitrine : voir ce que voit le client ---- */}
         {onglet === 'vitrine' && (
           <TouchableOpacity
@@ -907,6 +1018,84 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
         )}
         </View>
       </ScrollView>
+
+      {/* ---- Ajout d'une réalisation ---- */}
+      <Modal
+        visible={ajoutRealisation}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setAjoutRealisation(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHead}>
+              <Text style={styles.modalTitle}>Nouvelle réalisation</Text>
+              <TouchableOpacity onPress={() => setAjoutRealisation(false)} accessibilityLabel="Fermer">
+                <Ionicons name="close" size={24} color={theme.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.rayonAide}>
+              La photo du résultat suffit. Ajoutez l'« avant » seulement si vous
+              l'avez : personne ne pense à photographier avant de commencer.
+            </Text>
+
+            <View style={{ flexDirection: 'row', gap: SPACING.md }}>
+              {(['avant', 'apres'] as const).map(quelle => {
+                const photo = quelle === 'avant' ? photoAvant : photoApres;
+                const obligatoire = quelle === 'apres';
+                return (
+                  <TouchableOpacity
+                    key={quelle}
+                    style={[styles.photoSlot, photo && { borderStyle: 'solid', borderColor: theme.primary }]}
+                    onPress={() => choisirPhotoRealisation(quelle)}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel={quelle === 'avant' ? 'Photo avant' : 'Photo après'}
+                  >
+                    {photo ? (
+                      <Image source={{ uri: photo.uri }} style={styles.photoSlotImg} />
+                    ) : (
+                      <>
+                        <Ionicons name="camera-outline" size={22} color={theme.textMuted} />
+                        <Text style={styles.photoSlotTexte}>
+                          {quelle === 'avant' ? 'Avant' : 'Après'}
+                          {obligatoire ? ' *' : ''}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={styles.fieldLabel}>Titre (facultatif)</Text>
+            <TextInput
+              style={styles.fieldInput}
+              value={titreRealisation}
+              onChangeText={setTitreRealisation}
+              placeholder="Ex. Pose de carrelage à Badalabougou"
+              placeholderTextColor={theme.textMuted}
+              maxLength={60}
+            />
+
+            <TouchableOpacity
+              style={[styles.ctaBtn, { marginTop: SPACING.lg }, (!photoApres || envoiRealisation) && { opacity: 0.45 }]}
+              onPress={enregistrerRealisation}
+              disabled={!photoApres || envoiRealisation}
+              activeOpacity={0.85}
+            >
+              {envoiRealisation
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.ctaText}>Publier la réalisation</Text>}
+            </TouchableOpacity>
+            <View style={{ height: 20 }} />
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* ---- Liste des rayons : point d'entree VISIBLE de la gestion ---- */}
       <Modal
@@ -1340,6 +1529,14 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   perfTitre: { flex: 1, fontSize: FONTS.sm, color: theme.textPrimary },
   perfValeur: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.primary },
   perfAide: { fontSize: FONTS.xs, color: theme.textMuted, lineHeight: 17, marginTop: SPACING.sm },
+  photoSlot: {
+    flex: 1, height: 116, borderRadius: RADIUS.lg,
+    borderWidth: 2, borderStyle: 'dashed', borderColor: theme.borderLight,
+    justifyContent: 'center', alignItems: 'center', gap: 4,
+    backgroundColor: theme.background, overflow: 'hidden',
+  },
+  photoSlotImg: { width: '100%', height: '100%' },
+  photoSlotTexte: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textMuted },
   ongletsRow: {
     gap: SPACING.sm,
     paddingHorizontal: SPACING.lg,

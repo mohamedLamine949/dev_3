@@ -10,7 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useTabBarSpace } from '../hooks/useTabBarSpace';
 import { supabase, Annonce } from '../lib/supabase';
-import { useSellerAvis, Avis } from '../hooks/useAvis';
+import { useSellerAvis, Avis, repondreAvis } from '../hooks/useAvis';
 import { useParrainage } from '../hooks/useParrainage';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { useIsAdmin } from '../hooks/useIsAdmin';
@@ -67,7 +67,10 @@ export default function ProfileScreen({ navigation }: Props) {
   const effectivePlanKey = getEffectivePlanKey(user);
   const subExpired = isSubscriptionExpired(user);
   const subExpiry = subscriptionExpiryDate(user);
-  const { avis, avgNote, loading: loadingAvis } = useSellerAvis(session?.user?.id);
+  const { avis, avgNote, loading: loadingAvis, refetch: rechargerAvis } = useSellerAvis(session?.user?.id);
+  const [avisCible, setAvisCible] = useState<Avis | null>(null);
+  const [texteReponse, setTexteReponse] = useState('');
+  const [envoiReponse, setEnvoiReponse] = useState(false);
   // Programme de parrainage : détermine quelles entrées afficher dans la vitrine
   const { campagne, parrain: parrainRow, monParrainage } = useParrainage(session?.user?.id);
 
@@ -1002,6 +1005,26 @@ export default function ProfileScreen({ navigation }: Props) {
                             </View>
                           </View>
                           {a.commentaire ? <Text style={styles.avisCommentaire}>{a.commentaire}</Text> : null}
+
+                          {/* Droit de reponse du professionnel : un avis
+                              negatif sans reponse possible est une
+                              condamnation sans proces. */}
+                          {a.reponse_pro ? (
+                            <View style={styles.reponseBloc}>
+                              <Text style={styles.reponseLabel}>Votre réponse</Text>
+                              <Text style={styles.reponseTexte}>{a.reponse_pro}</Text>
+                            </View>
+                          ) : (
+                            <TouchableOpacity
+                              style={styles.repondreBtn}
+                              onPress={() => { setAvisCible(a); setTexteReponse(''); }}
+                              activeOpacity={0.8}
+                              accessibilityRole="button"
+                            >
+                              <Ionicons name="arrow-undo-outline" size={15} color={theme.primary} />
+                              <Text style={styles.repondreTexte}>Répondre</Text>
+                            </TouchableOpacity>
+                          )}
                         </View>
                       );
                     })}
@@ -1022,6 +1045,69 @@ export default function ProfileScreen({ navigation }: Props) {
           </View>
         )}
       </ScrollView>
+
+      {/* Réponse à un avis */}
+      <Modal
+        visible={!!avisCible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAvisCible(null)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: SPACING.xl }}
+        >
+          <View style={{ backgroundColor: theme.background, borderRadius: RADIUS.xl, padding: SPACING.xl }}>
+            <Text style={{ fontSize: FONTS.lg, fontWeight: FONTS.extrabold, color: theme.textPrimary }}>
+              Répondre à cet avis
+            </Text>
+            <Text style={{ fontSize: FONTS.sm, color: theme.textSecondary, marginTop: 4, marginBottom: SPACING.md }}>
+              Votre réponse est publique. Elle ne change pas la note.
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: theme.surfaceMuted, borderRadius: RADIUS.md, padding: SPACING.lg,
+                fontSize: FONTS.md, color: theme.textPrimary, height: 110, textAlignVertical: 'top',
+                borderWidth: 1, borderColor: theme.borderLight,
+              }}
+              value={texteReponse}
+              onChangeText={setTexteReponse}
+              placeholder="Expliquez calmement votre version, ou remerciez."
+              placeholderTextColor={theme.textMuted}
+              multiline
+              maxLength={400}
+              autoFocus
+            />
+            <View style={{ flexDirection: 'row', gap: SPACING.md, marginTop: SPACING.lg }}>
+              <TouchableOpacity
+                style={{ flex: 1, height: 46, borderRadius: RADIUS.md, backgroundColor: theme.surfaceMuted, justifyContent: 'center', alignItems: 'center' }}
+                onPress={() => setAvisCible(null)}
+                activeOpacity={0.85}
+              >
+                <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textSecondary }}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ flex: 1, height: 46, borderRadius: RADIUS.md, backgroundColor: theme.primary, justifyContent: 'center', alignItems: 'center', opacity: texteReponse.trim().length < 2 || envoiReponse ? 0.45 : 1 }}
+                disabled={texteReponse.trim().length < 2 || envoiReponse}
+                onPress={async () => {
+                  if (!avisCible) return;
+                  setEnvoiReponse(true);
+                  const err = await repondreAvis(avisCible.id, texteReponse);
+                  setEnvoiReponse(false);
+                  if (err) { Alert.alert('Erreur', err); return; }
+                  setAvisCible(null);
+                  rechargerAvis();
+                }}
+                activeOpacity={0.85}
+              >
+                {envoiReponse
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={{ fontSize: FONTS.sm, fontWeight: FONTS.bold, color: '#fff' }}>Publier</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Modal d'édition */}
       <Modal visible={isEditing} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setIsEditing(false)}>
@@ -1743,6 +1829,20 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
 
   // Reviews Tab
+  repondreBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'flex-start', marginTop: SPACING.sm,
+    minHeight: 40, paddingHorizontal: SPACING.sm, justifyContent: 'center',
+  },
+  repondreTexte: { fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.primary },
+  reponseBloc: {
+    marginTop: SPACING.sm, paddingLeft: SPACING.md,
+    borderLeftWidth: 2, borderLeftColor: theme.primary,
+  },
+  reponseLabel: {
+    fontSize: FONTS.xs, fontWeight: FONTS.bold, color: theme.primary, marginBottom: 2,
+  },
+  reponseTexte: { fontSize: FONTS.sm, color: theme.textSecondary, lineHeight: 19 },
   avisCard: {
     padding: SPACING.lg,
   },

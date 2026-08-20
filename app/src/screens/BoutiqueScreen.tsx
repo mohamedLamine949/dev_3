@@ -12,6 +12,8 @@ import { useSellerAvis } from '../hooks/useAvis';
 import { useBoutiqueFollow } from '../hooks/useBoutiqueFollow';
 import { formatPrix } from '../lib/format';
 import { libellePrix, DISPONIBILITES } from '../constants/theme';
+import { useRealisations } from '../hooks/useRealisations';
+import RealisationCard from '../components/RealisationCard';
 import { enregistrerContact, enregistrerContactBoutique } from '../lib/contactTracking';
 
 const { width: W } = Dimensions.get('window');
@@ -81,6 +83,7 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
     vendeur?.type_activite === 'services' || vendeur?.type_activite === 'mixte';
   const dispo = DISPONIBILITES.find(d => d.id === (vendeur?.disponibilite || 'rdv'));
   const premierePrestation = produits.find(p => p.listing_kind === 'pro_service');
+  const { realisations } = useRealisations(vendeurId);
 
   function commander(p: Annonce) {
     // Une prestation ne se « commande » pas : on demande un devis (§8.4).
@@ -313,6 +316,16 @@ La boutique sera notifiée et vous répondra.`,
                 <Text style={styles.contactBtnText}>WhatsApp</Text>
               </TouchableOpacity>
             )}
+          </View>
+        )}
+
+        {/* ---- Réalisations : ce qu'un artisan montre en premier ---- */}
+        {estPrestataire && realisations.length > 0 && (
+          <View style={{ paddingHorizontal: SPACING.lg }}>
+            <Text style={styles.sectionLabel}>Réalisations ({realisations.length})</Text>
+            {realisations.map(r => (
+              <RealisationCard key={r.id} realisation={r} />
+            ))}
           </View>
         )}
 

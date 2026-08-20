@@ -9,6 +9,9 @@ export interface Avis {
   note: number;
   commentaire: string | null;
   date_creation: string;
+  // Reponse du professionnel (migration_p4_vitrine_services.sql)
+  reponse_pro?: string | null;
+  date_reponse?: string | null;
   auteur?: { prenom: string | null; nom: string | null; avatar_url: string | null };
 }
 
@@ -56,4 +59,19 @@ export async function submitAvis(params: {
     commentaire: params.commentaire.trim() || null,
   });
   return { error };
+}
+
+/**
+ * Réponse publique du professionnel à un avis reçu.
+ *
+ * Un avis négatif sans droit de réponse est une condamnation sans procès :
+ * le professionnel ne peut ni expliquer ni corriger, et n'a plus aucune
+ * raison de rester. La réponse ne modifie jamais la note — elle s'ajoute.
+ */
+export async function repondreAvis(avisId: string, reponse: string): Promise<string | null> {
+  const { error } = await supabase
+    .from('avis')
+    .update({ reponse_pro: reponse.trim() || null, date_reponse: new Date().toISOString() })
+    .eq('id', avisId);
+  return error ? error.message : null;
 }
