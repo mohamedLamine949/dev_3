@@ -11,7 +11,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useSellerAvis } from '../hooks/useAvis';
 import { useBoutiqueFollow } from '../hooks/useBoutiqueFollow';
 import { formatPrix } from '../lib/format';
-import { libellePrix, DISPONIBILITES } from '../constants/theme';
+import { libellePrix, DISPONIBILITES, METIER_CATEGORIES } from '../constants/theme';
 import { useRealisations } from '../hooks/useRealisations';
 import RealisationCard from '../components/RealisationCard';
 import { enregistrerContact, enregistrerContactBoutique } from '../lib/contactTracking';
@@ -82,6 +82,7 @@ export default function BoutiqueScreen({ navigation, route }: Props) {
   const estPrestataire =
     vendeur?.type_activite === 'services' || vendeur?.type_activite === 'mixte';
   const dispo = DISPONIBILITES.find(d => d.id === (vendeur?.disponibilite || 'rdv'));
+  const metier = METIER_CATEGORIES.find(m => m.id === vendeur?.categorie_metier);
   const premierePrestation = produits.find(p => p.listing_kind === 'pro_service');
   const { realisations } = useRealisations(vendeurId);
 
@@ -212,6 +213,15 @@ La boutique sera notifiée et vous répondra.`,
               <Text style={styles.noteText}>{avgNote.toFixed(1)} / 5 · {avis.length} avis</Text>
             </View>
           )}
+          {/* Le metier, juste sous le nom : c'est ce qui dit en un mot ce que
+              fait ce professionnel, avant meme la disponibilite. */}
+          {metier && (
+            <View style={styles.metierRow}>
+              <Ionicons name={metier.icon as any} size={14} color={theme.textSecondary} />
+              <Text style={styles.metierTexte}>{metier.label}</Text>
+            </View>
+          )}
+
           {/* La premiere question d'un client qui a une fuite d'eau. */}
           {estPrestataire && dispo && (
             <View style={[styles.dispoChip, { backgroundColor: dispo.couleur + '18' }]}>
@@ -548,6 +558,11 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
 
   cardMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   cardMeta: { flex: 1, fontSize: 11, color: theme.textMuted },
+  metierRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    alignSelf: 'center', marginTop: 4,
+  },
+  metierTexte: { fontSize: FONTS.sm, color: theme.textSecondary, fontWeight: FONTS.medium },
   verifieBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     backgroundColor: '#0369a1', borderRadius: RADIUS.full,
