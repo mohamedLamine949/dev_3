@@ -49,6 +49,7 @@ import AjouterProduitScreen from '../screens/AjouterProduitScreen';
 import CommandesScreen from '../screens/CommandesScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import AdminModerationScreen from '../screens/AdminModerationScreen';
+import PublierActionSheet, { OPTION_ANNONCE, OPTION_PRODUIT, ChoixPublication } from '../components/PublierActionSheet';
 import TermsModal from '../components/TermsModal';
 import NotificationManager from '../components/NotificationManager';
 import DeviceIdSync from '../components/DeviceIdSync';
@@ -152,7 +153,7 @@ const TAB_CONFIG: TabConfig[] = [
   { name: 'Recherche', iconActive: 'search', iconInactive: 'search-outline' },
   { name: 'Publier', iconActive: 'add', iconInactive: 'add', isFAB: true },
   { name: 'Messages', iconActive: 'chatbubbles', iconInactive: 'chatbubbles-outline' },
-  { name: 'Profil', iconActive: 'person', iconInactive: 'person-outline' },
+  { name: 'Compte', iconActive: 'person', iconInactive: 'person-outline' },
 ];
 
 // Ecrans plein ecran ayant leur propre barre d'action collee en bas :
@@ -306,31 +307,51 @@ function FloatingTabBar({ state, descriptors, navigation }: any) {
 
 function MainTabs() {
   const { user } = useAuth();
+  const [choixVisible, setChoixVisible] = React.useState(false);
+
+  // Un compte professionnel peut publier deux choses differentes : on le lui
+  // DEMANDE au lieu de le rediriger en silence (§6.2). Un particulier n'a
+  // qu'une option : lui imposer une feuille intermediaire serait de la
+  // friction pure, on ouvre directement le formulaire.
+  const aPlusieursChoix = user?.type_compte === 'professionnel';
+
+  const allerVers = (cle: ChoixPublication) => {
+    setChoixVisible(false);
+    if (!navigationRef.isReady()) return;
+    navigationRef.navigate(cle === 'produit' ? ('AjouterProduit' as never) : ('Publier' as never));
+  };
 
   return (
-    <Tab.Navigator
-      tabBar={(props) => <FloatingTabBar {...props} />}
-      screenOptions={{ headerShown: false }}
-    >
-      <Tab.Screen name="Accueil" component={HomeStack} />
-      <Tab.Screen name="Recherche" component={SearchStack} />
-      <Tab.Screen
-        name="Publier"
-        component={PostAnnonceScreen}
-        // Un compte PRO ne publie plus d'annonces simples : le bouton +
-        // ouvre directement l'ajout d'un produit de boutique.
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            if (user?.type_compte === 'professionnel') {
-              e.preventDefault();
-              navigation.navigate('AjouterProduit');
-            }
-          },
-        })}
+    <>
+      <Tab.Navigator
+        tabBar={(props) => <FloatingTabBar {...props} />}
+        screenOptions={{ headerShown: false }}
+      >
+        <Tab.Screen name="Accueil" component={HomeStack} />
+        <Tab.Screen name="Recherche" component={SearchStack} />
+        <Tab.Screen
+          name="Publier"
+          component={PostAnnonceScreen}
+          listeners={() => ({
+            tabPress: (e) => {
+              if (aPlusieursChoix) {
+                e.preventDefault();
+                setChoixVisible(true);
+              }
+            },
+          })}
+        />
+        <Tab.Screen name="Messages" component={MessagesStack} />
+        <Tab.Screen name="Compte" component={ProfileStack} />
+      </Tab.Navigator>
+
+      <PublierActionSheet
+        visible={choixVisible}
+        options={[OPTION_PRODUIT, OPTION_ANNONCE]}
+        onChoisir={allerVers}
+        onFermer={() => setChoixVisible(false)}
       />
-      <Tab.Screen name="Messages" component={MessagesStack} />
-      <Tab.Screen name="Profil" component={ProfileStack} />
-    </Tab.Navigator>
+    </>
   );
 }
 

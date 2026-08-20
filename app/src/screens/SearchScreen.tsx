@@ -46,39 +46,10 @@ const CAT_COLORS: Record<string, string> = {
   services:                '#059669',
 };
 
-const CAT_EMOJIS: Record<string, string> = {
-  telephonie_electronique: '📱',
-  mode_beaute:             '👕',
-  maison_electromenager:   '🛋️',
-  voitures:                '🚗',
-  motos:                   '🏍️',
-  immobilier:              '🏠',
-  alimentation:            '🍽️',
-  animaux:                 '🐾',
-  services:                '🔧',
-};
-
-function mergeResults(posts: any[], users: any[]): any[] {
-  const merged: any[] = [];
-  let postIndex = 0;
-  let userIndex = 0;
-  
-  while (postIndex < posts.length || userIndex < users.length) {
-    let postsAdded = 0;
-    while (postsAdded < 3 && postIndex < posts.length) {
-      merged.push(posts[postIndex]);
-      postIndex++;
-      postsAdded++;
-    }
-    
-    if (userIndex < users.length) {
-      merged.push(users[userIndex]);
-      userIndex++;
-    }
-  }
-  
-  return merged;
-}
+// L'entrelacement d'un profil vendeur toutes les trois annonces a ete retire :
+// il fragmentait la comparaison des offres, que l'acheteur fait justement en
+// balayant la grille (§7.3). Les vendeurs correspondants vivent desormais dans
+// un rail horizontal au-dessus des resultats.
 
 interface Props {
   navigation: any;
@@ -98,11 +69,16 @@ export default function SearchScreen({ navigation }: Props) {
   const [maxPrice, setMaxPrice] = useState<string>('');
   const [selectedEtat, setSelectedEtat] = useState<string | null>(null);
   const [orderBy, setOrderBy] = useState<'newest' | 'price_asc' | 'price_desc'>('newest');
+  // Filtre « qui vend » (§7.3, §7.4) : repond a une intention acheteur reelle
+  // (« je veux du neuf, pas de l'occasion entre particuliers ») et donne au
+  // professionnel une surface legitime, sans toucher a la pertinence.
+  const [typeVendeur, setTypeVendeur] = useState<'tous' | 'particulier' | 'professionnel'>('tous');
 
   // Recherche par pertinence
   const [users, setUsers] = useState<User[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [vendeursTrouves, setVendeursTrouves] = useState<any[]>([]);
   // Niveau de correspondance des résultats : sert à prévenir l'utilisateur
   // quand on n'a pas trouvé son mot exact et qu'on propose des approchants.
   const [searchTier, setSearchTier] = useState<'exact' | 'partial' | 'weak' | 'none'>('exact');
@@ -169,6 +145,7 @@ export default function SearchScreen({ navigation }: Props) {
     const query = debouncedSearch.trim();
     if (!query) {
       setSearchTier('exact');
+      setVendeursTrouves([]);
       setSearchResults(annonces.map(a => ({ ...a, isUserProfile: false })));
       return;
     }
@@ -190,7 +167,8 @@ export default function SearchScreen({ navigation }: Props) {
     );
 
     setSearchTier(relevanceTier(scoredAnnonces));
-    setSearchResults(mergeResults(scoredAnnonces, scoredUsers));
+    setVendeursTrouves(scoredUsers);
+    setSearchResults(scoredAnnonces);
   }, [annonces, users, debouncedSearch, proIds]);
 
   const loading = loadingAnnonces || loadingUsers;
@@ -208,10 +186,43 @@ export default function SearchScreen({ navigation }: Props) {
       .slice(0, 8);
   }, [users, searchResults, proIds]);
 
+  // Rail « Professionnels correspondants » (§7.3) : les boutiques dont des
+  // produits matchent, plus les vendeurs dont le NOM matche, dedoublonnes.
+  const vendeursRail = React.useMemo(() => {
+    const vus = new Set<string>();
+    const rail: any[] = [];
+    for (const b of boutiquesMatch) {
+      if (vus.has(b.id)) continue;
+      vus.add(b.id);
+      rail.push(b);
+    }
+    for (const u of vendeursTrouves) {
+      if (vus.has(u.id)) continue;
+      vus.add(u.id);
+      rail.push({ ...u, nbProduits: 0 });
+    }
+    return rail.slice(0, 10);
+  }, [boutiquesMatch, vendeursTrouves]);
+
+  // Filtre « qui vend » applique apres le scoring : il restreint, il ne
+  // reclasse pas. La pertinence reste intacte (§7.3).
+  const resultatsAffiches = React.useMemo(() => {
+    if (typeVendeur === 'tous') return searchResults;
+    return searchResults.filter((r: any) => {
+      const pro = estPro(r.user, proIds);
+      return typeVendeur === 'professionnel' ? pro : !pro;
+    });
+  }, [searchResults, typeVendeur, proIds]);
+
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedCategory(null);
     setSelectedSousCategorie(null);
+    setTypeVendeur('tous');
+    setSelectedEtat(null);
+    setMinPrice('');
+    setMaxPrice('');
+    setOrderBy('newest');
   };
 
   const renderResult = ({ item, index }: { item: any; index: number }) => {
@@ -316,12 +327,16 @@ export default function SearchScreen({ navigation }: Props) {
 
   const renderCategoryTile = (cat: typeof CATEGORIES[0]) => {
     const color = CAT_COLORS[cat.id] || theme.primary;
-    const emoji = CAT_EMOJIS[cat.id] || '📦';
     return (
       <TouchableOpacity
         key={cat.id}
-        style={[styles.tile, { backgroundColor: color }]}
+        // §7.2 et §14.6 : la couleur passe sur l'icone et le contour, plus sur
+        // un pave sature qui couvre la moitie de l'ecran et casse le langage
+        // visuel du reste de l'application.
+        style={[styles.tile, { borderColor: color + '55' }]}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={cat.label}
         onPress={() => {
           if (SUBCATEGORIES[cat.id]?.length > 0) {
             setSubcatPickerCat(cat.id);
@@ -331,8 +346,10 @@ export default function SearchScreen({ navigation }: Props) {
           }
         }}
       >
-        <Text style={styles.tileEmoji}>{emoji}</Text>
-        <Text style={styles.tileLabel}>{cat.label}</Text>
+        <View style={[styles.tileIcone, { backgroundColor: color + '1F' }]}>
+          <Ionicons name={cat.icon as any} size={24} color={color} />
+        </View>
+        <Text style={styles.tileLabel} numberOfLines={2}>{cat.label}</Text>
       </TouchableOpacity>
     );
   };
@@ -390,11 +407,11 @@ export default function SearchScreen({ navigation }: Props) {
             )}
           </View>
           <TouchableOpacity 
-            style={[styles.filterBtn, (minPrice || maxPrice || selectedEtat || orderBy !== 'newest') && styles.filterBtnActive]} 
+            style={[styles.filterBtn, (minPrice || maxPrice || selectedEtat || orderBy !== 'newest' || typeVendeur !== 'tous') && styles.filterBtnActive]} 
             onPress={() => setShowFilters(true)}
             activeOpacity={0.7}
           >
-            <Ionicons name="options-outline" size={22} color={(minPrice || maxPrice || selectedEtat || orderBy !== 'newest') ? '#fff' : theme.primary} />
+            <Ionicons name="options-outline" size={22} color={(minPrice || maxPrice || selectedEtat || orderBy !== 'newest' || typeVendeur !== 'tous') ? '#fff' : theme.primary} />
           </TouchableOpacity>
         </View>
 
@@ -403,7 +420,7 @@ export default function SearchScreen({ navigation }: Props) {
           <View style={styles.activeFilter}>
             <View style={[styles.activeCatChip, { backgroundColor: (CAT_COLORS[selectedCategory] || theme.primary) + '22', borderColor: CAT_COLORS[selectedCategory] || theme.primary }]}>
               <Text style={[styles.activeCatText, { color: CAT_COLORS[selectedCategory] || theme.primary }]}>
-                {CAT_EMOJIS[selectedCategory]} {activeCatLabel}{activeSousCatLabel ? ` · ${activeSousCatLabel}` : ''}
+                {activeCatLabel}{activeSousCatLabel ? ` · ${activeSousCatLabel}` : ''}
               </Text>
               <TouchableOpacity onPress={() => { setSelectedCategory(null); setSelectedSousCategorie(null); }}>
                 <Ionicons name="close" size={15} color={CAT_COLORS[selectedCategory] || theme.primary} />
@@ -411,7 +428,7 @@ export default function SearchScreen({ navigation }: Props) {
             </View>
             {!inResultsMode || (
               <Text style={styles.resultCount}>
-                {loading ? '…' : `${searchResults.length} résultat${searchResults.length !== 1 ? 's' : ''}`}
+                {loading ? '…' : `${resultatsAffiches.length} résultat${resultatsAffiches.length !== 1 ? 's' : ''}`}
               </Text>
             )}
           </View>
@@ -485,24 +502,24 @@ export default function SearchScreen({ navigation }: Props) {
           </View>
         ) : (
           <FlatList
-            data={searchResults}
+            data={resultatsAffiches}
             keyExtractor={(item) => item.id}
             renderItem={renderResult}
             numColumns={2}
             contentContainerStyle={[styles.resultsList, { paddingBottom: tabBarSpace + SPACING.lg }]}
             showsVerticalScrollIndicator={false}
             ListHeaderComponent={
-              searchResults.length > 0 ? (
+              resultatsAffiches.length > 0 || vendeursRail.length > 0 ? (
                 <View>
                   {/* Carrousel Boutiques */}
-                  {boutiquesMatch.length > 0 && (
+                  {vendeursRail.length > 0 && (
                     <View style={{ marginBottom: SPACING.md }}>
                       <Text style={styles.sectionSubHeaderTitle}>
-                        🏪 Boutiques PRO
+                        Professionnels correspondants
                       </Text>
                       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                         <View style={{ flexDirection: 'row', gap: SPACING.sm }}>
-                          {boutiquesMatch.map(b => (
+                          {vendeursRail.map(b => (
                             <TouchableOpacity
                               key={b.id}
                               style={styles.boutiqueCard}
@@ -549,7 +566,7 @@ export default function SearchScreen({ navigation }: Props) {
                     </View>
                   )}
                   <Text style={styles.resultCount}>
-                    {searchResults.length} résultat{searchResults.length !== 1 ? 's' : ''}
+                    {resultatsAffiches.length} résultat{resultatsAffiches.length !== 1 ? 's' : ''}
                     {activeCatLabel ? ` · ${activeCatLabel}` : ''}
                   </Text>
                 </View>
@@ -634,6 +651,30 @@ export default function SearchScreen({ navigation }: Props) {
               </View>
             </View>
 
+            {/* Qui vend — repond a une intention acheteur reelle (§7.4) */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>Qui vend</Text>
+              <View style={styles.chipRow}>
+                {([
+                  { cle: 'tous', label: 'Tous' },
+                  { cle: 'professionnel', label: 'Professionnels' },
+                  { cle: 'particulier', label: 'Particuliers' },
+                ] as const).map(opt => (
+                  <TouchableOpacity
+                    key={opt.cle}
+                    style={[styles.chip, typeVendeur === opt.cle && styles.chipSelected]}
+                    onPress={() => setTypeVendeur(opt.cle)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: typeVendeur === opt.cle }}
+                  >
+                    <Text style={[styles.chipText, typeVendeur === opt.cle && styles.chipTextSelected]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
             {/* Tri */}
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Trier par</Text>
@@ -682,7 +723,7 @@ export default function SearchScreen({ navigation }: Props) {
               <View style={styles.sheetHandle} />
               <View style={styles.sheetHeader}>
                 <Text style={styles.sheetTitle}>
-                  {CAT_EMOJIS[subcatPickerCat]} {CATEGORIES.find(c => c.id === subcatPickerCat)?.label}
+                  {CATEGORIES.find(c => c.id === subcatPickerCat)?.label}
                 </Text>
                 <TouchableOpacity onPress={() => setSubcatPickerCat(null)}>
                   <Ionicons name="close-circle" size={26} color={theme.textMuted} />
@@ -915,18 +956,29 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   tile: {
     width: TILE_SIZE,
-    height: TILE_SIZE * 0.65,
+    height: TILE_SIZE * 0.72,
     borderRadius: RADIUS.xl,
+    backgroundColor: theme.surface,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
     gap: SPACING.sm,
-    ...SHADOWS.md,
+    // Marges constantes : plusieurs libelles affleuraient les bords (§7.2).
+    paddingHorizontal: SPACING.md,
+    ...SHADOWS.sm,
   },
-  tileEmoji: { fontSize: 28 },
+  tileIcone: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   tileLabel: {
     fontSize: FONTS.sm,
     fontWeight: FONTS.bold,
-    color: '#fff',
+    color: theme.textPrimary,
+    textAlign: 'center',
   },
 
   // Nearby

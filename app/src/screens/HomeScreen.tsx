@@ -52,6 +52,7 @@ function timeAgo(dateStr: string): string {
 
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { formatPrixCompact as formatPrix } from '../lib/format';
+import { diversifierParVendeur } from '../lib/feed';
 
 // Couleur de fond pour les cercles catégorie
 const CAT_CIRCLE_COLORS: Record<string, string> = {
@@ -192,6 +193,10 @@ export default function HomeScreen({ navigation }: Props) {
   const { shops: proShops, total: proTotal } = useDecouverteProPreview();
   // Badge PRO valide par le serveur : un abonnement expire ne le porte plus (§11.7).
   const { proIds } = useProStatus();
+
+  // §7.1 : pas plus de deux annonces du meme vendeur dans les vingt premieres
+  // cartes. Les suivantes sont repoussees plus bas, jamais supprimees.
+  const filAffiche = React.useMemo(() => diversifierParVendeur(annonces), [annonces]);
   const [recentAnnonces, setRecentAnnonces] = useState<Annonce[]>([]);
 
   const loadRecent = useCallback(async () => {
@@ -530,7 +535,9 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
 
         {/* Récemment consultés */}
-        {recentAnnonces.length > 0 && (
+        {/* §7.1 : une seule carte laisse un grand vide — on n'affiche la
+            section qu'a partir de deux elements. */}
+        {recentAnnonces.length >= 2 && (
           <View style={styles.recentSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Récemment consultés</Text>
@@ -591,7 +598,7 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
       ) : (
         <FlatList
-          data={annonces}
+          data={filAffiche}
           renderItem={renderAnnonceCard}
           keyExtractor={(item) => item.id}
           numColumns={2}

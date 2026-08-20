@@ -113,7 +113,7 @@ export default function MessagesScreen({ navigation }: any) {
           <Text style={styles.emptyText}>Connectez-vous pour accéder à vos messages.</Text>
           <TouchableOpacity 
             style={styles.connectBtn}
-            onPress={() => navigation.navigate('Profil')}
+            onPress={() => navigation.navigate('Compte')}
             activeOpacity={0.8}
           >
             <Text style={styles.connectBtnText}>Se connecter</Text>

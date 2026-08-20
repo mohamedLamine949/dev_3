@@ -55,6 +55,7 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
   const [catEditTarget, setCatEditTarget] = useState<Catalogue | null>(null);
   const [catEditNom, setCatEditNom] = useState('');
   const [catEditBusy, setCatEditBusy] = useState(false);
+  const [gestionRayonsVisible, setGestionRayonsVisible] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
   const [saving, setSaving] = useState(false);
   const [gestionTarget, setGestionTarget] = useState<Annonce | null>(null);
@@ -482,9 +483,21 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
         {/* ---- Catalogue ---- */}
         <View style={styles.catalogueHead}>
           <Text style={styles.sectionLabel}>Catalogue ({produits.length})</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('AjouterProduit')} activeOpacity={0.8}>
-            <Text style={styles.addLink}>+ Ajouter</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING.lg }}>
+            {catalogues.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setGestionRayonsVisible(true)}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Gérer les rayons"
+              >
+                <Text style={styles.gererLink}>Gérer les rayons</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={() => navigation.navigate('AjouterProduit')} activeOpacity={0.8}>
+              <Text style={styles.addLink}>+ Ajouter</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Filtre par rayon */}
@@ -502,21 +515,13 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
                 <TouchableOpacity
                   key={c.id}
                   style={[styles.catChip, filtreCat === c.id && styles.catChipActive]}
-                  onPress={() => {
-                    if (filtreCat === c.id) {
-                      // 2e appui sur le rayon actif : ouvre la gestion (renommer/supprimer)
-                      setCatEditTarget(c);
-                      setCatEditNom(c.nom);
-                    } else {
-                      setFiltreCat(c.id);
-                    }
-                  }}
+                  // Un appui = filtrer, point. La gestion du rayon passe par le
+                  // bouton visible « Gerer les rayons » : le double appui etait
+                  // une interaction cachee, interdite par le §1.4.
+                  onPress={() => setFiltreCat(c.id)}
                   activeOpacity={0.8}
                 >
                   <Text style={[styles.catChipText, filtreCat === c.id && styles.catChipTextActive]}>{c.nom}</Text>
-                  {filtreCat === c.id && (
-                    <Ionicons name="create-outline" size={13} color="#fff" style={{ marginLeft: 5 }} />
-                  )}
                 </TouchableOpacity>
               ))}
             </View>
@@ -594,6 +599,61 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
         />
         </View>
       </ScrollView>
+
+      {/* ---- Liste des rayons : point d'entree VISIBLE de la gestion ---- */}
+      <Modal
+        visible={gestionRayonsVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setGestionRayonsVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHead}>
+              <Text style={styles.modalTitle}>Gérer les rayons</Text>
+              <TouchableOpacity
+                onPress={() => setGestionRayonsVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Fermer"
+              >
+                <Ionicons name="close" size={24} color={theme.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.rayonAide}>
+              Touchez un rayon pour le renommer ou le supprimer. Les produits qu'il
+              contient ne sont jamais supprimés : ils repassent simplement sans rayon.
+            </Text>
+            <ScrollView style={{ maxHeight: 340 }}>
+              {catalogues.map(c => {
+                const nbProduits = produits.filter(p => p.catalogue_id === c.id).length;
+                return (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={styles.rayonRow}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Modifier le rayon ${c.nom}`}
+                    onPress={() => {
+                      setGestionRayonsVisible(false);
+                      setCatEditTarget(c);
+                      setCatEditNom(c.nom);
+                    }}
+                  >
+                    <Ionicons name="albums-outline" size={20} color={theme.primary} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.rayonNom}>{c.nom}</Text>
+                      <Text style={styles.rayonCompte}>
+                        {nbProduits} produit{nbProduits !== 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                    <Ionicons name="create-outline" size={18} color={theme.textMuted} />
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* ---- Modal gestion d'un rayon (renommer / supprimer) ---- */}
       <Modal visible={!!catEditTarget} animationType="fade" transparent onRequestClose={() => setCatEditTarget(null)}>
@@ -835,6 +895,40 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   commandesTitle: { fontSize: FONTS.md, fontWeight: FONTS.extrabold, color: '#fff' },
   commandesSub: { fontSize: FONTS.xs, color: 'rgba(255,255,255,0.85)', marginTop: 1 },
 
+  gererLink: {
+    fontSize: FONTS.sm,
+    fontWeight: FONTS.semibold,
+    color: theme.textSecondary,
+  },
+  rayonAide: {
+    fontSize: FONTS.xs,
+    color: theme.textSecondary,
+    lineHeight: 17,
+    marginBottom: SPACING.md,
+  },
+  rayonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
+    backgroundColor: theme.background,
+    borderWidth: 1,
+    borderColor: theme.borderLight,
+    marginBottom: SPACING.sm,
+    minHeight: 56,
+  },
+  rayonNom: {
+    fontSize: FONTS.md,
+    fontWeight: FONTS.semibold,
+    color: theme.textPrimary,
+  },
+  rayonCompte: {
+    fontSize: FONTS.xs,
+    color: theme.textMuted,
+    marginTop: 1,
+  },
   catChip: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: RADIUS.full,
