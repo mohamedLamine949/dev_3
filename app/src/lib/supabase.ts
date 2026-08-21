@@ -4,6 +4,30 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
+/**
+ * Garde-fou : ces deux valeurs viennent du fichier `.env`, qui n'est PAS
+ * versionné. Quelqu'un qui clone le dépôt et publie une mise à jour sans lui
+ * enverrait un bundle où l'adresse du serveur est vide — l'application ne
+ * joindrait plus rien, pour tout le monde, et la publication n'aurait affiché
+ * aucune erreur.
+ *
+ * On ne peut pas empêcher ça depuis le code embarqué, mais on peut refuser de
+ * démarrer en silence : un écran qui ne charge jamais est indébogable, un
+ * message explicite se corrige en deux minutes. Le contrôle avant publication
+ * est `npm run verifier-config` (voir docs/EQUIPE.md).
+ */
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  const manquant = [
+    !SUPABASE_URL && 'EXPO_PUBLIC_SUPABASE_URL',
+    !SUPABASE_ANON_KEY && 'EXPO_PUBLIC_SUPABASE_ANON_KEY',
+  ].filter(Boolean).join(' et ');
+  console.error(
+    `[CONFIGURATION MANQUANTE] ${manquant} absent(s). ` +
+    "Ce bundle a ete construit sans fichier .env : l'application ne pourra " +
+    'joindre aucun serveur. Ne pas publier. Voir docs/EQUIPE.md.'
+  );
+}
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: AsyncStorage,
