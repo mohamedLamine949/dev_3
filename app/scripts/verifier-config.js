@@ -1,11 +1,21 @@
 /**
  * Contrôle à passer AVANT toute publication (`eas update` ou `eas build`).
  *
- * Les valeurs de configuration vivent dans `app/.env`, qui n'est pas versionné.
- * Publier sans lui produit un bundle où l'adresse du serveur est vide :
- * l'application ne joint plus rien, pour tous les utilisateurs, et la
- * publication n'affiche aucune erreur. Ce script transforme cette panne
- * silencieuse en refus immédiat.
+ * Depuis le 21 août 2026, les valeurs de configuration vivent AUSSI sur EAS,
+ * par environnement. Une publication faite avec `--environment production` les
+ * récupère toute seule : c'est la voie normale, et elle ne dépend d'aucun
+ * fichier local.
+ *
+ * Ce script reste utile pour deux cas :
+ *   - `npx expo start` en développement, qui lit encore `app/.env` ;
+ *   - une publication lancée SANS `--environment`, qui retomberait sur le
+ *     fichier local et produirait un bundle à l'adresse de serveur vide.
+ *     L'application ne joindrait plus rien, pour tous les utilisateurs, et la
+ *     commande n'afficherait aucune erreur — c'est cette panne silencieuse que
+ *     le script transforme en refus immédiat.
+ *
+ * Pour vérifier ce que voit EAS plutôt que le disque :
+ *   npx eas-cli env:exec production "node scripts/verifier-config.js"
  */
 const fs = require('fs');
 const path = require('path');
@@ -31,20 +41,33 @@ function lireEnv(fichier) {
   return valeurs;
 }
 
-// Même ordre de priorité qu'Expo : .env.local écrase .env.
+// Même ordre de priorité qu'Expo : .env.local écrase .env, et les variables
+// déjà présentes dans l'environnement (donc celles injectées par EAS) priment.
 const env = { ...lireEnv('.env'), ...lireEnv('.env.local'), ...process.env };
-const manquantes = REQUISES.filter(cle => !env[cle]);
+const manquantes = REQUISES.filter((cle) => !env[cle]);
 
 if (manquantes.length > 0) {
-  console.error('\n  ✖  CONFIGURATION INCOMPLÈTE — ne publiez pas.\n');
-  manquantes.forEach(cle => console.error(`     manquante : ${cle}`));
-  console.error(
-    '\n  Le fichier app/.env est absent ou incomplet. Il n\'est pas dans le' +
-    '\n  dépôt : demandez-le à un membre de l\'équipe, ou reprenez les valeurs' +
-    '\n  du bloc "env" de app/eas.json.' +
-    '\n\n  Publier en l\'état enverrait à TOUS les utilisateurs un bundle' +
-    '\n  incapable de joindre le serveur, sans aucun message d\'erreur.\n'
-  );
+  const aide = [
+    '',
+    '  ✖  CONFIGURATION INCOMPLÈTE — ne publiez pas.',
+    '',
+    ...manquantes.map((cle) => `     manquante : ${cle}`),
+    '',
+    '  Aucune valeur trouvée. Deux solutions :',
+    '',
+    '  - Pour PUBLIER : ajoutez  --environment production  (ou preview) à la',
+    "    commande eas update. Les valeurs viennent alors d'EAS et aucun",
+    "    fichier local n'est nécessaire. C'est la voie recommandée.",
+    '',
+    '  - Pour DÉVELOPPER en local : créez app/.env, ou récupérez les valeurs',
+    '    avec  npx eas-cli env:pull --environment development',
+    '',
+    '  Publier sans --environment ET sans fichier local enverrait à TOUS les',
+    '  utilisateurs un bundle incapable de joindre le serveur, sans aucun',
+    "  message d'erreur.",
+    '',
+  ];
+  console.error(aide.join('\n'));
   process.exit(1);
 }
 

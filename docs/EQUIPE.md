@@ -56,27 +56,29 @@ git clone https://github.com/mohamedLamine949/dev_3.git
 cd "dev_3/app" && npm install
 ```
 
-### Le fichier de configuration — l'étape à ne pas rater
+### La configuration : rien à demander à personne
 
-`app/.env` **n'est pas dans le dépôt**, et sans lui l'application ne peut
-joindre aucun serveur. Il faut le créer avec les valeurs que le propriétaire
-transmet, ou les reprendre du bloc `env` de `app/eas.json` :
+Les valeurs de configuration vivent **sur EAS**, par environnement. Il n'y a
+donc rien à réclamer ni à recopier après le clone.
 
+Pour **publier**, il suffit d'ajouter `--environment` à la commande (voir §3) :
+les valeurs sont récupérées automatiquement.
+
+Pour **développer en local** avec `npx expo start`, récupérer une fois le
+fichier :
+
+```bash
+npx eas-cli env:pull --environment development
 ```
-EXPO_PUBLIC_SUPABASE_URL=...
-EXPO_PUBLIC_SUPABASE_ANON_KEY=...
-EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=...
-EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=...
-EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=...
-```
 
-**Pourquoi c'est le point le plus dangereux du projet :** publier sans ce
-fichier ne provoque aucune erreur. La commande réussit, l'update part, et
-tous les utilisateurs reçoivent une application incapable de joindre le
-serveur. Aucun message, aucun avertissement — juste des écrans qui ne
-chargent jamais.
+Il crée `app/.env`, qui n'est pas versionné et n'a pas à l'être.
 
-C'est pour cela qu'il existe un contrôle obligatoire, décrit juste après.
+> **Le piège que ce dispositif ferme.** Avant, publier sans fichier `.env` ne
+> provoquait aucune erreur : la commande réussissait, la mise à jour partait,
+> et tous les utilisateurs recevaient une application incapable de joindre le
+> serveur. Aucun message, juste des écrans qui ne chargent jamais. C'est pour
+> cela que `--environment` n'est pas facultatif dans les commandes ci-dessous,
+> et qu'un contrôle refuse de publier si quelque chose manque.
 
 ---
 
@@ -111,12 +113,15 @@ Sur les **deux** canaux, jamais un seul — des testeurs utilisent l'APK interne
 et resteraient en arrière :
 
 ```bash
-npx eas-cli update --branch production --platform all --message "ce qui change"
+npx eas-cli update --branch production --environment production --platform all --message "ce qui change"
 ```
 
 ```bash
-npx eas-cli update --branch preview --platform all --message "ce qui change"
+npx eas-cli update --branch preview --environment preview --platform all --message "ce qui change"
 ```
+
+`--environment` n'est pas décoratif : sans lui, la commande retombe sur le
+fichier local, et s'il est absent elle publie un bundle sans configuration.
 
 L'application applique la mise à jour au lancement suivant. Compter quelques
 secondes après avoir fermé et rouvert.
