@@ -10,11 +10,17 @@ export function useBoutiqueFollow(boutiqueId: string | undefined, followerId: st
   const refetch = useCallback(async () => {
     if (!boutiqueId) return;
     setLoading(true);
-    const [{ count }, followingRes] = await Promise.all([
+    const [compteurRes, followingRes] = await Promise.all([
+      // Le compteur passe par la vue d'agregats et non par un comptage de
+      // lignes : depuis migration_p5, un visiteur ne VOIT aucune ligne
+      // d'abonnement — qui suit quelle boutique n'est plus public. Compter
+      // les lignes renverrait donc 0 abonne a tout le monde sauf au
+      // proprietaire. La vue, elle, n'expose qu'un nombre.
       supabase
-        .from('boutique_follows')
-        .select('id', { count: 'exact', head: true })
-        .eq('boutique_id', boutiqueId),
+        .from('v_boutique_abonnes')
+        .select('nb_abonnes')
+        .eq('boutique_id', boutiqueId)
+        .maybeSingle(),
       followerId
         ? supabase
             .from('boutique_follows')
@@ -24,7 +30,16 @@ export function useBoutiqueFollow(boutiqueId: string | undefined, followerId: st
             .maybeSingle()
         : Promise.resolve({ data: null }),
     ]);
-    setFollowerCount(count || 0);
+    // Repli sur un comptage de lignes tant que la vue n'existe pas.
+    if (compteurRes.error) {
+      const { count } = await supabase
+        .from('boutique_follows')
+        .select('id', { count: 'exact', head: true })
+        .eq('boutique_id', boutiqueId);
+      setFollowerCount(count || 0);
+    } else {
+      setFollowerCount((compteurRes.data as any)?.nb_abonnes || 0);
+    }
     setIsFollowing(!!followingRes.data);
     setLoading(false);
   }, [boutiqueId, followerId]);
@@ -48,7 +63,10 @@ export function useBoutiqueFollow(boutiqueId: string | undefined, followerId: st
       setFollowerCount(c => c + 1);
     }
     setBusy(false);
-  }, [boutiqueId, followerId, isFollowing, busy]);
+    // La vue d'agregats est la source de verite : on se recale dessus apres
+    // la mise a jour optimiste.
+    refetch();
+  }, [boutiqueId, followerId, isFollowing, busy, refetch]);
 
   return { isFollowing, followerCount, loading, busy, toggleFollow };
 }
