@@ -28,7 +28,7 @@ export function useNotifications() {
     registerForPushNotificationsAsync().then(token => {
       setExpoPushToken(token);
       if (token && session?.user?.id) {
-        saveTokenToSupabase(token, session.user.id);
+        saveTokenToSupabase(token);
       }
     });
 
@@ -46,15 +46,17 @@ export function useNotifications() {
     };
   }, [session?.user?.id]);
 
-  async function saveTokenToSupabase(token: string, userId: string) {
+  async function saveTokenToSupabase(token: string) {
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({ push_token: token })
-        .eq('id', userId);
+      // Un jeton Expo identifie un appareil, pas un compte. La RPC retire
+      // atomiquement ce jeton d'un ancien compte avant de l'attribuer au
+      // compte connecte, afin d'eviter les push en double/triple.
+      const { error } = await supabase.rpc('claim_push_token', {
+        p_push_token: token,
+      });
       
       if (error) throw error;
-      console.log('Push token saved to Supabase');
+      console.log('Push token claimed in Supabase');
     } catch (error) {
       console.error('Error saving push token:', error);
     }
