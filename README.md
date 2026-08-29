@@ -1,109 +1,187 @@
-# ⚡ Chap Chap 🇲🇱
+# Flash Market
 
-> **La plateforme de petites annonces 100% mobile, conçue pour le Mali.**
+> La marketplace mobile pensée pour acheter, vendre et trouver des professionnels au Mali.
 
-Chap Chap permet aux Maliens d'acheter et de vendre facilement depuis leur smartphone. Pas de site web, pas de complexité — juste une application rapide, intuitive et adaptée aux réalités locales (paiement par **Mobile Money**, interface en français, monnaie **FCFA**).
+Flash Market met en relation particuliers, vendeurs et professionnels dans une expérience simple, rapide et adaptée aux usages locaux. L'application permet de publier des annonces, découvrir des produits et services à proximité, échanger avec les vendeurs et gérer une véritable vitrine professionnelle.
 
----
+L'interface est en français, les prix sont affichés en FCFA et les échanges peuvent se poursuivre directement dans l'application ou via les coordonnées du vendeur.
 
-## 📱 Nouveautés (Avril 2024)
+## Fonctionnalités
 
-Cette version marque la transition complète vers une architecture **Supabase-native** ultra-performante :
-- **Authentification locale** : Migration réussie de Clerk vers **Supabase Auth** (support Téléphone + Email).
-- **Profil complet** : Personnalisation du profil (photo, bio) et liens vers réseaux sociaux (WhatsApp, Instagram, TikTok, Facebook).
-- **Chat temps réel** : Système de messagerie instantanée intégré avec Supabase Realtime.
-- **Gestion des favoris** : Possibilité de sauvegarder des annonces pour plus tard.
-- **Sécurité renforcée** : Mise en place de politiques de sécurité (RLS) pour protéger les données utilisateurs.
+### Pour les acheteurs
 
----
+- Parcours d'annonces par catégorie et sous-catégorie
+- Recherche et filtres par prix, état, localisation et type de vendeur
+- Tri par proximité grâce à la géolocalisation
+- Fiches détaillées avec photos, prix et informations vendeur
+- Favoris pour retrouver facilement une annonce
+- Messagerie en temps réel
+- Découverte des boutiques et professionnels
+- Demandes de devis pour les prestations de services
+- Avis et signalement de contenus
 
-## 🏗️ Architecture technique
+### Pour les vendeurs et professionnels
 
-```
-chap-chap/
-├── supabase/
-│   └── schema.sql             # Schéma complet de la base de données (Tables, RLS, Triggers)
-├── app/                       # Application React Native (Expo)
-│   ├── App.tsx                # Point d'entrée
+- Publication et modification d'annonces
+- Gestion des annonces depuis un espace personnel
+- Profil public avec photo, biographie et réseaux sociaux
+- Boutique professionnelle avec catalogue de produits
+- Vitrine de services, portfolio, disponibilités et tarifs
+- Gestion des commandes et demandes clients
+- Statistiques de visibilité et de contacts
+- Notifications transactionnelles et push
+- Programme de parrainage
+
+### Plateforme
+
+- Connexion par e-mail, téléphone, Google ou Apple
+- Données synchronisées en temps réel
+- Stockage sécurisé des images
+- Politiques PostgreSQL RLS pour isoler les données privées
+- Outils de modération et d'administration
+- Pages publiques de présentation, support et informations légales
+
+## Stack technique
+
+| Domaine | Technologies |
+| --- | --- |
+| Application mobile | React Native, Expo, TypeScript |
+| Navigation | React Navigation |
+| Backend | Supabase, PostgreSQL |
+| Authentification | Supabase Auth, Google Sign-In, Apple Sign-In |
+| Temps réel | Supabase Realtime |
+| Stockage | Supabase Storage |
+| Notifications | Expo Notifications, Expo Push API, `pg_net` |
+| Géolocalisation | Expo Location |
+| Déploiement mobile | EAS Build et EAS Update |
+| Administration | HTML, CSS et JavaScript |
+
+## Structure du dépôt
+
+```text
+dev_3/
+├── app/                  # Application mobile Expo / React Native
+│   ├── assets/           # Icônes, splash screen et ressources visuelles
+│   ├── scripts/          # Contrôles de configuration
 │   └── src/
-│       ├── contexts/AuthContext.tsx    # Gestion de session Supabase
-│       ├── lib/supabase.ts            # Client Supabase configuré
-│       ├── hooks/                     # Hooks personnalisés (useChat, useAnnonces, useFavoris)
-│       └── screens/
-│           ├── HomeScreen.tsx          # Feed d'annonces avec GPS
-│           ├── PostAnnonceScreen.tsx   # Dépôt d'annonce avec upload & paiement
-│           ├── ChatConversationScreen.tsx # Chat temps réel
-│           └── ProfileScreen.tsx       # Profil & gestion sociale
+│       ├── components/   # Composants réutilisables
+│       ├── contexts/     # Session et état global
+│       ├── hooks/        # Accès aux données et logique métier
+│       ├── navigation/   # Navigation principale
+│       ├── screens/      # Écrans de l'application
+│       └── lib/          # Clients et utilitaires
+├── admin/                # Interface d'administration
+├── supabase/             # Schéma, fonctions, migrations et diagnostics SQL
+├── web/                  # Site public et pages légales
+├── marketing/            # Ressources marketing
+├── store-assets/         # Ressources destinées aux stores
+└── docs/                 # Documentation produit et technique
 ```
 
----
+## Installation locale
 
-## 🛠️ Stack technologique
+### Prérequis
 
-| Composant | Technologie |
-|-----------|------------|
-| **Mobile** | React Native + Expo (TypeScript) |
-| **Backend** | Supabase (PostgreSQL, Auth, Storage, Realtime) |
-| **Paiement** | Simulation Mobile Money (Orange/Moov) |
-| **Stockage** | Supabase Storage (Avatars & Images d'annonces) |
+- Node.js et npm
+- Expo CLI via `npx`
+- Un projet Supabase configuré
+- Un appareil physique ou un émulateur Android/iOS
 
----
-
-## 🚀 Installation & Lancement
+### 1. Cloner le dépôt
 
 ```bash
-# 1. Cloner le dépôt
 git clone https://github.com/mohamedLamine949/dev_3.git
 cd dev_3/app
+```
 
-# 2. Installer les dépendances
+### 2. Installer les dépendances
+
+```bash
 npm install
+```
 
-# 3. Configurer l'environnement
-# Créez un fichier .env avec :
-# EXPO_PUBLIC_SUPABASE_URL=votre_url
-# EXPO_PUBLIC_SUPABASE_ANON_KEY=votre_clef
+### 3. Configurer l'environnement
 
-# 4. Lancer l'application
+Créez `app/.env` avec les variables suivantes :
+
+```dotenv
+EXPO_PUBLIC_SUPABASE_URL=https://votre-projet.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=votre_cle_anonyme
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=votre_client_web_google
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=votre_client_ios_google
+```
+
+Vérifiez ensuite la configuration :
+
+```bash
+npm run verifier-config
+```
+
+Ne versionnez jamais les fichiers `.env` ni les clés privées.
+
+### 4. Lancer l'application
+
+```bash
 npx expo start
 ```
 
----
+Raccourcis disponibles :
 
-## ⚙️ Configuration Base de Données
+```bash
+npm run android
+npm run ios
+npm run web
+```
 
-Toute la configuration de la base de données est centralisée dans [supabase/schema.sql](file:///c:/Users/Mohamed-Lamine/OneDrive/Bureau/dev_/chap%20chap/supabase/schema.sql). Elle inclut :
-- La création des tables (`users`, `annonces`, `messages`, etc.).
-- Les index de performance.
-- Les triggers d'auto-création de profil.
-- Les politiques de sécurité (RLS) pour isoler les données des utilisateurs.
-- L'activation du mode "Realtime" pour le chat.
+## Base de données
 
----
+Le dossier `supabase/` contient le schéma PostgreSQL, les politiques RLS, les fonctions, les triggers et les scripts historiques du projet. Les nouvelles migrations versionnées se trouvent dans `supabase/migrations/`.
 
-## 📋 Roadmap
+Pour lier une instance Supabase puis appliquer les migrations :
 
-- [x] Structure du projet & Design system
-- [x] Migration Clerk → Supabase Auth
-- [x] Profil utilisateur (Bio, Photos, Réseaux)
-- [x] Chat temps réel fonctionnel
-- [x] Upload d'images (Annonces & Avatars)
-- [x] Gestion des favoris
-- [ ] Intégration paiement Mobile Money réelle (API Orange/Moov)
-- [ ] Notifications push (Expo Notifications)
-- [ ] Filtrage par distance GPS
-- [ ] Publication sur les stores
+```bash
+npx supabase link --project-ref votre_project_ref
+npx supabase db push
+```
 
----
+Examinez toujours l'aperçu avant un déploiement en production :
 
-## 👨‍💻 Auteur
+```bash
+npx supabase db push --dry-run
+```
 
-**Sidi Oumar GANO** — [@sdiprograms11](https://github.com/sidiprograms11)
-**Mohamed Lamine** — [@mohamedLamine949](https://github.com/mohamedLamine949)
+## Vérifications avant publication
 
+Depuis le dossier `app/` :
+
+```bash
+npm run verifier-config
+npx tsc --noEmit
+```
+
+Pour une publication EAS, utilisez l'environnement approprié afin que les variables soient injectées depuis EAS :
+
+```bash
+npx eas-cli update --environment production
+```
+
+## Principes produit
+
+- L'accès reste gratuit pour les acheteurs.
+- Les annonces pertinentes priment toujours sur la promotion payante.
+- Les vendeurs professionnels disposent d'une présence durable et identifiable.
+- La proximité, la confiance et la simplicité guident l'expérience.
+- Les données privées sont protégées côté serveur, pas uniquement dans l'interface.
+
+La stratégie produit détaillée est documentée dans [`BUSINESS_MODEL.md`](BUSINESS_MODEL.md).
+
+## Auteurs
+
+- Sidi Oumar GANO — [@sdiprograms11](https://github.com/sdiprograms11)
+- Mohamed Lamine — [@mohamedLamine949](https://github.com/mohamedLamine949)
 
 ---
 
 <p align="center">
-  Fait avec ❤️ pour le 🇲🇱
+  Flash Market — conçu avec soin pour le Mali 🇲🇱
 </p>
