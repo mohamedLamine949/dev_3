@@ -207,15 +207,20 @@ export function scoreAnnonce(query: string, item: any): number {
     else if (h.titleSquashed.includes(squash(query))) textScore += 25;
   }
 
+  // Boost payant (§ boost 250 FCFA) : ne départage jamais deux niveaux de
+  // pertinence différents (l'écart entre paliers est de 500+), seulement
+  // deux annonces à peu près aussi pertinentes l'une que l'autre.
+  const boostBonus = item.boost_expire_le && new Date(item.boost_expire_le).getTime() > Date.now() ? 12 : 0;
+
   // Tous les mots sont dans le texte → résultat exact. La catégorie n'ajoute
   // qu'un filet de départage plafonné.
   if (matchedInText === words.length) {
-    return TIER_EXACT + textScore + Math.min(weakScore, 6);
+    return TIER_EXACT + textScore + Math.min(weakScore, 6) + boostBonus;
   }
 
   // Une partie des mots seulement.
   if (matchedInText > 0) {
-    return TIER_PARTIAL + textScore * (matchedInText / words.length);
+    return TIER_PARTIAL + textScore * (matchedInText / words.length) + boostBonus;
   }
 
   // Rien dans le texte : catégorie/ville seules. Dernier recours.

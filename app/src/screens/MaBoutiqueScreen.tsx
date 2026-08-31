@@ -754,7 +754,7 @@ export default function MaBoutiqueScreen({ navigation }: Props) {
         {/* ---- Performances : la preuve avant la premiere vente (§8.2) ---- */}
         {onglet === 'performances' && (
           <>
-            <View style={styles.statsRow}>
+            <View style={[styles.statsRow, { marginBottom: SPACING.lg }]}>
               <View style={styles.statCard}>
                 <View style={styles.statIconCircle}>
                   <Ionicons name="eye-outline" size={16} color={theme.primary} />

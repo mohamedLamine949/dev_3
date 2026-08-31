@@ -7,6 +7,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../lib/supabase';
 import { getEffectivePlanKey, subscriptionExpiryDate, isSubscriptionActive } from '../lib/subscription';
 import PaiementProModal from '../components/PaiementProModal';
+import { useAppConfig } from '../hooks/useAppConfig';
 
 type PlanKey = 'vendeur' | 'professionnel';
 
@@ -56,6 +57,7 @@ interface Props {
 export default function SubscriptionScreen({ navigation }: Props) {
   const { session, user, refreshUser } = useAuth();
   const { theme, isDark } = useTheme();
+  const { paymentsEnabled } = useAppConfig();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -111,7 +113,20 @@ export default function SubscriptionScreen({ navigation }: Props) {
           </View>
         )}
 
-        {PLANS.map((plan) => (
+        {!paymentsEnabled && (
+          <View style={styles.launchBox}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <Ionicons name="gift-outline" size={20} color={theme.primary} />
+              <Text style={styles.launchTitle}>Offre de lancement 🎉</Text>
+            </View>
+            <Text style={styles.launchText}>
+              Les abonnements payants sont temporairement suspendus. Toutes les
+              fonctionnalités sont gratuites pendant le lancement.
+            </Text>
+          </View>
+        )}
+
+        {paymentsEnabled && PLANS.map((plan) => (
           <View key={plan.key} style={[styles.card, plan.recommande && styles.cardReco]}>
             <View style={styles.cardHead}>
               <Text style={styles.cardTitle}>{plan.emoji} {plan.nom}</Text>
@@ -152,9 +167,11 @@ export default function SubscriptionScreen({ navigation }: Props) {
           </View>
         ))}
 
-        <Text style={styles.note}>
-          Paiement unique via Mobile Money (Orange Money). Le renouvellement n'est pas automatique : au bout de 30 jours, vous pourrez renouveler si vous le souhaitez. Votre boutique et vos données sont conservées entre-temps.
-        </Text>
+        {paymentsEnabled && (
+          <Text style={styles.note}>
+            Paiement unique via Mobile Money (Orange Money). Le renouvellement n'est pas automatique : au bout de 30 jours, vous pourrez renouveler si vous le souhaitez. Votre boutique et vos données sont conservées entre-temps.
+          </Text>
+        )}
       </ScrollView>
 
       <PaiementProModal
@@ -188,6 +205,12 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.primaryFaded, borderRadius: RADIUS.md, padding: SPACING.md, marginBottom: SPACING.lg,
   },
   currentText: { flex: 1, fontSize: FONTS.sm, fontWeight: FONTS.semibold, color: theme.textPrimary },
+  launchBox: {
+    backgroundColor: theme.primaryFaded, borderRadius: RADIUS.lg, padding: SPACING.lg,
+    marginBottom: SPACING.lg, borderWidth: 1, borderColor: theme.primary, ...SHADOWS.sm,
+  },
+  launchTitle: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.textPrimary },
+  launchText: { fontSize: FONTS.xs, color: theme.textSecondary, lineHeight: 18 },
   card: {
     backgroundColor: theme.surface, borderRadius: RADIUS.lg, padding: SPACING.lg,
     marginBottom: SPACING.lg, borderWidth: 1, borderColor: theme.borderLight, ...SHADOWS.sm,

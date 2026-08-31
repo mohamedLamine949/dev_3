@@ -24,6 +24,11 @@ interface Props {
    *  (ex: activation de l'abonnement). Si ça throw, le modal affiche une erreur. */
   onSuccess: () => void | Promise<void>;
   onClose: () => void;
+  /** Titres personnalisables — par défaut ceux de l'abonnement PRO, pour ne
+   *  rien changer aux appels existants. */
+  title?: string;
+  successTitle?: string;
+  successText?: string;
 }
 
 type Step = 'init' | 'webview' | 'processing' | 'success' | 'error';
@@ -36,7 +41,10 @@ type Step = 'init' | 'webview' | 'processing' | 'success' | 'error';
  * Réutilisable : se charge de l'init, du WebView et de la détection de succès.
  * La logique métier post-paiement est déléguée à `onSuccess`.
  */
-export default function PaiementProModal({ visible, amount, description, customer, onSuccess, onClose }: Props) {
+export default function PaiementProModal({
+  visible, amount, description, customer, onSuccess, onClose,
+  title = 'Abonnement', successTitle = 'Abonnement activé', successText = 'Votre abonnement est maintenant actif. Merci !',
+}: Props) {
   const { theme } = useTheme();
   const [step, setStep] = useState<Step>('init');
   const [paymentUrl, setPaymentUrl] = useState('');
@@ -154,7 +162,7 @@ export default function PaiementProModal({ visible, amount, description, custome
         <View style={[styles.content, step === 'webview' && { height: '90%', paddingBottom: 20 }]}>
           <View style={styles.header}>
             <Text style={styles.title}>
-              {step === 'webview' ? 'Paiement Mobile Money' : step === 'success' ? 'Abonnement activé' : 'Abonnement'}
+              {step === 'webview' ? 'Paiement Mobile Money' : step === 'success' ? successTitle : title}
             </Text>
             {canClose && (
               <TouchableOpacity onPress={onClose}>
@@ -222,8 +230,8 @@ export default function PaiementProModal({ visible, amount, description, custome
           {step === 'success' && (
             <View style={styles.center}>
               <Ionicons name="checkmark-circle" size={80} color={theme.success} />
-              <Text style={[styles.pTitle, { color: theme.success }]}>Abonnement activé !</Text>
-              <Text style={styles.pText}>Votre abonnement est maintenant actif. Merci !</Text>
+              <Text style={[styles.pTitle, { color: theme.success }]}>{successTitle} !</Text>
+              <Text style={styles.pText}>{successText}</Text>
             </View>
           )}
 

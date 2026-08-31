@@ -94,6 +94,12 @@ export interface Annonce {
   duree_indicative?: string | null;
   condition_deplacement?: string | null;
   moderation_status?: 'pending' | 'approved' | 'limited' | 'rejected' | 'under_review';
+  // Boost payant (migration_boost_annonce.sql) : priorité dans le fil et la
+  // recherche tant que boost_expire_le est dans le futur.
+  boost_expire_le?: string | null;
+  boost_paye_le?: string | null;
+  boost_vues_avant?: number | null;
+  boost_prix?: number | null;
   // Joined
   images?: ImageAnnonce[];
   user?: User;

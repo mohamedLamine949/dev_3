@@ -49,6 +49,8 @@ import DecouverteProShopListScreen from '../screens/DecouverteProShopListScreen'
 import AjouterProduitScreen from '../screens/AjouterProduitScreen';
 import CommandesScreen from '../screens/CommandesScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
+import BoostAnnonceScreen from '../screens/BoostAnnonceScreen';
+import BoostResultsScreen from '../screens/BoostResultsScreen';
 import AdminModerationScreen from '../screens/AdminModerationScreen';
 import SignalementsScreen from '../screens/SignalementsScreen';
 import DemandeDevisScreen from '../screens/DemandeDevisScreen';
@@ -542,6 +544,16 @@ export default function AppNavigator() {
           name="Subscription"
           component={SubscriptionScreen}
           options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="BoostAnnonce"
+          component={BoostAnnonceScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="BoostResultats"
+          component={BoostResultsScreen}
+          options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
           name="AdminModeration"

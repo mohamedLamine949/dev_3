@@ -56,7 +56,14 @@ export function useAnnonces(options?: {
     // Tri
     const sort = options?.orderBy || 'newest';
     if (sort === 'newest') {
-      query = query.order('date_creation', { ascending: false });
+      // Boost payant (§ boost 250 FCFA) : une annonce boostée passe devant
+      // le fil chronologique. `expirerBoostsSiBesoin()` (appelée dans
+      // fetchAnnonces) nettoie les boosts expirés avant cette requête, sinon
+      // une annonce dont le boost est terminé resterait coincée en tête —
+      // sa colonne resterait non-NULL sans ce nettoyage.
+      query = query
+        .order('boost_expire_le', { ascending: false, nullsFirst: false })
+        .order('date_creation', { ascending: false });
     } else if (sort === 'price_asc') {
       query = query.order('prix', { ascending: true });
     } else if (sort === 'price_desc') {
@@ -143,6 +150,13 @@ export function useAnnonces(options?: {
     try {
       setLoading(true);
       setError(null);
+
+      // Nettoie les boosts expirés avant de trier dessus (voir buildQuery).
+      // Best-effort : si la migration n'est pas encore appliquée, la RPC est
+      // absente et on l'ignore silencieusement plutôt que de casser le fil.
+      supabase.rpc('expirer_boosts').then(({ error: e }) => {
+        if (e && !rpcAbsente(e)) console.warn('expirer_boosts:', e.message);
+      });
 
       let query = buildQuery();
       if (paginated) {

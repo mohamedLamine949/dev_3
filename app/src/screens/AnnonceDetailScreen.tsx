@@ -33,6 +33,7 @@ import { sellerDisplayName, sellerInitial } from '../lib/seller';
 import { formatPrix } from '../lib/format';
 import { libellePrix } from '../constants/theme';
 import { enregistrerContact } from '../lib/contactTracking';
+import { isBoostActif, aDejaEteBoostee } from '../hooks/useBoost';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -45,6 +46,7 @@ interface Props {
 export default function AnnonceDetailScreen({ route, navigation }: Props) {
   const { annonce } = route.params as { annonce: Annonce };
   const { session } = useAuth();
+  const isOwner = session?.user?.id === annonce.user_id;
   const { theme, isDark } = useTheme();
   const [isFavorite, setIsFavorite] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -519,33 +521,54 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
 
       {/* STICKY CTA FIXE EN BAS */}
       <View style={styles.ctaContainer}>
-        <TouchableOpacity
-          style={styles.ctaPhoneButton}
-          activeOpacity={0.8}
-          onPress={() => {
-            // La mesure part en parallele : elle ne doit jamais retarder
-            // l'ouverture du telephone ou de WhatsApp (§3.4).
-            if (seller?.telephone) {
-              enregistrerContact(annonce.id, 'appel');
-              Linking.openURL(`tel:${seller.telephone}`);
-            } else if (seller?.whatsapp) {
-              enregistrerContact(annonce.id, 'whatsapp');
-              Linking.openURL(`https://wa.me/${seller.whatsapp.replace(/[^0-9]/g, '')}`);
-            } else {
-              handleContact();
-            }
-          }}
-        >
-          <Ionicons name="call-outline" size={22} color={theme.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.ctaMessageButton}
-          onPress={handleContact}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
-          <Text style={styles.ctaMessageText}>Contacter le vendeur</Text>
-        </TouchableOpacity>
+        {isOwner ? (
+          <TouchableOpacity
+            style={styles.ctaMessageButton}
+            activeOpacity={0.85}
+            onPress={() => {
+              if (aDejaEteBoostee(annonce)) {
+                navigation.navigate('BoostResultats', { annonceId: annonce.id, annonceTitre: annonce.titre });
+              } else {
+                navigation.navigate('BoostAnnonce', { annonce });
+              }
+            }}
+          >
+            <Ionicons name="rocket-outline" size={20} color="#FFFFFF" />
+            <Text style={styles.ctaMessageText}>
+              {isBoostActif(annonce) ? 'Voir les résultats du boost' : aDejaEteBoostee(annonce) ? 'Voir les résultats' : 'Booster cette annonce'}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <>
+            <TouchableOpacity
+              style={styles.ctaPhoneButton}
+              activeOpacity={0.8}
+              onPress={() => {
+                // La mesure part en parallele : elle ne doit jamais retarder
+                // l'ouverture du telephone ou de WhatsApp (§3.4).
+                if (seller?.telephone) {
+                  enregistrerContact(annonce.id, 'appel');
+                  Linking.openURL(`tel:${seller.telephone}`);
+                } else if (seller?.whatsapp) {
+                  enregistrerContact(annonce.id, 'whatsapp');
+                  Linking.openURL(`https://wa.me/${seller.whatsapp.replace(/[^0-9]/g, '')}`);
+                } else {
+                  handleContact();
+                }
+              }}
+            >
+              <Ionicons name="call-outline" size={22} color={theme.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.ctaMessageButton}
+              onPress={handleContact}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.ctaMessageText}>Contacter le vendeur</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
       <ReportModal
