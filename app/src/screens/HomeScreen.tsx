@@ -52,7 +52,7 @@ function timeAgo(dateStr: string): string {
 
 import { hapticLight, hapticMedium } from '../lib/haptics';
 import { formatPrixCompact as formatPrix } from '../lib/format';
-import { diversifierParVendeur } from '../lib/feed';
+import { diversifierParVendeur, personnaliserParCategorie } from '../lib/feed';
 import EtatEcran from '../components/EtatEcran';
 
 // Couleur de fond pour les cercles catégorie
@@ -195,10 +195,16 @@ export default function HomeScreen({ navigation }: Props) {
   // Badge PRO valide par le serveur : un abonnement expire ne le porte plus (§11.7).
   const { proIds } = useProStatus();
 
+  const [recentAnnonces, setRecentAnnonces] = useState<Annonce[]>([]);
+
   // §7.1 : pas plus de deux annonces du meme vendeur dans les vingt premieres
   // cartes. Les suivantes sont repoussees plus bas, jamais supprimees.
-  const filAffiche = React.useMemo(() => diversifierParVendeur(annonces), [annonces]);
-  const [recentAnnonces, setRecentAnnonces] = useState<Annonce[]>([]);
+  // Puis un leger tri par categorie deja consultee (vues locales, aucun
+  // appel Supabase) — sans jamais repasser derriere une annonce boostee.
+  const filAffiche = React.useMemo(
+    () => personnaliserParCategorie(diversifierParVendeur(annonces), recentAnnonces),
+    [annonces, recentAnnonces]
+  );
 
   const loadRecent = useCallback(async () => {
     const list = await getRecentAnnonces();
