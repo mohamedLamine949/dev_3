@@ -190,19 +190,18 @@ export default function CompteScreen({ navigation }: Props) {
       ]
     : [];
 
-  // ─── Bloc 4 : compte, abonnement, aide ────────────────────────────────
+  // ─── Bloc 4 : compte, paramètres, aide ─────────────────────────────────
+  // « Services payants » est sortie de cette liste pour la même raison que
+  // « Mes annonces » et « Booster » ci-dessus : c'est la porte d'entrée vers
+  // toute la monétisation (Pro, Service, Vendeur), elle mérite sa propre
+  // carte visuelle plutôt qu'une ligne au même poids que « Paramètres ».
+  const labelServicesPayants =
+    user?.plan_achete === 'service' ? 'Prestataire de service'
+    : entitlements.planCode === 'pro' ? 'PRO / Boutique'
+    : entitlements.planCode === 'vendeur' ? 'Vendeur'
+    : 'Devenir PRO, prestataire ou vendeur';
+
   const lignesCompte: Ligne[] = [
-    {
-      cle: 'abonnement',
-      icone: 'card-outline',
-      titre: 'Services payants',
-      detail:
-        user?.plan_achete === 'service' ? 'Prestataire de service'
-        : entitlements.planCode === 'pro' ? 'PRO / Boutique'
-        : entitlements.planCode === 'vendeur' ? 'Vendeur'
-        : 'Devenir PRO, prestataire ou vendeur',
-      onPress: () => navigation.navigate('Subscription'),
-    },
     {
       cle: 'parametres',
       icone: 'settings-outline',
@@ -358,6 +357,23 @@ export default function CompteScreen({ navigation }: Props) {
           <View style={{ flex: 1 }}>
             <Text style={styles.carteProTitre}>Booster mes annonces</Text>
             <Text style={styles.carteProDetail}>Plus de visibilité, plus vite</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.9)" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.carteProFond, { backgroundColor: theme.info, marginTop: SPACING.md }]}
+          onPress={() => navigation.navigate('Subscription')}
+          activeOpacity={0.9}
+          accessibilityRole="button"
+          accessibilityLabel="Services payants"
+        >
+          <View style={styles.carteProIcone}>
+            <Ionicons name="card" size={22} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.carteProTitre}>Services payants</Text>
+            <Text style={styles.carteProDetail}>{labelServicesPayants}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.9)" />
         </TouchableOpacity>
