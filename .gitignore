@@ -21,6 +21,7 @@ Thumbs.db
 # Env
 .env
 .env.local
+supabase/.temp/
 
 # Build
 app/dist/

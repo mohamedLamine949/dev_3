@@ -19,6 +19,9 @@
 --   5. la réponse du professionnel à un avis.
 --   6. les champs de la demande de devis guidée en trois étapes.
 --
+-- Le message vocal envisagé au départ a été écarté : il n'est ni implémenté,
+-- ni prévu en base.
+--
 -- ── Badge Pro et badge Vérifié : deux choses différentes ──────────────────
 -- « Le badge Pro signifie abonnement actif ; le badge Vérifié signifie
 -- identité ou activité contrôlée. » Les confondre trompe l'acheteur sur la
@@ -138,18 +141,21 @@ CREATE POLICY "Le vendeur repond a ses avis" ON public.avis
 -- 6. Demande de devis guidée (trois étapes)
 -- =========================================================================
 -- Étape 1 « Besoin » : la prestation choisie — déjà porté par `produit_id`.
--- Étape 2 « Précisions » : description, photo, et plus tard message vocal.
+-- Étape 2 « Précisions » : description et photo.
 -- Étape 3 « Intervention » : zone, date souhaitée, téléphone.
 ALTER TABLE public.commandes
   ADD COLUMN IF NOT EXISTS photo_url        TEXT,
-  ADD COLUMN IF NOT EXISTS audio_url        TEXT,
   ADD COLUMN IF NOT EXISTS zone_demandee    TEXT,
   ADD COLUMN IF NOT EXISTS telephone_client TEXT;
 
-COMMENT ON COLUMN public.commandes.audio_url IS
-  'Message vocal du client. Le champ existe des maintenant pour que la base '
-  'soit prete, mais l''enregistrement audio exige un module natif et donc un '
-  'nouveau build : il ne peut pas arriver par mise a jour a distance.';
+-- Le message vocal prevu par la specification a ete ECARTE par le user le
+-- 2026-08-20 (« ce serait inutile »). Aucune colonne `audio_url` n'est donc
+-- creee : une colonne morte finit toujours par etre remplie a moitie par
+-- quelqu'un qui croit qu'elle sert.
+--
+-- Consequence utile : plus aucun element de la specification n'exige de
+-- module natif, donc plus aucun build. Tout se livre par mise a jour a
+-- distance.
 
 -- =========================================================================
 -- 6 bis. La publication doit transporter les nouveaux champs
@@ -311,7 +317,7 @@ SELECT COUNT(*) AS realisations FROM public.realisations;
 -- DROP TABLE IF EXISTS public.realisations;
 -- ALTER TABLE public.avis DROP COLUMN IF EXISTS reponse_pro, DROP COLUMN IF EXISTS date_reponse;
 -- ALTER TABLE public.commandes
---   DROP COLUMN IF EXISTS photo_url, DROP COLUMN IF EXISTS audio_url,
+--   DROP COLUMN IF EXISTS photo_url,
 --   DROP COLUMN IF EXISTS zone_demandee, DROP COLUMN IF EXISTS telephone_client;
 -- ALTER TABLE public.annonces
 --   DROP COLUMN IF EXISTS duree_indicative, DROP COLUMN IF EXISTS condition_deplacement;
