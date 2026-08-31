@@ -5,54 +5,85 @@ import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../lib/supabase';
-import { getEffectivePlanKey, subscriptionExpiryDate, isSubscriptionActive } from '../lib/subscription';
+import { getEffectivePlanKey, isSubscriptionActive } from '../lib/subscription';
 import PaiementProModal from '../components/PaiementProModal';
 import { useAppConfig } from '../hooks/useAppConfig';
 
-type PlanKey = 'vendeur' | 'professionnel';
+type PlanKey = 'vendeur' | 'service' | 'professionnel';
 
 const PLANS: {
   key: PlanKey;
-  emoji: string;
+  icone: keyof typeof Ionicons.glyphMap;
   nom: string;
   prix: number;
   recommande: boolean;
   accroche: string;
   avantages: string[];
+  typeCompte: 'professionnel' | 'vendeur';
+  planAchete: 'pro' | 'service' | 'vendeur';
+  typeActiviteParDefaut?: 'produits' | 'services' | 'mixte';
 }[] = [
   {
     key: 'professionnel',
-    emoji: '🌟',
+    icone: 'storefront-outline',
     nom: 'PRO / Boutique',
     prix: 5000,
     recommande: true,
     accroche: 'Pour les vrais commerces',
     avantages: [
-      "Annonces illimitées et permanentes (n'expirent jamais)",
-      'Vitrine boutique professionnelle',
+      'Boutique complète, à vie — aucun renouvellement',
+      'Annonces illimitées et permanentes',
       'Badge Pro affiché sur vos produits et votre vitrine',
       'Visibilité maximale dans la recherche',
       'Commandes structurées et statistiques',
     ],
+    typeCompte: 'professionnel',
+    planAchete: 'pro',
+  },
+  {
+    key: 'service',
+    icone: 'construct-outline',
+    nom: 'Prestataire de service',
+    prix: 2500,
+    recommande: false,
+    accroche: 'Mécanicien, photographe, coiffeur, réparateur… un annuaire pour votre activité',
+    avantages: [
+      'Page professionnelle à vie — aucun renouvellement',
+      'Vos horaires et votre disponibilité affichés',
+      'Ce que vous proposez, mis en avant',
+      'Vous pouvez aussi publier des annonces',
+      'Badge Pro affiché sur votre profil',
+    ],
+    typeCompte: 'professionnel',
+    planAchete: 'service',
+    typeActiviteParDefaut: 'services',
   },
   {
     key: 'vendeur',
-    emoji: '💼',
+    icone: 'pricetags-outline',
     nom: 'Vendeur',
     prix: 2000,
     recommande: false,
-    accroche: "Pour ceux qui vendent beaucoup",
+    accroche: 'Pour ceux qui vendent beaucoup',
     avantages: [
-      '30 annonces par mois',
+      '15 annonces par mois, à vie — aucun renouvellement',
       'Statistiques de vues',
       "Idéal pour l'achat-revente régulier",
     ],
+    typeCompte: 'vendeur',
+    planAchete: 'vendeur',
   },
 ];
 
 interface Props {
   navigation: any;
 }
+
+const LABEL_PLAN_ACHETE: Record<string, string> = {
+  pro: 'PRO / Boutique',
+  service: 'Prestataire de service',
+  vendeur: 'Vendeur',
+};
 
 export default function SubscriptionScreen({ navigation }: Props) {
   const { session, user, refreshUser } = useAuth();
@@ -61,27 +92,32 @@ export default function SubscriptionScreen({ navigation }: Props) {
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   const [modalVisible, setModalVisible] = useState(false);
-  const [selected, setSelected] = useState<{ type: PlanKey; amount: number } | null>(null);
+  const [selected, setSelected] = useState<PlanKey | null>(null);
 
   const effectiveKey = getEffectivePlanKey(user);
-  const expiry = subscriptionExpiryDate(user);
   const active = isSubscriptionActive(user);
+  const plan = PLANS.find(p => p.key === selected);
+  const labelActuel = (user?.plan_achete && LABEL_PLAN_ACHETE[user.plan_achete])
+    || (effectiveKey === 'professionnel' ? 'PRO / Boutique' : effectiveKey === 'vendeur' ? 'Vendeur' : '');
 
-  const openPayment = (type: PlanKey, amount: number) => {
+  const openPayment = (key: PlanKey) => {
     if (!session?.user) {
       navigation.navigate('Login');
       return;
     }
-    setSelected({ type, amount });
+    setSelected(key);
     setModalVisible(true);
   };
 
   const handleSuccess = async () => {
-    if (!selected || !session?.user) return;
-    const { error } = await supabase
-      .from('users')
-      .update({ type_compte: selected.type, date_abonnement: new Date().toISOString() })
-      .eq('id', session.user.id);
+    if (!plan || !session?.user) return;
+    const updates: Record<string, any> = {
+      type_compte: plan.typeCompte,
+      date_abonnement: new Date().toISOString(),
+      plan_achete: plan.planAchete,
+    };
+    if (plan.typeActiviteParDefaut) updates.type_activite = plan.typeActiviteParDefaut;
+    const { error } = await supabase.from('users').update(updates).eq('id', session.user.id);
     if (error) throw new Error(error.message);
     await refreshUser();
   };
@@ -94,22 +130,19 @@ export default function SubscriptionScreen({ navigation }: Props) {
         <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7}>
           <Ionicons name="arrow-back" size={24} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Nos abonnements</Text>
+        <Text style={styles.headerTitle}>Services payants</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={{ padding: SPACING.xl, paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
         <Text style={styles.intro}>
-          Choisissez la formule adaptée à votre activité et payez directement en Mobile Money. Débloquez plus de visibilité et vendez plus vite.
+          Un paiement unique, en Mobile Money, pour un accès à vie — aucun renouvellement à prévoir.
         </Text>
 
         {active && effectiveKey !== 'particulier' && (
           <View style={styles.currentBox}>
             <Ionicons name="checkmark-circle" size={18} color={theme.success} />
-            <Text style={styles.currentText}>
-              Vous êtes {effectiveKey === 'professionnel' ? 'PRO' : 'Vendeur'}
-              {expiry ? ` jusqu'au ${expiry.toLocaleDateString('fr-FR')}` : ''}.
-            </Text>
+            <Text style={styles.currentText}>Vous êtes {labelActuel} — accès à vie.</Text>
           </View>
         )}
 
@@ -120,29 +153,32 @@ export default function SubscriptionScreen({ navigation }: Props) {
               <Text style={styles.launchTitle}>Offre de lancement 🎉</Text>
             </View>
             <Text style={styles.launchText}>
-              Les abonnements payants sont temporairement suspendus. Toutes les
+              Ces offres sont temporairement suspendues. Toutes les
               fonctionnalités sont gratuites pendant le lancement.
             </Text>
           </View>
         )}
 
-        {paymentsEnabled && PLANS.map((plan) => (
-          <View key={plan.key} style={[styles.card, plan.recommande && styles.cardReco]}>
+        {paymentsEnabled && PLANS.map((p) => (
+          <View key={p.key} style={[styles.card, p.recommande && styles.cardReco]}>
             <View style={styles.cardHead}>
-              <Text style={styles.cardTitle}>{plan.emoji} {plan.nom}</Text>
-              {plan.recommande && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name={p.icone} size={20} color={theme.primary} />
+                <Text style={styles.cardTitle}>{p.nom}</Text>
+              </View>
+              {p.recommande && (
                 <View style={styles.recoBadge}>
                   <Text style={styles.recoText}>RECOMMANDÉ</Text>
                 </View>
               )}
             </View>
-            <Text style={styles.accroche}>{plan.accroche}</Text>
+            <Text style={styles.accroche}>{p.accroche}</Text>
             <Text style={styles.prix}>
-              {plan.prix.toLocaleString('fr-FR')} <Text style={styles.prixUnit}>FCFA / mois</Text>
+              {p.prix.toLocaleString('fr-FR')} <Text style={styles.prixUnit}>FCFA · paiement unique</Text>
             </Text>
 
             <View style={{ marginVertical: SPACING.md }}>
-              {plan.avantages.map((a, i) => (
+              {p.avantages.map((a, i) => (
                 <View key={i} style={styles.avRow}>
                   <Ionicons name="checkmark-circle" size={16} color={theme.primary} style={{ marginTop: 1 }} />
                   <Text style={styles.avText}>{a}</Text>
@@ -153,31 +189,50 @@ export default function SubscriptionScreen({ navigation }: Props) {
             <TouchableOpacity
               style={[
                 styles.subBtn,
-                plan.recommande
+                p.recommande
                   ? { backgroundColor: theme.primary }
                   : { backgroundColor: theme.surface, borderWidth: 1.5, borderColor: theme.primary },
               ]}
-              onPress={() => openPayment(plan.key, plan.prix)}
+              onPress={() => openPayment(p.key)}
               activeOpacity={0.85}
             >
-              <Text style={[styles.subBtnText, { color: plan.recommande ? '#fff' : theme.primary }]}>
-                S'abonner ({plan.prix.toLocaleString('fr-FR')} FCFA)
+              <Text style={[styles.subBtnText, { color: p.recommande ? '#fff' : theme.primary }]}>
+                Débloquer ({p.prix.toLocaleString('fr-FR')} FCFA)
               </Text>
             </TouchableOpacity>
           </View>
         ))}
 
         {paymentsEnabled && (
-          <Text style={styles.note}>
-            Paiement unique via Mobile Money (Orange Money). Le renouvellement n'est pas automatique : au bout de 30 jours, vous pourrez renouveler si vous le souhaitez. Votre boutique et vos données sont conservées entre-temps.
-          </Text>
+          <>
+            <Text style={styles.note}>
+              Paiement unique via Mobile Money (Orange Money). Vos avantages restent actifs à vie —
+              aucun renouvellement, aucun prélèvement automatique.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.boostPromo}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('BoosterMesAnnonces')}
+            >
+              <Ionicons name="rocket-outline" size={20} color={theme.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.boostPromoTitre}>Envie de plus de visibilité tout de suite ?</Text>
+                <Text style={styles.boostPromoTexte}>Boostez une annonce précise dès maintenant — 250 FCFA</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+            </TouchableOpacity>
+          </>
         )}
       </ScrollView>
 
       <PaiementProModal
         visible={modalVisible}
-        amount={selected?.amount || 0}
-        description={selected?.type === 'professionnel' ? 'Chap Chap - Abonnement PRO / Boutique' : 'Chap Chap - Abonnement Vendeur'}
+        amount={plan?.prix || 0}
+        description={`Chap Chap - ${plan?.nom || ''}`}
+        title={plan?.nom}
+        successTitle="Offre activée"
+        successText="Votre accès est actif dès maintenant, à vie."
         customer={{
           phone: user?.telephone || user?.num_telephone,
           email: session?.user?.email,
@@ -228,4 +283,11 @@ const createStyles = (theme: any) => StyleSheet.create({
   subBtn: { paddingVertical: 14, borderRadius: RADIUS.md, alignItems: 'center', marginTop: SPACING.sm },
   subBtnText: { fontSize: FONTS.md, fontWeight: FONTS.bold },
   note: { fontSize: FONTS.xs, color: theme.textMuted, lineHeight: 18, marginTop: SPACING.sm, textAlign: 'center' },
+  boostPromo: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
+    backgroundColor: theme.surface, borderRadius: RADIUS.lg, padding: SPACING.lg,
+    marginTop: SPACING.xl, borderWidth: 1, borderColor: theme.borderLight,
+  },
+  boostPromoTitre: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.textPrimary },
+  boostPromoTexte: { fontSize: FONTS.xs, color: theme.textSecondary, marginTop: 2 },
 });

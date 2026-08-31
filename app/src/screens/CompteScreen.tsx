@@ -195,11 +195,12 @@ export default function CompteScreen({ navigation }: Props) {
     {
       cle: 'abonnement',
       icone: 'card-outline',
-      titre: 'Mon abonnement',
+      titre: 'Services payants',
       detail:
-        entitlements.planCode === 'pro' ? 'Flash Pro'
-        : entitlements.planCode === 'vendeur' ? 'Flash Vendeur'
-        : 'Gratuit',
+        user?.plan_achete === 'service' ? 'Prestataire de service'
+        : entitlements.planCode === 'pro' ? 'PRO / Boutique'
+        : entitlements.planCode === 'vendeur' ? 'Vendeur'
+        : 'Devenir PRO, prestataire ou vendeur',
       onPress: () => navigation.navigate('Subscription'),
     },
     {

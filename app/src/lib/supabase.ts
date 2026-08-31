@@ -85,6 +85,10 @@ export interface User {
   verification_status?: 'unverified' | 'phone_verified' | 'document_pending'
                       | 'verified' | 'rejected' | 'suspended';
   date_verification?: string | null;
+  // Traçabilité de l'offre payante achetée (migration_paiement_unique.sql).
+  // Bookkeeping uniquement : 'service' donne les mêmes droits que 'pro',
+  // seuls le prix et la présentation à l'achat diffèrent.
+  plan_achete?: 'vendeur' | 'pro' | 'service' | null;
 }
 
 export interface Annonce {
