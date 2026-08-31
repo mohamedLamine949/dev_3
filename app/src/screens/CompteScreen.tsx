@@ -155,14 +155,11 @@ export default function CompteScreen({ navigation }: Props) {
   };
 
   // ─── Bloc 2 : activité de vente ───────────────────────────────────────
+  // « Mes annonces » et « Booster » sont sorties de cette liste : ce sont
+  // les deux actions les plus fréquentes, elles ont leur propre carte
+  // visuelle juste sous l'identité (même logique que la carte Pro
+  // ci-dessous) plutôt qu'une ligne au même poids que « Paramètres ».
   const lignesVente: Ligne[] = [
-    {
-      cle: 'annonces',
-      icone: 'list-outline',
-      titre: 'Mes annonces',
-      detail: chargement ? '…' : `${nbAnnonces} en ligne`,
-      onPress: () => navigation.navigate('MesAnnonces'),
-    },
     {
       cle: 'favoris',
       icone: 'heart-outline',
@@ -326,6 +323,43 @@ export default function CompteScreen({ navigation }: Props) {
         {chargement && (
           <ActivityIndicator color={theme.primary} style={{ marginTop: SPACING.lg }} />
         )}
+
+        {/* Cartes visuelles plutôt que des lignes de liste : ce sont les deux
+            actions les plus fréquentes d'un vendeur, elles doivent se voir
+            au premier coup d'œil (même logique que la carte Pro ci-dessous). */}
+        <TouchableOpacity
+          style={styles.carteProFond}
+          onPress={() => navigation.navigate('MesAnnonces')}
+          activeOpacity={0.9}
+          accessibilityRole="button"
+          accessibilityLabel="Mes annonces"
+        >
+          <View style={styles.carteProIcone}>
+            <Ionicons name="list" size={22} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.carteProTitre}>Mes annonces</Text>
+            <Text style={styles.carteProDetail}>{chargement ? '…' : `${nbAnnonces} en ligne`}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.9)" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.carteProFond, { backgroundColor: theme.secondary, marginTop: SPACING.md }]}
+          onPress={() => navigation.navigate('BoosterMesAnnonces')}
+          activeOpacity={0.9}
+          accessibilityRole="button"
+          accessibilityLabel="Booster mes annonces"
+        >
+          <View style={styles.carteProIcone}>
+            <Ionicons name="rocket" size={22} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.carteProTitre}>Booster mes annonces</Text>
+            <Text style={styles.carteProDetail}>Plus de visibilité, plus vite</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.9)" />
+        </TouchableOpacity>
 
         {rendreGroupe('Mon activité de vente', lignesVente)}
         {/* Carte VISUELLE plutot qu'une ligne de liste : c'est le point

@@ -4,7 +4,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { formatNombre, formatPrix } from '../lib/format';
-import { useBoostStats, isBoostActif, BOOST_DURATION_HOURS } from '../hooks/useBoost';
+import { useBoostStats, useBoostContactStats, isBoostActif, BOOST_DURATION_HOURS } from '../hooks/useBoost';
+
+const TYPES_CONTACT = [
+  { cle: 'depuisWhatsapp' as const, icone: 'logo-whatsapp' as const, label: 'WhatsApp' },
+  { cle: 'depuisAppels' as const, icone: 'call-outline' as const, label: 'Appels' },
+  { cle: 'depuisMessages' as const, icone: 'chatbubble-outline' as const, label: 'Messages' },
+  { cle: 'depuisDemandes' as const, icone: 'receipt-outline' as const, label: 'Commandes et devis' },
+];
 
 interface Props {
   navigation: any;
@@ -33,11 +40,19 @@ export default function BoostResultsScreen({ navigation, route }: Props) {
   const { theme, isDark } = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const { annonce, loading, refetch } = useBoostStats(annonceId);
+  const { stats: contacts, loading: contactsLoading, refetch: refetchContacts } = useBoostContactStats(annonceId, annonce?.boost_paye_le);
 
   const actif = annonce ? isBoostActif(annonce) : false;
   const vuesAvant = annonce?.boost_vues_avant ?? 0;
   const vuesTotal = annonce?.nombre_vues ?? 0;
   const vuesGagnees = Math.max(0, vuesTotal - vuesAvant);
+  // Le vrai indicateur de « ça valait le coup » : pas juste combien de
+  // regards, mais combien se sont transformés en contact réel (§3.4).
+  const tauxConversion = contacts && vuesGagnees > 0
+    ? Math.round((contacts.depuisTotal / vuesGagnees) * 100)
+    : null;
+
+  const rafraichir = () => { refetch(); refetchContacts(); };
 
   return (
     <View style={styles.container}>
@@ -48,7 +63,7 @@ export default function BoostResultsScreen({ navigation, route }: Props) {
           <Ionicons name="arrow-back" size={24} color={theme.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Résultats du boost</Text>
-        <TouchableOpacity onPress={refetch} activeOpacity={0.7}>
+        <TouchableOpacity onPress={rafraichir} activeOpacity={0.7}>
           <Ionicons name="refresh" size={22} color={theme.textSecondary} />
         </TouchableOpacity>
       </View>
@@ -85,6 +100,38 @@ export default function BoostResultsScreen({ navigation, route }: Props) {
               <Text style={styles.statLabel}>Vues depuis le boost</Text>
             </View>
           </View>
+
+          {!contactsLoading && contacts && (
+            <View style={styles.statsRow}>
+              <View style={[styles.statCard, styles.statCardAccent]}>
+                <Text style={[styles.statValue, { color: theme.primary }]}>+{formatNombre(contacts.depuisTotal)}</Text>
+                <Text style={styles.statLabel}>Contacts depuis le boost</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>{tauxConversion !== null ? `${tauxConversion}%` : '—'}</Text>
+                <Text style={styles.statLabel}>Des vues transformées en contact</Text>
+              </View>
+            </View>
+          )}
+
+          {!contactsLoading && contacts && (
+            <View style={styles.contactsCard}>
+              <Text style={styles.contactsTitre}>Détail des contacts depuis le boost</Text>
+              {contacts.depuisTotal === 0 ? (
+                <Text style={styles.contactsVide}>
+                  Personne ne vous a encore contacté depuis le boost. Les vues, elles, ont déjà bougé — laissez un peu de temps.
+                </Text>
+              ) : (
+                TYPES_CONTACT.map(t => (
+                  <View key={t.cle} style={styles.contactLigne}>
+                    <Ionicons name={t.icone} size={17} color={theme.primary} />
+                    <Text style={styles.contactLabel}>{t.label}</Text>
+                    <Text style={styles.contactValeur}>{formatNombre(contacts[t.cle])}</Text>
+                  </View>
+                ))
+              )}
+            </View>
+          )}
 
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Vues avant le boost</Text>
@@ -144,6 +191,15 @@ const createStyles = (theme: any) => StyleSheet.create({
   statCardAccent: { borderColor: theme.primary, borderWidth: 1.5 },
   statValue: { fontSize: FONTS.xxl, fontWeight: FONTS.extrabold, color: theme.textPrimary },
   statLabel: { fontSize: FONTS.xs, color: theme.textSecondary, marginTop: 4, textAlign: 'center' },
+  contactsCard: {
+    backgroundColor: theme.surface, borderRadius: RADIUS.lg, padding: SPACING.lg,
+    marginBottom: SPACING.xl, borderWidth: 1, borderColor: theme.borderLight, ...SHADOWS.sm,
+  },
+  contactsTitre: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.textPrimary, marginBottom: SPACING.md },
+  contactsVide: { fontSize: FONTS.xs, color: theme.textSecondary, lineHeight: 18 },
+  contactLigne: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, minHeight: 36 },
+  contactLabel: { flex: 1, fontSize: FONTS.sm, color: theme.textPrimary },
+  contactValeur: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: theme.primary },
   detailRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: SPACING.md, borderBottomWidth: 1, borderBottomColor: theme.borderLight,

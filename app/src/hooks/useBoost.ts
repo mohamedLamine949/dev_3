@@ -57,3 +57,64 @@ export function useBoostStats(annonceId: string | undefined) {
 
   return { annonce, loading, refetch };
 }
+
+export interface BoostContactStats {
+  depuisTotal: number;
+  depuisWhatsapp: number;
+  depuisAppels: number;
+  depuisMessages: number;
+  depuisDemandes: number; // commande + devis
+  avantTotal: number;
+}
+
+/**
+ * Détail des mises en relation (contact_events, migration_p2c_contacts) sur
+ * UNE annonce, découpé avant / depuis le boost — au-delà des simples vues,
+ * c'est ce qui répond vraiment à « est-ce que ça valait le coup de
+ * booster ». RLS déjà en place : le vendeur lit ses propres contacts, pas
+ * besoin de nouvelle policy.
+ */
+export function useBoostContactStats(annonceId: string | undefined, boostPayeLe: string | null | undefined) {
+  const [stats, setStats] = useState<BoostContactStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [indisponible, setIndisponible] = useState(false);
+
+  const refetch = useCallback(async () => {
+    if (!annonceId) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('contact_events')
+      .select('type, date_creation')
+      .eq('annonce_id', annonceId);
+
+    // Migration pas encore appliquée (ou tout autre souci) : on ne casse pas
+    // l'écran, on masque juste ce bloc — comme le fait déjà MaBoutiqueScreen.
+    if (error) {
+      setIndisponible(true);
+      setStats(null);
+      setLoading(false);
+      return;
+    }
+
+    const rows = (data || []) as { type: string; date_creation: string }[];
+    const cutoff = boostPayeLe ? new Date(boostPayeLe).getTime() : 0;
+    const depuis = rows.filter(r => new Date(r.date_creation).getTime() >= cutoff);
+    const avant = rows.filter(r => new Date(r.date_creation).getTime() < cutoff);
+    const compte = (list: typeof rows, t: string) => list.filter(r => r.type === t).length;
+
+    setStats({
+      depuisTotal: depuis.length,
+      depuisWhatsapp: compte(depuis, 'whatsapp'),
+      depuisAppels: compte(depuis, 'appel'),
+      depuisMessages: compte(depuis, 'message'),
+      depuisDemandes: compte(depuis, 'commande') + compte(depuis, 'devis'),
+      avantTotal: avant.length,
+    });
+    setIndisponible(false);
+    setLoading(false);
+  }, [annonceId, boostPayeLe]);
+
+  useEffect(() => { refetch(); }, [refetch]);
+
+  return { stats, loading, indisponible, refetch };
+}

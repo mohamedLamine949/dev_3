@@ -51,6 +51,7 @@ import CommandesScreen from '../screens/CommandesScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import BoostAnnonceScreen from '../screens/BoostAnnonceScreen';
 import BoostResultsScreen from '../screens/BoostResultsScreen';
+import BoosterMesAnnoncesScreen from '../screens/BoosterMesAnnoncesScreen';
 import AdminModerationScreen from '../screens/AdminModerationScreen';
 import SignalementsScreen from '../screens/SignalementsScreen';
 import DemandeDevisScreen from '../screens/DemandeDevisScreen';
@@ -553,6 +554,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="BoostResultats"
           component={BoostResultsScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="BoosterMesAnnonces"
+          component={BoosterMesAnnoncesScreen}
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen
