@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Platform, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
@@ -93,6 +93,7 @@ export default function SubscriptionScreen({ navigation }: Props) {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selected, setSelected] = useState<PlanKey | null>(null);
+  const [activationLibreEnCours, setActivationLibreEnCours] = useState<PlanKey | null>(null);
 
   const effectiveKey = getEffectivePlanKey(user);
   const active = isSubscriptionActive(user);
@@ -100,26 +101,49 @@ export default function SubscriptionScreen({ navigation }: Props) {
   const labelActuel = (user?.plan_achete && LABEL_PLAN_ACHETE[user.plan_achete])
     || (effectiveKey === 'professionnel' ? 'PRO / Boutique' : effectiveKey === 'vendeur' ? 'Vendeur' : '');
 
-  const openPayment = (key: PlanKey) => {
+  const appliquerOffre = async (p: typeof PLANS[number]) => {
+    if (!session?.user) return;
+    const updates: Record<string, any> = {
+      type_compte: p.typeCompte,
+      date_abonnement: new Date().toISOString(),
+      plan_achete: p.planAchete,
+    };
+    if (p.typeActiviteParDefaut) updates.type_activite = p.typeActiviteParDefaut;
+    const { error } = await supabase.from('users').update(updates).eq('id', session.user.id);
+    if (error) throw new Error(error.message);
+    await refreshUser();
+  };
+
+  const choisirOffre = async (key: PlanKey) => {
     if (!session?.user) {
       navigation.navigate('Login');
       return;
     }
+    const p = PLANS.find(x => x.key === key);
+    if (!p) return;
+
+    // Offre de lancement (§ payments_enabled) : on active directement, sans
+    // paiement — même interrupteur que le reste de la monétisation.
+    if (!paymentsEnabled) {
+      setActivationLibreEnCours(key);
+      try {
+        await appliquerOffre(p);
+        Alert.alert('C\'est fait !', `Vous êtes maintenant ${p.nom} — gratuitement, pendant le lancement.`);
+      } catch (e: any) {
+        Alert.alert('Erreur', e.message || "Impossible d'activer l'offre pour l'instant.");
+      } finally {
+        setActivationLibreEnCours(null);
+      }
+      return;
+    }
+
     setSelected(key);
     setModalVisible(true);
   };
 
   const handleSuccess = async () => {
-    if (!plan || !session?.user) return;
-    const updates: Record<string, any> = {
-      type_compte: plan.typeCompte,
-      date_abonnement: new Date().toISOString(),
-      plan_achete: plan.planAchete,
-    };
-    if (plan.typeActiviteParDefaut) updates.type_activite = plan.typeActiviteParDefaut;
-    const { error } = await supabase.from('users').update(updates).eq('id', session.user.id);
-    if (error) throw new Error(error.message);
-    await refreshUser();
+    if (!plan) return;
+    await appliquerOffre(plan);
   };
 
   return (
@@ -150,16 +174,17 @@ export default function SubscriptionScreen({ navigation }: Props) {
           <View style={styles.launchBox}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <Ionicons name="gift-outline" size={20} color={theme.primary} />
-              <Text style={styles.launchTitle}>Offre de lancement 🎉</Text>
+              <Text style={styles.launchTitle}>Gratuit pendant le lancement 🎉</Text>
             </View>
             <Text style={styles.launchText}>
-              Ces offres sont temporairement suspendues. Toutes les
-              fonctionnalités sont gratuites pendant le lancement.
+              Le temps que Flash Market se remplisse de boutiques et de vendeurs, ouvrez un
+              compte PRO, prestataire ou vendeur gratuitement — les prix ci-dessous
+              s'appliqueront plus tard, une fois le lancement terminé.
             </Text>
           </View>
         )}
 
-        {paymentsEnabled && PLANS.map((p) => (
+        {PLANS.map((p) => (
           <View key={p.key} style={[styles.card, p.recommande && styles.cardReco]}>
             <View style={styles.cardHead}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -173,9 +198,13 @@ export default function SubscriptionScreen({ navigation }: Props) {
               )}
             </View>
             <Text style={styles.accroche}>{p.accroche}</Text>
-            <Text style={styles.prix}>
-              {p.prix.toLocaleString('fr-FR')} <Text style={styles.prixUnit}>FCFA · paiement unique</Text>
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+              <Text style={[styles.prix, !paymentsEnabled && styles.prixBarre]}>
+                {p.prix.toLocaleString('fr-FR')} FCFA
+              </Text>
+              {!paymentsEnabled && <Text style={styles.prixGratuit}>Gratuit pour l'instant</Text>}
+            </View>
+            {paymentsEnabled && <Text style={styles.prixUnit}>Paiement unique</Text>}
 
             <View style={{ marginVertical: SPACING.md }}>
               {p.avantages.map((a, i) => (
@@ -192,38 +221,39 @@ export default function SubscriptionScreen({ navigation }: Props) {
                 p.recommande
                   ? { backgroundColor: theme.primary }
                   : { backgroundColor: theme.surface, borderWidth: 1.5, borderColor: theme.primary },
+                activationLibreEnCours === p.key && { opacity: 0.7 },
               ]}
-              onPress={() => openPayment(p.key)}
+              onPress={() => choisirOffre(p.key)}
               activeOpacity={0.85}
+              disabled={activationLibreEnCours === p.key}
             >
               <Text style={[styles.subBtnText, { color: p.recommande ? '#fff' : theme.primary }]}>
-                Débloquer ({p.prix.toLocaleString('fr-FR')} FCFA)
+                {paymentsEnabled
+                  ? `Débloquer (${p.prix.toLocaleString('fr-FR')} FCFA)`
+                  : activationLibreEnCours === p.key ? 'Activation…' : 'Devenir ' + p.nom + ' gratuitement'}
               </Text>
             </TouchableOpacity>
           </View>
         ))}
 
-        {paymentsEnabled && (
-          <>
-            <Text style={styles.note}>
-              Paiement unique via Mobile Money (Orange Money). Vos avantages restent actifs à vie —
-              aucun renouvellement, aucun prélèvement automatique.
-            </Text>
+        <Text style={styles.note}>
+          {paymentsEnabled
+            ? "Paiement unique via Mobile Money (Orange Money). Vos avantages restent actifs à vie — aucun renouvellement, aucun prélèvement automatique."
+            : "Gratuit pendant le lancement. Vos avantages resteront acquis à vie, même quand les prix ci-dessus entreront en vigueur."}
+        </Text>
 
-            <TouchableOpacity
-              style={styles.boostPromo}
-              activeOpacity={0.85}
-              onPress={() => navigation.navigate('BoosterMesAnnonces')}
-            >
-              <Ionicons name="rocket-outline" size={20} color={theme.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.boostPromoTitre}>Envie de plus de visibilité tout de suite ?</Text>
-                <Text style={styles.boostPromoTexte}>Boostez une annonce précise dès maintenant — 250 FCFA</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
-            </TouchableOpacity>
-          </>
-        )}
+        <TouchableOpacity
+          style={styles.boostPromo}
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('BoosterMesAnnonces')}
+        >
+          <Ionicons name="rocket-outline" size={20} color={theme.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.boostPromoTitre}>Envie de plus de visibilité tout de suite ?</Text>
+            <Text style={styles.boostPromoTexte}>Boostez une annonce précise dès maintenant — 250 FCFA</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+        </TouchableOpacity>
       </ScrollView>
 
       <PaiementProModal
@@ -277,7 +307,9 @@ const createStyles = (theme: any) => StyleSheet.create({
   recoText: { fontSize: 10, fontWeight: FONTS.bold, color: '#fff' },
   accroche: { fontSize: FONTS.sm, color: theme.textSecondary, marginBottom: SPACING.sm },
   prix: { fontSize: FONTS.xxl, fontWeight: FONTS.extrabold, color: theme.primary },
-  prixUnit: { fontSize: FONTS.sm, fontWeight: '400', color: theme.textSecondary },
+  prixBarre: { color: theme.textMuted, textDecorationLine: 'line-through', fontSize: FONTS.lg },
+  prixGratuit: { fontSize: FONTS.md, fontWeight: FONTS.extrabold, color: theme.success },
+  prixUnit: { fontSize: FONTS.sm, fontWeight: '400', color: theme.textSecondary, marginTop: -2 },
   avRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
   avText: { flex: 1, fontSize: FONTS.sm, color: theme.textPrimary, lineHeight: 20 },
   subBtn: { paddingVertical: 14, borderRadius: RADIUS.md, alignItems: 'center', marginTop: SPACING.sm },
