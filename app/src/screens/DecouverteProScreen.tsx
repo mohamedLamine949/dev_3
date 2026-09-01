@@ -58,6 +58,23 @@ export default function DecouverteProScreen({ navigation }: Props) {
             </TouchableOpacity>
           );
         })}
+
+        {/* Fin de la liste : le meilleur moment pour proposer à un visiteur
+            qui vient de parcourir tous les métiers de rejoindre lui-même. */}
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => navigation.navigate('Subscription')}
+          style={styles.devenirProCard}
+        >
+          <View style={styles.devenirProIcon}>
+            <Ionicons name="ribbon-outline" size={22} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.devenirProTitle}>Vous êtes un professionnel ?</Text>
+            <Text style={styles.devenirProSubtitle}>Rejoignez-les et créez votre vitrine</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.9)" />
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -93,4 +110,18 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   tileLabel: { fontSize: FONTS.md, fontWeight: FONTS.extrabold, color: '#fff', marginBottom: 2 },
   tileCount: { fontSize: FONTS.xs, color: 'rgba(255,255,255,0.85)' },
+
+  devenirProCard: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
+    backgroundColor: theme.info, borderRadius: RADIUS.xl,
+    padding: SPACING.lg, marginTop: SPACING.sm, minHeight: 80,
+    ...SHADOWS.md,
+  },
+  devenirProIcon: {
+    width: 44, height: 44, borderRadius: RADIUS.lg,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  devenirProTitle: { fontSize: FONTS.md, fontWeight: FONTS.extrabold, color: '#fff' },
+  devenirProSubtitle: { fontSize: FONTS.xs, color: 'rgba(255,255,255,0.9)', marginTop: 2 },
 });

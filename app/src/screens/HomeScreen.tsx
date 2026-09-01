@@ -539,6 +539,23 @@ export default function HomeScreen({ navigation }: Props) {
               </View>
             </Gradient>
           </TouchableOpacity>
+
+          {/* Incitation à ouvrir un compte pro — juste sous la découverte des
+              pros existants, là où le visiteur vient de voir ce que ça donne. */}
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => navigation.navigate('Subscription')}
+            style={styles.devenirProCard}
+          >
+            <View style={styles.devenirProIcon}>
+              <Ionicons name="ribbon-outline" size={20} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.devenirProTitle}>Vous êtes un professionnel ?</Text>
+              <Text style={styles.devenirProSubtitle}>Créez votre vitrine et gagnez en visibilité</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.9)" />
+          </TouchableOpacity>
         </View>
 
         {/* Récemment consultés */}
@@ -1018,6 +1035,20 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 4,
   },
   proCtaExploreText: { fontSize: FONTS.sm, fontWeight: FONTS.extrabold, color: '#fff' },
+
+  devenirProCard: {
+    flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
+    backgroundColor: theme.info, borderRadius: RADIUS.lg,
+    padding: SPACING.lg, marginTop: SPACING.sm, minHeight: 72,
+    ...SHADOWS.sm,
+  },
+  devenirProIcon: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  devenirProTitle: { fontSize: FONTS.sm, fontWeight: FONTS.extrabold, color: '#fff' },
+  devenirProSubtitle: { fontSize: FONTS.xs, color: 'rgba(255,255,255,0.9)', marginTop: 2 },
 
   // Récemment vus
   recentSection: {
