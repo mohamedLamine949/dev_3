@@ -102,6 +102,11 @@ RETURNS TRIGGER AS $$
 BEGIN
   IF NEW.boost_paye_le IS NOT NULL
      AND COALESCE(NEW.boost_prix, 0) > 0
+     -- Le prix est décidé par le téléphone : un appareil resté sur un ancien
+     -- bundle JS écrit 250 même sur un boost offert. Quand les paiements sont
+     -- désactivés, aucun boost n'est un encaissement. Défaut TRUE si la config
+     -- est illisible, pour ne jamais perdre un vrai paiement.
+     AND COALESCE((SELECT payments_enabled FROM public.app_config WHERE id = 1), TRUE)
      AND (TG_OP = 'INSERT'
           OR OLD.boost_paye_le IS DISTINCT FROM NEW.boost_paye_le)
   THEN
@@ -234,6 +239,13 @@ SET boost_prix = 0
 WHERE boost_paye_le IS NOT NULL
   AND COALESCE(boost_prix, 0) > 0
   AND boost_paye_le < TIMESTAMPTZ '2026-08-31 22:37:00+00';
+
+-- La période LIVE s'est arrêtée le 2026-09-01 à 12:07 UTC (retour en
+-- FREE_LAUNCH, offre de lancement gratuite). Le boost de « Stanley » du
+-- 2026-09-01 15:25 était donc offert lui aussi, alors qu'il portait 250 F :
+-- voir supabase/correction_boost_offert_2026_09_01.sql, qui le remet à 0 et
+-- supprime la ligne d'encaissement fictive créée par la reprise ci-dessous.
+-- Fenêtre réellement facturée à ce jour : 2026-08-31 22:37 → 2026-09-01 12:07.
 
 -- =========================================================================
 -- 7. Reprise de l'existant — les seuls encaissements réels à ce jour
