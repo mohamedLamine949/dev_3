@@ -15,9 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { pickImages } from '../lib/imagePicker';
-import { UPLOAD_CACHE_CONTROL } from '../lib/imageOptimizer';
-import * as FileSystem from 'expo-file-system/legacy';
-import { decode } from 'base64-arraybuffer';
+import { televerserPhotosAnnonce, remplacerPhotosAnnonce } from '../lib/photosAnnonce';
 import { COLORS, FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, SUBCATEGORIES, ETAT_ARTICLE } from '../constants/theme';
 import { supabase, Annonce } from '../lib/supabase';
 import { useTheme } from '../contexts/ThemeContext';
@@ -85,7 +83,24 @@ export default function EditAnnonceScreen({ route, navigation }: Props) {
     try {
       setIsSaving(true);
 
-      // 1. Mettre à jour l'annonce dans la table 'annonces'
+      // 1. Photos D'ABORD, base ensuite.
+      //
+      // L'ancien ordre supprimait toutes les lignes `images_annonce` puis
+      // re-televersait : une photo qui ne partait pas etait perdue sans un
+      // mot, et si le reseau lachait au mauvais moment l'annonce se
+      // retrouvait sans aucune photo. On envoie donc tout avant de toucher a
+      // quoi que ce soit, et on renonce proprement en cas d'echec.
+      const { urls, echecs } = await televerserPhotosAnnonce(annonce.id, images);
+      if (echecs > 0) {
+        Alert.alert(
+          'Photos non envoyées',
+          `${echecs} photo(s) n'ont pas pu être envoyées (connexion trop faible). Rien n'a été modifié : réessayez, votre annonce est intacte.`
+        );
+        setIsSaving(false);
+        return;
+      }
+
+      // 2. Mettre à jour l'annonce dans la table 'annonces'
       const { error: updateError } = await supabase
         .from('annonces')
         .update({
@@ -101,63 +116,8 @@ export default function EditAnnonceScreen({ route, navigation }: Props) {
 
       if (updateError) throw updateError;
 
-      // 2. Mettre à jour les images dans la table 'images_annonce'
-      // Étape a : Supprimer toutes les images actuelles en base de données pour cette annonce
-      const { error: deleteImagesError } = await supabase
-        .from('images_annonce')
-        .delete()
-        .eq('annonce_id', annonce.id);
-
-      if (deleteImagesError) throw deleteImagesError;
-
-      // Étape b : Ré-insérer les images dans l'ordre (téléverser les nouvelles images locales)
-      for (let i = 0; i < images.length; i++) {
-        const uri = images[i];
-        let url = uri;
-
-        if (!uri.startsWith('http')) {
-          // C'est une nouvelle image locale, il faut la téléverser dans Supabase Storage
-          const fileExt = 'jpg';
-          const fileName = `${annonce.id}/${Date.now()}_${i}.${fileExt}`;
-
-          const base64 = await FileSystem.readAsStringAsync(uri, { 
-            encoding: 'base64' as any
-          });
-
-          const { error: uploadError } = await supabase.storage
-            .from('annonces-images')
-            .upload(fileName, decode(base64), { 
-              contentType: 'image/jpeg',
-              upsert: true,
-              cacheControl: UPLOAD_CACHE_CONTROL,
-            });
-
-          if (uploadError) {
-            console.error(`Erreur upload image ${i}:`, uploadError);
-            continue;
-          }
-
-          // Récupérer l'URL publique
-          const { data: urlData } = supabase.storage
-            .from('annonces-images')
-            .getPublicUrl(fileName);
-          
-          url = urlData.publicUrl;
-        }
-
-        // Insérer la référence dans la table images_annonce
-        const { error: insertImgError } = await supabase
-          .from('images_annonce')
-          .insert({
-            annonce_id: annonce.id,
-            image_url: url,
-            ordre: i,
-          });
-
-        if (insertImgError) {
-          console.error(`Erreur d'insertion en BDD pour l'image ${i}:`, insertImgError);
-        }
-      }
+      // 3. Réécrire la liste des photos, dans l'ordre affiché à l'écran.
+      await remplacerPhotosAnnonce(annonce.id, urls);
 
       Alert.alert('Succès', 'Votre annonce a été modifiée avec succès.', [
         { text: 'OK', onPress: () => navigation.goBack() }

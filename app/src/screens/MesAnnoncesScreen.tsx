@@ -17,6 +17,7 @@ import { supabase, Annonce } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useMesAnnonces, updateAnnonceStatus, deleteAnnonceById } from '../hooks/useAnnonces';
 
+import AnnonceActionsSheet, { ActionAnnonce } from '../components/AnnonceActionsSheet';
 import { useTheme } from '../contexts/ThemeContext';
 import { useTabBarSpace } from '../hooks/useTabBarSpace';
 import { formatPrix } from '../lib/format';
@@ -46,116 +47,156 @@ export default function MesAnnoncesScreen({ navigation }: any) {
     return unsubscribe;
   }, [navigation, refetch]);
 
-  const handleManage = (annonce: Annonce) => {
-    const diffDays = Math.floor((Date.now() - new Date(annonce.date_creation).getTime()) / (1000 * 60 * 60 * 24));
-    // Renouvelable dès 15 jours, ou à tout moment si déjà expirée
-    const showRenew = (diffDays >= 15 || annonce.statut === 'expire') && annonce.statut !== 'vendu';
+  // Annonce dont la feuille d'actions est ouverte (null = fermee).
+  const [annonceGeree, setAnnonceGeree] = React.useState<Annonce | null>(null);
 
-    const actions: any[] = [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Modifier les détails',
-        onPress: () => navigation.navigate('EditAnnonce', { annonce })
-      }
-    ];
+  // Renouvelable des 15 jours, ou a tout moment si deja expiree.
+  const peutRenouveler = (annonce: Annonce) => {
+    const jours = Math.floor((Date.now() - new Date(annonce.date_creation).getTime()) / (1000 * 60 * 60 * 24));
+    return (jours >= 15 || annonce.statut === 'expire') && annonce.statut !== 'vendu';
+  };
 
-    if (showRenew) {
+  const actionsPour = (annonce: Annonce): ActionAnnonce[] => {
+    const actions: ActionAnnonce[] = [];
+    if (peutRenouveler(annonce)) {
       actions.push({
-        text: 'Renouveler l\'annonce (Gratuit)',
-        onPress: async () => {
-          try {
-            const { error } = await supabase
-              .from('annonces')
-              .update({
-                date_creation: new Date().toISOString(),
-                statut: 'active',
-                // Réarme la notification d'expiration pour le nouveau cycle de 30 jours
-                expiration_notifiee: false,
-              })
-              .eq('id', annonce.id);
-
-            if (error) {
-              Alert.alert('Erreur', error.message);
-            } else {
-              Alert.alert('Succès', 'Votre annonce a été renouvelée et remise en avant gratuitement.');
-              refetch();
-            }
-          } catch (err: any) {
-            Alert.alert('Erreur', err.message || 'Une erreur est survenue.');
-          }
-        }
+        cle: 'renouveler',
+        icone: 'refresh-outline',
+        titre: "Renouveler l'annonce",
+        detail: 'Gratuit — elle repart pour 30 jours et remonte dans le fil',
       });
     }
+    actions.push({
+      cle: 'vendu',
+      icone: annonce.statut === 'vendu' ? 'pricetag-outline' : 'checkmark-done-outline',
+      titre: annonce.statut === 'vendu' ? 'Remettre en vente' : 'Marquer comme vendu',
+      detail: annonce.statut === 'vendu'
+        ? "L'annonce redevient visible par les acheteurs"
+        : "L'annonce reste dans votre historique mais n'est plus proposee",
+    });
+    actions.push({
+      cle: 'supprimer',
+      icone: 'trash-outline',
+      titre: "Supprimer l'annonce",
+      detail: 'Definitif : photos et statistiques sont perdues',
+      destructive: true,
+    });
+    return actions;
+  };
 
-    actions.push(
-      { 
-        text: annonce.statut === 'vendu' ? 'Marquer comme disponible' : 'Marquer comme vendu', 
-        onPress: async () => {
-          const newStatus = annonce.statut === 'vendu' ? 'active' : 'vendu';
-          await updateAnnonceStatus(annonce.id, newStatus);
-          refetch();
-        } 
-      },
-      { 
-        text: 'Supprimer', 
-        style: 'destructive' as const, 
-        onPress: () => {
-          Alert.alert('Confirmer la suppression', 'Cette action est définitive.', [
-            { text: 'Annuler', style: 'cancel' },
-            { text: 'Oui, supprimer', style: 'destructive', onPress: async () => {
-               await deleteAnnonceById(annonce.id);
-               refetch();
-            }}
-          ])
-        } 
+  const executerAction = async (annonce: Annonce, cle: string) => {
+    setAnnonceGeree(null);
+
+    if (cle === 'renouveler') {
+      const { error } = await supabase
+        .from('annonces')
+        .update({
+          date_creation: new Date().toISOString(),
+          statut: 'active',
+          // Rearme la notification d'expiration pour le nouveau cycle de 30 jours
+          expiration_notifiee: false,
+        })
+        .eq('id', annonce.id);
+      if (error) Alert.alert('Erreur', error.message);
+      else {
+        Alert.alert('Annonce renouvelee', 'Votre annonce est remise en avant, gratuitement.');
+        refetch();
       }
-    );
+      return;
+    }
 
-    Alert.alert(
-      'Gérer l\'annonce',
-      `Que souhaitez-vous faire avec "${annonce.titre}" ?`,
-      actions
-    );
+    if (cle === 'vendu') {
+      await updateAnnonceStatus(annonce.id, annonce.statut === 'vendu' ? 'active' : 'vendu');
+      refetch();
+      return;
+    }
+
+    if (cle === 'supprimer') {
+      // Deux boutons seulement : une alerte de confirmation les affiche
+      // correctement sur Android comme sur iOS.
+      Alert.alert("Supprimer l'annonce ?", 'Cette action est definitive.', [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Oui, supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteAnnonceById(annonce.id);
+            refetch();
+          },
+        },
+      ]);
+    }
   };
 
   const renderItem = ({ item }: { item: Annonce }) => {
     const imageUrl = item.images?.[0]?.image_url || null;
     const badge = getStatusBadge(item.statut, item.est_payee, theme);
+    // Une annonce sans photo passe inapercue et n'est presque jamais
+    // contactee. Le vendeur doit le voir ici, avec le bouton pour corriger
+    // juste en dessous — pas le decouvrir par un acheteur mecontent.
+    const sansPhoto = !imageUrl;
 
     return (
-      <TouchableOpacity
-        style={styles.card}
-        activeOpacity={0.8}
-        onPress={() => navigation.navigate('AnnonceDetail', { annonce: item })}
-        onLongPress={() => handleManage(item)}
-      >
-        {imageUrl
-          ? <Image source={{ uri: imageUrl }} style={styles.image} />
-          : <View style={[styles.image, { backgroundColor: theme.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
-              <Ionicons name="image-outline" size={24} color={theme.borderLight} />
+      <View style={styles.card}>
+        <TouchableOpacity
+          style={styles.cardTop}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('AnnonceDetail', { annonce: item })}
+        >
+          {imageUrl
+            ? <Image source={{ uri: imageUrl }} style={styles.image} />
+            : <View style={[styles.image, { backgroundColor: theme.surfaceMuted, justifyContent: 'center', alignItems: 'center' }]}>
+                <Ionicons name="image-outline" size={24} color={theme.borderLight} />
+              </View>
+          }
+          <View style={styles.info}>
+            <View style={styles.headerRow}>
+              <Text style={styles.title} numberOfLines={1}>{item.titre}</Text>
+              <View style={[styles.badge, { backgroundColor: badge.bg }]}>
+                <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
+              </View>
             </View>
-        }
-        <View style={styles.info}>
-          <View style={styles.headerRow}>
-            <Text style={styles.title} numberOfLines={1}>{item.titre}</Text>
-            <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-              <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
-            </View>
-          </View>
-          <Text style={styles.price}>{formatPrix(item.prix)}</Text>
-          <View style={styles.statsRow}>
-            <View style={styles.stat}>
-              <Ionicons name="eye-outline" size={14} color={theme.textMuted} />
-              <Text style={styles.statText}>{(item as any).nombre_vues || 0}</Text>
-            </View>
-            <View style={styles.stat}>
-              <TouchableOpacity onPress={() => handleManage(item)}>
-                <Ionicons name="ellipsis-horizontal" size={20} color={theme.textMuted} />
-              </TouchableOpacity>
+            <Text style={styles.price}>{formatPrix(item.prix)}</Text>
+            <View style={styles.statsRow}>
+              <View style={styles.stat}>
+                <Ionicons name="eye-outline" size={14} color={theme.textMuted} />
+                <Text style={styles.statText}>{(item as any).nombre_vues || 0} vue(s)</Text>
+              </View>
             </View>
           </View>
+        </TouchableOpacity>
+
+        {sansPhoto && (
+          <View style={styles.alertePhoto}>
+            <Ionicons name="alert-circle" size={16} color={theme.error} />
+            <Text style={styles.alertePhotoText}>
+              Aucune photo. Appuyez sur Modifier pour en ajouter.
+            </Text>
+          </View>
+        )}
+
+        {/* Deux boutons ecrits en toutes lettres. « Modifier » etait cache
+            derriere un appui long et une petite icone « … » : des vendeurs
+            ont supprime puis republie leur annonce faute de le trouver. */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.actionBtnPrimary]}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('EditAnnonce', { annonce: item })}
+          >
+            <Ionicons name="create-outline" size={18} color={theme.primary} />
+            <Text style={[styles.actionText, { color: theme.primary }]}>Modifier</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            activeOpacity={0.85}
+            onPress={() => setAnnonceGeree(item)}
+          >
+            <Ionicons name="ellipsis-horizontal" size={18} color={theme.textSecondary} />
+            <Text style={[styles.actionText, { color: theme.textSecondary }]}>Plus</Text>
+          </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -193,6 +234,14 @@ export default function MesAnnoncesScreen({ navigation }: any) {
           onRefresh={refetch}
         />
       )}
+
+      <AnnonceActionsSheet
+        visible={!!annonceGeree}
+        titreAnnonce={annonceGeree?.titre}
+        actions={annonceGeree ? actionsPour(annonceGeree) : []}
+        onChoisir={cle => { if (annonceGeree) executerAction(annonceGeree, cle); }}
+        onFermer={() => setAnnonceGeree(null)}
+      />
     </View>
   );
 }
@@ -218,13 +267,38 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   list: { padding: SPACING.lg },
   card: {
-    flexDirection: 'row',
     backgroundColor: theme.surface,
     borderRadius: RADIUS.lg,
     padding: SPACING.sm,
     marginBottom: SPACING.md,
     ...SHADOWS.sm,
   },
+  cardTop: { flexDirection: 'row' },
+  alertePhoto: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(231, 76, 60, 0.12)',
+  },
+  alertePhotoText: { flex: 1, fontSize: FONTS.xs, color: theme.error, fontWeight: FONTS.semibold },
+  actionsRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm },
+  actionBtn: {
+    flex: 1,
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: RADIUS.md,
+    borderWidth: 1.5,
+    borderColor: theme.border,
+  },
+  actionBtnPrimary: { borderColor: theme.primary, backgroundColor: theme.primaryFaded },
+  actionText: { fontSize: FONTS.sm, fontWeight: FONTS.bold },
   image: {
     width: 80, height: 80, borderRadius: RADIUS.md, backgroundColor: theme.surfaceMuted
   },

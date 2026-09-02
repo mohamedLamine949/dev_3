@@ -44,7 +44,12 @@ interface Props {
 }
 
 export default function AnnonceDetailScreen({ route, navigation }: Props) {
-  const { annonce } = route.params as { annonce: Annonce };
+  const { annonce: annonceInitiale } = route.params as { annonce: Annonce };
+  // L'annonce vit dans un etat local : apres une modification, on doit
+  // reafficher la version a jour. Une fiche qui montre encore l'ancien prix
+  // fait croire que la modification n'a pas marche — c'est ce qui pousse un
+  // vendeur a tout supprimer pour republier.
+  const [annonce, setAnnonce] = useState<Annonce>(annonceInitiale);
   const { session } = useAuth();
   const isOwner = session?.user?.id === annonce.user_id;
   const { theme, isDark } = useTheme();
@@ -87,6 +92,28 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
       .single()
       .then(({ data }) => { if (data) setSeller((prev: any) => ({ ...prev, ...data })); });
   }, [annonce.user_id]);
+
+  // Relecture au retour sur l'ecran, uniquement pour le proprietaire : lui
+  // seul peut avoir modifie l'annonce entre-temps. Pour les autres, ce serait
+  // une requete de plus a chaque consultation, pour rien (egress).
+  useEffect(() => {
+    if (!isOwner) return;
+    const unsubscribe = navigation.addListener('focus', () => {
+      supabase
+        .from('annonces')
+        .select('*, images:images_annonce(image_url, ordre)')
+        .eq('id', annonceInitiale.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (!data) return;
+          const images = [...((data as any).images || [])].sort(
+            (a: any, b: any) => (a.ordre || 0) - (b.ordre || 0)
+          );
+          setAnnonce(prev => ({ ...prev, ...(data as any), images }));
+        });
+    });
+    return unsubscribe;
+  }, [navigation, isOwner, annonceInitiale.id]);
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -522,22 +549,36 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
       {/* STICKY CTA FIXE EN BAS */}
       <View style={styles.ctaContainer}>
         {isOwner ? (
-          <TouchableOpacity
-            style={styles.ctaMessageButton}
-            activeOpacity={0.85}
-            onPress={() => {
-              if (aDejaEteBoostee(annonce)) {
-                navigation.navigate('BoostResultats', { annonceId: annonce.id, annonceTitre: annonce.titre });
-              } else {
-                navigation.navigate('BoostAnnonce', { annonce });
-              }
-            }}
-          >
-            <Ionicons name="rocket-outline" size={20} color="#FFFFFF" />
-            <Text style={styles.ctaMessageText}>
-              {isBoostActif(annonce) ? 'Voir les résultats du boost' : aDejaEteBoostee(annonce) ? 'Voir les résultats' : 'Booster cette annonce'}
-            </Text>
-          </TouchableOpacity>
+          <>
+            {/* Modifier est visible en toutes lettres : c'etait jusqu'ici
+                cache derriere un appui long dans « Mes annonces », et des
+                vendeurs supprimaient puis republiaient leur annonce faute de
+                trouver comment corriger une photo ou un prix. */}
+            <TouchableOpacity
+              style={styles.ctaEditButton}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('EditAnnonce', { annonce })}
+            >
+              <Ionicons name="create-outline" size={20} color={theme.primary} />
+              <Text style={styles.ctaEditText}>Modifier</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.ctaMessageButton, { flex: 1 }]}
+              activeOpacity={0.85}
+              onPress={() => {
+                if (aDejaEteBoostee(annonce)) {
+                  navigation.navigate('BoostResultats', { annonceId: annonce.id, annonceTitre: annonce.titre });
+                } else {
+                  navigation.navigate('BoostAnnonce', { annonce });
+                }
+              }}
+            >
+              <Ionicons name="rocket-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.ctaMessageText}>
+                {isBoostActif(annonce) ? 'Résultats du boost' : aDejaEteBoostee(annonce) ? 'Voir les résultats' : 'Booster'}
+              </Text>
+            </TouchableOpacity>
+          </>
         ) : (
           <>
             <TouchableOpacity
@@ -942,6 +983,23 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     gap: SPACING.md,
     ...SHADOWS.lg,
   },
+  // Bouton « Modifier » du proprietaire : meme hauteur que le CTA principal,
+  // zone tactile confortable, contour plutot que plein pour que « Booster »
+  // reste l'action mise en avant.
+  ctaEditButton: {
+    height: 52,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    borderWidth: 2,
+    borderColor: theme.primary,
+    backgroundColor: theme.primaryFaded,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginRight: SPACING.md,
+  },
+  ctaEditText: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: theme.primary },
   ctaPhoneButton: {
     width: 52,
     height: 52,

@@ -242,7 +242,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
       user_id: session?.user?.id,
     };
 
-    const { error } = await createAnnonce(annonceData as any, images);
+    const { annonce, error, photosEchouees } = await createAnnonce(annonceData as any, images);
 
     if (error) {
       console.error(error);
@@ -252,11 +252,11 @@ export default function PostAnnonceScreen({ navigation }: any) {
     }
 
     setPaymentStep('success');
-    
+
     setTimeout(() => {
       setPaymentModalVisible(false);
       resetForm();
-      navigation.navigate('Accueil');
+      if (!signalerPhotosManquantes(annonce, photosEchouees)) navigation.navigate('Accueil');
     }, 2500);
   };
 
@@ -389,7 +389,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
       user_id: session?.user?.id,
     };
 
-    const { error } = await createAnnonce(annonceData as any, images);
+    const { annonce, error, photosEchouees } = await createAnnonce(annonceData as any, images);
 
     if (error) {
       console.error(error);
@@ -402,7 +402,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
     setTimeout(() => {
       setPaymentModalVisible(false);
       resetForm();
-      navigation.navigate('Accueil');
+      if (!signalerPhotosManquantes(annonce, photosEchouees)) navigation.navigate('Accueil');
     }, 3000);
   };
 
@@ -459,7 +459,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
       user_id: session?.user?.id,
     };
 
-    const { error } = await createAnnonce(annonceData as any, images);
+    const { annonce, error, photosEchouees } = await createAnnonce(annonceData as any, images);
 
     if (error) {
       console.error(error);
@@ -469,11 +469,11 @@ export default function PostAnnonceScreen({ navigation }: any) {
     }
 
     setPaymentStep('success');
-    
+
     setTimeout(() => {
       setPaymentModalVisible(false);
       resetForm();
-      navigation.navigate('Accueil');
+      if (!signalerPhotosManquantes(annonce, photosEchouees)) navigation.navigate('Accueil');
     }, 2500);
   };
 
@@ -510,6 +510,28 @@ export default function PostAnnonceScreen({ navigation }: any) {
     } catch (e) {
       console.warn("Failed to parse message from WebView:", e);
     }
+  };
+
+  /**
+   * Une annonce publiee dont les photos ne sont pas parties.
+   *
+   * Sur une connexion faible, le televersement echoue alors que l'annonce,
+   * elle, est bien creee. L'application affichait quand meme « Succes » : le
+   * vendeur decouvrait une annonce sans photo et croyait l'application
+   * cassee. On le dit, et on l'emmene directement la ou il peut les rajouter
+   * — sans supprimer ni republier.
+   */
+  const signalerPhotosManquantes = (annonce: any, photosEchouees: number) => {
+    if (!photosEchouees || !annonce) return false;
+    Alert.alert(
+      'Photos non envoyées',
+      `Votre annonce est publiée, mais ${photosEchouees} photo(s) ne sont pas parties (connexion trop faible). Ajoutez-les maintenant : une annonce sans photo n'est presque jamais contactée.`,
+      [
+        { text: 'Plus tard', style: 'cancel', onPress: () => navigation.navigate('Accueil') },
+        { text: 'Ajouter les photos', onPress: () => navigation.navigate('EditAnnonce', { annonce }) },
+      ]
+    );
+    return true;
   };
 
   const isFormValid = titre && prix && selectedCategory && selectedSousCategorie && images.length > 0;
