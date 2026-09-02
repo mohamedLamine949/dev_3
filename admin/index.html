@@ -223,10 +223,10 @@
             <div class="glass-card border border-gray-200 rounded-2xl p-6 relative overflow-hidden flex items-center justify-between">
               <div class="absolute -right-8 -bottom-8 w-24 h-24 bg-rose-500/5 rounded-full blur-xl"></div>
               <div>
-                <span class="block text-xs font-bold text-gray-500 uppercase tracking-widest">Revenus de dépôt</span>
-                <span class="block text-2xl font-extrabold text-gray-900 mt-2 truncate" id="stat-total-revenue">0 FCFA</span>
-                <span class="inline-flex items-center text-[10px] font-semibold text-rose-700 mt-2 bg-rose-50 px-2 py-0.5 rounded-full">
-                  <i class="fa-solid fa-wallet mr-1"></i> Mobile Money
+                <span class="block text-xs font-bold text-gray-500 uppercase tracking-widest">Encaissé (réel)</span>
+                <span class="block text-2xl font-extrabold text-gray-900 mt-2 truncate" id="stat-total-revenue">—</span>
+                <span class="inline-flex items-center text-[10px] font-semibold text-rose-700 mt-2 bg-rose-50 px-2 py-0.5 rounded-full" id="stat-revenue-trend">
+                  <i class="fa-solid fa-receipt mr-1"></i> journal des paiements
                 </span>
               </div>
               <div class="w-12 h-12 bg-rose-500/10 rounded-xl flex items-center justify-center border border-rose-500/20">
@@ -395,8 +395,9 @@
                 </select>
                 <select id="annonces-status-filter" class="bg-white border border-gray-300 focus:border-emerald-500 rounded-xl py-2.5 px-4 text-sm text-gray-700 outline-none cursor-pointer transition-all">
                   <option value="all">Tous statuts</option>
-                  <option value="paid">Payées (en ligne)</option>
-                  <option value="pending">En attente de paiement</option>
+                  <option value="active">En ligne</option>
+                  <option value="suspendu">Suspendues</option>
+                  <option value="boost">Boost en cours</option>
                 </select>
               </div>
             </div>
@@ -427,34 +428,72 @@
         <!-- ============================================================ -->
         <div id="page-finances" class="page hidden space-y-8">
 
-          <!-- Finance KPI cards -->
-          <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="glass-card border border-gray-200 rounded-2xl p-6 relative overflow-hidden">
-              <div class="absolute -right-8 -bottom-8 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl"></div>
-              <span class="block text-xs font-bold text-gray-500 uppercase tracking-widest">Revenus totaux</span>
-              <span class="block text-3xl font-extrabold text-emerald-600 mt-3" id="fin-total-revenue">0 FCFA</span>
-              <p class="text-xs text-gray-400 mt-2">Frais de dépôt réellement encaissés (montant variable selon la catégorie)</p>
+          <!-- Avertissement : le journal des encaissements n'est pas lisible.
+               Il vaut mieux ne rien afficher qu'afficher un chiffre reconstitué. -->
+          <div id="fin-avertissement" class="hidden rounded-2xl border border-amber-300 bg-amber-50 p-5">
+            <div class="flex items-start gap-3">
+              <i class="fa-solid fa-triangle-exclamation text-amber-600 mt-0.5"></i>
+              <div>
+                <p class="text-sm font-bold text-amber-800">Journal des paiements illisible</p>
+                <p class="text-xs text-amber-700 mt-1 leading-relaxed">
+                  La table <code class="font-mono font-semibold">paiements</code> n'a pas pu être lue.
+                  Exécutez <code class="font-mono font-semibold">supabase/migration_paiements.sql</code>
+                  dans le SQL Editor Supabase, puis rechargez cette page.
+                  Aucun montant n'est affiché tant que les encaissements réels ne sont pas lisibles :
+                  cette console ne devine pas de chiffre d'affaires.
+                </p>
+              </div>
             </div>
-            <div class="glass-card border border-gray-200 rounded-2xl p-6 relative overflow-hidden">
-              <div class="absolute -right-8 -bottom-8 w-24 h-24 bg-blue-500/5 rounded-full blur-xl"></div>
-              <span class="block text-xs font-bold text-gray-500 uppercase tracking-widest">Annonces payées</span>
-              <span class="block text-3xl font-extrabold text-gray-900 mt-3" id="fin-paid-count">0</span>
-              <p class="text-xs text-gray-400 mt-2">Dépôts effectivement réglés et en ligne</p>
+          </div>
+
+          <!-- Mode de monétisation réellement en vigueur -->
+          <section class="glass-card border border-gray-200 rounded-2xl p-5 flex items-start gap-4">
+            <div class="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center border border-gray-200 shrink-0">
+              <i class="fa-solid fa-toggle-on text-gray-500"></i>
             </div>
-            <div class="glass-card border border-gray-200 rounded-2xl p-6 relative overflow-hidden">
-              <div class="absolute -right-8 -bottom-8 w-24 h-24 bg-amber-500/5 rounded-full blur-xl"></div>
-              <span class="block text-xs font-bold text-gray-500 uppercase tracking-widest">En attente de paiement</span>
-              <span class="block text-3xl font-extrabold text-amber-600 mt-3" id="fin-pending-count">0</span>
-              <p class="text-xs text-gray-400 mt-2">Manque à gagner : <span id="fin-pending-revenue" class="text-amber-600 font-semibold">0 FCFA</span></p>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-bold uppercase tracking-widest text-gray-500">Mode de monétisation</span>
+                <span id="fin-mode-badge" class="px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-gray-100 text-gray-600 border-gray-200">—</span>
+              </div>
+              <p id="fin-mode-text" class="text-xs text-gray-500 mt-1.5 leading-relaxed">Lecture de la configuration…</p>
             </div>
           </section>
 
-          <!-- Revenue over time chart -->
+          <!-- KPI : QUE des sommes de lignes réellement encaissées -->
+          <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+            <div class="glass-card border border-gray-200 rounded-2xl p-6 relative overflow-hidden">
+              <div class="absolute -right-8 -bottom-8 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl"></div>
+              <span class="block text-xs font-bold text-gray-500 uppercase tracking-widest">Total encaissé</span>
+              <span class="block text-3xl font-extrabold text-emerald-600 mt-3" id="fin-total-revenue">—</span>
+              <p class="text-xs text-gray-400 mt-2" id="fin-total-sub">—</p>
+            </div>
+            <div class="glass-card border border-gray-200 rounded-2xl p-6 relative overflow-hidden">
+              <div class="absolute -right-8 -bottom-8 w-24 h-24 bg-violet-500/5 rounded-full blur-xl"></div>
+              <span class="block text-xs font-bold text-gray-500 uppercase tracking-widest">Boosts</span>
+              <span class="block text-3xl font-extrabold text-violet-600 mt-3" id="fin-boost-total">—</span>
+              <p class="text-xs text-gray-400 mt-2" id="fin-boost-count">—</p>
+            </div>
+            <div class="glass-card border border-gray-200 rounded-2xl p-6 relative overflow-hidden">
+              <div class="absolute -right-8 -bottom-8 w-24 h-24 bg-blue-500/5 rounded-full blur-xl"></div>
+              <span class="block text-xs font-bold text-gray-500 uppercase tracking-widest">Accès à vie</span>
+              <span class="block text-3xl font-extrabold text-blue-600 mt-3" id="fin-acces-total">—</span>
+              <p class="text-xs text-gray-400 mt-2" id="fin-acces-count">—</p>
+            </div>
+            <div class="glass-card border border-gray-200 rounded-2xl p-6 relative overflow-hidden">
+              <div class="absolute -right-8 -bottom-8 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl"></div>
+              <span class="block text-xs font-bold text-gray-500 uppercase tracking-widest">Annonces payées</span>
+              <span class="block text-3xl font-extrabold text-gray-900 mt-3" id="fin-annonce-total">—</span>
+              <p class="text-xs text-gray-400 mt-2" id="fin-annonce-count">—</p>
+            </div>
+          </section>
+
+          <!-- Encaissements par mois -->
           <section class="glass-card border border-gray-200 rounded-2xl p-6">
             <div class="flex items-center justify-between mb-6">
               <div>
-                <h3 class="text-sm font-bold uppercase tracking-wider text-gray-500">Revenus de dépôt par mois</h3>
-                <p class="text-xs text-gray-400 mt-0.5">Évolution des frais encaissés sur les 12 derniers mois</p>
+                <h3 class="text-sm font-bold uppercase tracking-wider text-gray-500">Encaissements par mois</h3>
+                <p class="text-xs text-gray-400 mt-0.5">Argent réellement reçu sur les 12 derniers mois — aucune estimation. Les accès sont des paiements uniques : rien ne se renouvelle d'un mois sur l'autre.</p>
               </div>
             </div>
             <div class="h-80 w-full">
@@ -462,24 +501,26 @@
             </div>
           </section>
 
-          <!-- Paid ads table -->
+          <!-- Détail : une ligne = un encaissement -->
           <section class="glass-card border border-gray-200 rounded-2xl p-6 flex flex-col">
             <div class="mb-6">
-              <h3 class="text-sm font-bold uppercase tracking-wider text-gray-500">Derniers paiements de dépôt</h3>
-              <p class="text-xs text-gray-400 mt-0.5">Annonces payées récemment</p>
+              <h3 class="text-sm font-bold uppercase tracking-wider text-gray-500">Détail des encaissements</h3>
+              <p class="text-xs text-gray-400 mt-0.5">Une ligne = un paiement réellement reçu (table <code class="font-mono">paiements</code>)</p>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-left border-collapse">
                 <thead>
                   <tr class="border-b border-gray-200 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                    <th class="pb-3 pl-2">Annonce</th>
-                    <th class="pb-3">Vendeur</th>
-                    <th class="pb-3">Montant</th>
-                    <th class="pb-3 text-right pr-2">Date</th>
+                    <th class="pb-3 pl-2">Date</th>
+                    <th class="pb-3">Type</th>
+                    <th class="pb-3">Payeur</th>
+                    <th class="pb-3">Objet</th>
+                    <th class="pb-3">Référence</th>
+                    <th class="pb-3 text-right pr-2">Montant</th>
                   </tr>
                 </thead>
                 <tbody id="table-finances" class="divide-y divide-gray-100 text-sm text-gray-700">
-                  <tr><td colspan="4" class="py-8 text-center text-gray-400">Chargement des données...</td></tr>
+                  <tr><td colspan="6" class="py-8 text-center text-gray-400">Chargement des données...</td></tr>
                 </tbody>
               </table>
             </div>

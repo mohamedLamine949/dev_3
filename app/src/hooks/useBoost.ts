@@ -21,8 +21,18 @@ export function aDejaEteBoostee(annonce: Pick<Annonce, 'boost_paye_le'>): boolea
  * mesurer le gain plus tard) puis pose la date d'expiration. Appelé depuis
  * le `onSuccess` du paiement — si ça throw, PaiementProModal affiche
  * l'erreur et l'utilisateur n'a pas payé pour rien sans le savoir.
+ *
+ * `prix` DOIT valoir 0 pour un boost offert (paiements désactivés). Un
+ * trigger en base journalise tout boost dont le prix est non nul comme un
+ * encaissement réel : écrire 250 sur un boost gratuit fabrique un chiffre
+ * d'affaires qui n'existe pas — c'est exactement ce qui est arrivé aux deux
+ * boosts de test du 2026-08-31. La référence de transaction est conservée
+ * pour pouvoir rapprocher le paiement du relevé PaiementPro.
  */
-export async function activerBoost(annonce: Annonce): Promise<void> {
+export async function activerBoost(
+  annonce: Annonce,
+  paiement?: { prix?: number; reference?: string | null },
+): Promise<void> {
   const expireLe = new Date(Date.now() + BOOST_DURATION_HOURS * 60 * 60 * 1000);
   const { error } = await supabase
     .from('annonces')
@@ -30,7 +40,8 @@ export async function activerBoost(annonce: Annonce): Promise<void> {
       boost_expire_le: expireLe.toISOString(),
       boost_paye_le: new Date().toISOString(),
       boost_vues_avant: annonce.nombre_vues || 0,
-      boost_prix: BOOST_PRIX,
+      boost_prix: paiement?.prix ?? BOOST_PRIX,
+      boost_transaction_id: paiement?.reference || null,
     })
     .eq('id', annonce.id);
   if (error) throw error;

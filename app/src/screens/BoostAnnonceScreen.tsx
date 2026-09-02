@@ -37,8 +37,13 @@ export default function BoostAnnonceScreen({ navigation, route }: Props) {
   const dejaActif = isBoostActif(annonce);
   const photo = annonce.images?.[0]?.image_url;
 
-  const handleSuccess = async () => {
-    await activerBoost(annonce);
+  // `reference` n'est fournie que par PaiementPro. Sans paiement (offre de
+  // lancement), le boost est offert : on l'enregistre au prix réel, 0 F.
+  const handleSuccess = async (reference?: string) => {
+    await activerBoost(annonce, {
+      prix: paymentsEnabled ? BOOST_PRIX : 0,
+      reference: reference || null,
+    });
     navigation.replace('BoostResultats', { annonceId: annonce.id, annonceTitre: annonce.titre });
   };
 

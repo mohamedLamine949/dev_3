@@ -128,6 +128,7 @@ export interface Annonce {
   boost_paye_le?: string | null;
   boost_vues_avant?: number | null;
   boost_prix?: number | null;
+  boost_transaction_id?: string | null;
   // Joined
   images?: ImageAnnonce[];
   user?: User;

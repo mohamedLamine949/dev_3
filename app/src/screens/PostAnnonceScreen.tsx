@@ -411,17 +411,32 @@ export default function PostAnnonceScreen({ navigation }: any) {
 
     // If subscription payment, update user profile first
     if (paymentType === 'subscription_vendeur' || paymentType === 'subscription_pro') {
+      const planAchete = paymentType === 'subscription_pro' ? 'pro' : 'vendeur';
       try {
         await supabase
           .from('users')
           .update({
             type_compte: paymentType === 'subscription_pro' ? 'professionnel' : 'vendeur',
             date_abonnement: new Date().toISOString(),
+            // Sans `plan_achete`, l'écran Services payants ne sait pas quelle
+            // offre a été achetée depuis ce parcours et affiche un libellé de
+            // repli. C'est aussi ce que lit le journal des encaissements.
+            plan_achete: planAchete,
           })
           .eq('id', session.user.id);
         await refreshUser();
       } catch (e) {
         console.error("Error updating subscription status:", e);
+      }
+
+      // Journal des encaissements (bloc séparé : l'ouverture des droits ne
+      // doit jamais dépendre de l'écriture du journal).
+      const { error: journalError } = await supabase.rpc('enregistrer_paiement_acces', {
+        p_plan_code: planAchete,
+        p_transaction_id: transactionId,
+      });
+      if (journalError) {
+        console.error('Paiement encaissé mais non journalisé :', journalError.message);
       }
     }
 
