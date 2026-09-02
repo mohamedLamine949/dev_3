@@ -53,38 +53,16 @@ DELETE FROM public.paiements
    AND date_paiement = '2026-09-01T15:25:56.641+00:00'
    AND transaction_id IS NULL;   -- jamais rapproché d'une transaction réelle
 
--- =========================================================================
--- 3. Garde-fou : pas d'encaissement pendant une période gratuite
--- =========================================================================
--- Le prix du boost est décidé par le téléphone. Un appareil resté sur un
--- ancien bundle JS continue d'écrire 250 sur un boost offert — le correctif
--- applicatif ne protège que les appareils à jour. La base tranche donc
--- elle-même : quand `payments_enabled` est faux, aucun boost n'est un
--- encaissement. Défaut TRUE si la config est illisible, pour ne jamais
--- perdre un vrai paiement.
-CREATE OR REPLACE FUNCTION public.enregistrer_paiement_boost()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.boost_paye_le IS NOT NULL
-     AND COALESCE(NEW.boost_prix, 0) > 0
-     AND COALESCE((SELECT payments_enabled FROM public.app_config WHERE id = 1), TRUE)
-     AND (TG_OP = 'INSERT'
-          OR OLD.boost_paye_le IS DISTINCT FROM NEW.boost_paye_le)
-  THEN
-    INSERT INTO public.paiements
-      (user_id, type, montant_fcfa, annonce_id, transaction_id,
-       date_paiement, source, note)
-    VALUES
-      (NEW.user_id, 'boost', NEW.boost_prix, NEW.id,
-       NULLIF(NEW.boost_transaction_id, ''), NEW.boost_paye_le,
-       'paiementpro', 'Boost de mise en avant (48 h)')
-    ON CONFLICT DO NOTHING;
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
-
 COMMIT;
+
+-- =========================================================================
+-- ET ENSUITE : le garde-fou
+-- =========================================================================
+-- Ce script ne répare que les données déjà écrites. Le garde-fou qui empêche
+-- un boost offert de redevenir un encaissement — un téléphone resté sur un
+-- ancien bundle JS écrit encore 250 F — vit dans
+-- `supabase/migration_boost_payant.sql`, avec le second interrupteur
+-- (`boost_payments_enabled`). Exécuter les deux : l'ordre est indifférent.
 
 -- =========================================================================
 -- VÉRIFICATION (à lancer après)

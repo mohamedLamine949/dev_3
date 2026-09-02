@@ -29,7 +29,9 @@ export default function BoostAnnonceScreen({ navigation, route }: Props) {
   const { annonce } = route.params as { annonce: Annonce };
   const { session, user } = useAuth();
   const { theme, isDark } = useTheme();
-  const { paymentsEnabled } = useAppConfig();
+  // Interrupteur DU BOOST, distinct de celui des offres d'acces : depuis le
+  // 2026-09-02, devenir professionnel est gratuit mais booster est payant.
+  const { boostPaymentsEnabled } = useAppConfig();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -41,7 +43,7 @@ export default function BoostAnnonceScreen({ navigation, route }: Props) {
   // lancement), le boost est offert : on l'enregistre au prix réel, 0 F.
   const handleSuccess = async (reference?: string) => {
     await activerBoost(annonce, {
-      prix: paymentsEnabled ? BOOST_PRIX : 0,
+      prix: boostPaymentsEnabled ? BOOST_PRIX : 0,
       reference: reference || null,
     });
     navigation.replace('BoostResultats', { annonceId: annonce.id, annonceTitre: annonce.titre });
@@ -56,7 +58,7 @@ export default function BoostAnnonceScreen({ navigation, route }: Props) {
       navigation.navigate('Login');
       return;
     }
-    if (!paymentsEnabled) {
+    if (!boostPaymentsEnabled) {
       setActivating(true);
       try {
         await handleSuccess();
@@ -83,7 +85,7 @@ export default function BoostAnnonceScreen({ navigation, route }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: SPACING.xl, paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
-        {!paymentsEnabled && (
+        {!boostPaymentsEnabled && (
           <View style={styles.activeBox}>
             <Ionicons name="flask-outline" size={18} color={theme.primary} />
             <Text style={styles.activeText}>Mode test : le boost s'active gratuitement, sans paiement.</Text>
@@ -132,7 +134,7 @@ export default function BoostAnnonceScreen({ navigation, route }: Props) {
         >
           <Ionicons name="rocket-outline" size={20} color="#fff" />
           <Text style={styles.boostBtnText}>
-            {paymentsEnabled ? `Booster maintenant — ${formatPrix(BOOST_PRIX)}` : 'Booster gratuitement (test)'}
+            {boostPaymentsEnabled ? `Booster maintenant — ${formatPrix(BOOST_PRIX)}` : 'Booster gratuitement (test)'}
           </Text>
         </TouchableOpacity>
       </View>

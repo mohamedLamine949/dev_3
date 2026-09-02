@@ -97,16 +97,25 @@ COMMENT ON COLUMN public.annonces.boost_transaction_id IS
 -- version publiée depuis un autre poste — ne peut « oublier » d'enregistrer
 -- l'encaissement. La condition `boost_prix > 0` est ce qui distingue un
 -- boost payé d'un boost offert.
+-- L'interrupteur du boost est lu par le trigger ci-dessous : on le crée ici
+-- aussi (idempotent) pour que cette migration reste exécutable seule sur une
+-- base neuve, sans dépendre de l'ordre des fichiers.
+ALTER TABLE public.app_config
+  ADD COLUMN IF NOT EXISTS boost_payments_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+
 CREATE OR REPLACE FUNCTION public.enregistrer_paiement_boost()
 RETURNS TRIGGER AS $$
 BEGIN
   IF NEW.boost_paye_le IS NOT NULL
      AND COALESCE(NEW.boost_prix, 0) > 0
      -- Le prix est décidé par le téléphone : un appareil resté sur un ancien
-     -- bundle JS écrit 250 même sur un boost offert. Quand les paiements sont
-     -- désactivés, aucun boost n'est un encaissement. Défaut TRUE si la config
-     -- est illisible, pour ne jamais perdre un vrai paiement.
-     AND COALESCE((SELECT payments_enabled FROM public.app_config WHERE id = 1), TRUE)
+     -- bundle JS écrit 250 même sur un boost offert. Quand le boost est
+     -- offert, aucun boost n'est un encaissement. L'interrupteur lu est celui
+     -- DU BOOST, pas celui des accès (voir migration_boost_payant.sql) :
+     -- depuis le 2026-09-02 les accès sont gratuits alors que le boost est
+     -- payant. Défaut TRUE si la config est illisible, pour ne jamais perdre
+     -- un vrai paiement.
+     AND COALESCE((SELECT boost_payments_enabled FROM public.app_config WHERE id = 1), TRUE)
      AND (TG_OP = 'INSERT'
           OR OLD.boost_paye_le IS DISTINCT FROM NEW.boost_paye_le)
   THEN

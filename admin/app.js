@@ -625,6 +625,18 @@ const MODES_MONETISATION = {
                  'Aucun nouveau paiement accepté ; les droits déjà payés sont conservés.']
 };
 
+// Les deux interrupteurs de `app_config`, en clair. `payments_enabled` ne
+// gouverne que les offres d'accès (Pro / Service / Vendeur) ;
+// `boost_payments_enabled` ne gouverne que le boost d'annonce. Une colonne
+// absente (migration pas encore passée) est traitée comme « payant », comme
+// côté application, pour ne jamais annoncer une gratuité qui n'existe pas.
+function etatInterrupteurs() {
+  if (!appConfig) return '';
+  const acces = appConfig.payments_enabled === false ? 'gratuits' : 'payants';
+  const boost = appConfig.boost_payments_enabled === false ? 'offert' : 'payant';
+  return `Accès (Pro / Service / Vendeur) : ${acces}. Boost d'annonce : ${boost}.`;
+}
+
 function renderFinancesPage() {
   // --- Le journal est-il lisible ? ---
   document.getElementById('fin-avertissement').classList.toggle('hidden', paiementsDispo);
@@ -637,7 +649,10 @@ function renderFinancesPage() {
     const [cls, label, explication] = MODES_MONETISATION[mode];
     badgeEl.className = `px-2.5 py-1 rounded-lg text-[11px] font-bold border ${cls}`;
     badgeEl.textContent = `${label} · ${mode}`;
-    texteEl.textContent = explication;
+    // Le mode seul ne dit plus tout : depuis le 2026-09-02 les accès et le
+    // boost ont chacun leur interrupteur. Sans cette ligne, un « Lancement
+    // gratuit » laisse croire que le boost l'est aussi.
+    texteEl.textContent = `${explication} ${etatInterrupteurs()}`;
   } else {
     badgeEl.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-gray-100 text-gray-600 border-gray-200';
     badgeEl.textContent = mode || 'inconnu';
