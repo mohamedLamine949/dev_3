@@ -587,7 +587,10 @@ export default function HomeScreen({ navigation }: Props) {
         {/* Section titre */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Annonces récentes</Text>
-          <TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Recherche', { screen: 'SearchMain' })}
+            activeOpacity={0.7}
+          >
             <Text style={styles.sectionLink}>Voir tout</Text>
           </TouchableOpacity>
         </View>
