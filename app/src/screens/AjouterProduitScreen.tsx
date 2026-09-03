@@ -130,7 +130,7 @@ export default function AjouterProduitScreen({ navigation, route }: Props) {
     const catalogue = catalogues.find(c => c.id === catalogueId);
     setSaving(true);
     try {
-      const { annonce, error } = await createAnnonce(
+      const { annonce, error, photosEchouees } = await createAnnonce(
         {
           user_id: session.user.id,
           titre: nom.trim(),
@@ -155,6 +155,18 @@ export default function AjouterProduitScreen({ navigation, route }: Props) {
         images
       );
       if (error) throw new Error(error);
+
+      // Photos non parties : le produit existe, mais sans photo il ne se vend
+      // pas. On le dit au lieu d'afficher « en ligne » et rien d'autre.
+      if (photosEchouees) {
+        Alert.alert(
+          'Photos non envoyées',
+          `Le produit est en ligne, mais ${photosEchouees} photo(s) n'ont pas pu être envoyées (connexion trop faible). Ouvrez le produit depuis votre boutique pour les ajouter.`,
+          [{ text: 'Voir ma boutique', onPress: () => navigation.replace('MaBoutique') }]
+        );
+        return;
+      }
+
       Alert.alert(
         estPrestation ? 'Prestation en ligne' : 'Produit en ligne',
         `« ${annonce?.titre} » est visible dans votre vitrine.`, [

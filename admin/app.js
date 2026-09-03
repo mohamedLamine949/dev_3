@@ -3,27 +3,18 @@ const supabaseUrl = 'https://kmydbkaytrxtcequngnn.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtteWRia2F5dHJ4dGNlcXVuZ25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTg3MzAsImV4cCI6MjA5MjI5NDczMH0.r2-XqflO75NbxVvqMfU7c-A367R9oKZ841To4uznhOA';
 const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-// Barème des frais de dépôt par catégorie (miroir de CATEGORY_PRICES côté app).
-// Sert UNIQUEMENT de repli pour les annonces dont le montant n'a pas été stocké
-// (anciennes annonces). Le montant réel payé est lu depuis annonces.montant_depot.
-const CATEGORY_FEES = {
-  'telephonie_electronique': 250,
-  'mode_beaute':             250,
-  'maison_electromenager':   250,
-  'voitures':                5000,
-  'motos':                   1000,
-  'immobilier':              2500,
-  'alimentation':            500,
-  'services':                500
-};
-const DEFAULT_FEE = 250;
-
-// Frais réellement payé pour une annonce : montant stocké en base, sinon repli
-// sur le barème de la catégorie.
-function feeOf(a) {
-  if (a && typeof a.montant_depot === 'number' && a.montant_depot > 0) return a.montant_depot;
-  return CATEGORY_FEES[a?.categorie] ?? DEFAULT_FEE;
-}
+// AUCUN BARÈME ICI — VOLONTAIREMENT.
+// Un barème par catégorie servait autrefois de « repli » pour estimer ce qu'une
+// annonce aurait dû rapporter. Depuis la refonte de la monétisation,
+// `annonces.est_payee` vaut TRUE pour TOUTE publication, y compris gratuite
+// (montant_depot = 0, transaction FREE_QUOTA) : la console multipliait donc un
+// tarif théorique par des dizaines d'annonces gratuites et affichait un chiffre
+// d'affaires qui n'a jamais existé.
+//
+// Règle désormais : cette console n'affiche QUE des encaissements enregistrés
+// dans `public.paiements` (voir supabase/migration_paiements.sql). Un montant
+// qui n'a pas été réellement encaissé n'est pas affiché — jamais déduit,
+// jamais estimé, jamais reconstitué à partir d'un statut.
 
 // Libellés des catégories (clé technique -> affichage)
 const CATEGORY_LABELS = {
@@ -42,7 +33,7 @@ const PAGE_META = {
   dashboard:    { title: 'Tableau de Bord', subtitle: "Vue d'ensemble et métriques en temps réel de votre plateforme" },
   users:        { title: 'Utilisateurs',    subtitle: "Liste complète des comptes inscrits sur Flash Market" },
   annonces:     { title: 'Annonces',        subtitle: "Tous les dépôts d'annonces publiés par vos vendeurs" },
-  finances:     { title: 'Finances',        subtitle: "Revenus générés par les frais de dépôt d'annonces" },
+  finances:     { title: 'Finances',        subtitle: "Encaissements réellement constatés — boosts, accès à vie, annonces payées" },
   signalements: { title: 'Signalements',    subtitle: "Gérez les plaintes et signalements d'annonces ou de vendeurs" },
   parrainage:   { title: 'Parrainage',      subtitle: "Programme partenaire : activation des parrains, suivi des cycles et paiements Orange Money" }
 };
@@ -56,6 +47,14 @@ let revenueChartInstance = null;
 let allUsers = [];
 let allAnnonces = [];
 let allSignalements = [];
+
+// Encaissements réels (table `paiements`) et configuration de monétisation.
+// `paiementsDispo` reste faux tant que migration_paiements.sql n'a pas été
+// exécutée (ou si le compte n'est pas admin) : on affiche alors un
+// avertissement explicite, jamais un chiffre reconstitué.
+let allPaiements = [];
+let paiementsDispo = false;
+let appConfig = null;
 
 // Données du module parrainage (null tant que la migration n'est pas en base)
 let campagneSante = null;
@@ -230,6 +229,35 @@ async function loadDashboardData() {
     allAnnonces = annonces || [];
     allSignalements = signalements || [];
 
+    // Journal des encaissements. Chargé à part : si la table n'existe pas
+    // encore, la page Finances doit dire « je ne sais pas » plutôt que
+    // d'inventer un total à partir des annonces.
+    try {
+      const { data: paiements, error: payError } = await _supabase
+        .from('paiements')
+        .select('*, users(prenom, nom), annonces(titre)')
+        .eq('statut', 'reussi')
+        .order('date_paiement', { ascending: false });
+      if (payError) throw payError;
+      allPaiements = paiements || [];
+      paiementsDispo = true;
+    } catch (err) {
+      console.warn('Table paiements indisponible (migration_paiements.sql non exécutée ?):', err.message);
+      allPaiements = [];
+      paiementsDispo = false;
+    }
+
+    // Mode de monétisation réellement en vigueur (lecture publique).
+    try {
+      const { data: cfg, error: cfgError } = await _supabase
+        .from('app_config').select('*').eq('id', 1).maybeSingle();
+      if (cfgError) throw cfgError;
+      appConfig = cfg || null;
+    } catch (err) {
+      console.warn('app_config illisible :', err.message);
+      appConfig = null;
+    }
+
     // Module parrainage : chargé à part pour ne pas casser le reste du
     // dashboard tant que migration_parrainage.sql n'est pas exécutée en base.
     try {
@@ -288,16 +316,25 @@ function countThisMonth(list) {
 }
 
 function fmt(n) { return Number(n || 0).toLocaleString('fr-FR'); }
+
+// Total réellement encaissé : la somme des lignes du journal, rien d'autre.
+// Aucun appelant n'a le droit de fabriquer un montant autrement.
+function totalEncaisse(list) {
+  return (list || allPaiements).reduce((s, p) => s + Number(p.montant_fcfa || 0), 0);
+}
 function fullName(u) { return `${u?.prenom || ''} ${u?.nom || ''}`.trim() || '—'; }
 function fmtDate(s) { return s ? new Date(s).toLocaleDateString('fr-FR') : '—'; }
+function fmtDateHeure(s) {
+  return s ? new Date(s).toLocaleString('fr-FR', {
+    day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit'
+  }) : '—';
+}
 
 // ================= KPIs (Dashboard) =================
 function updateKPIs() {
   const totalUsers = allUsers.length;
   const proUsers = allUsers.filter(u => u.type_compte === 'professionnel').length;
   const totalAds = allAnnonces.length;
-  const paidAds = allAnnonces.filter(a => a.est_payee === true);
-  const totalRevenue = paidAds.reduce((sum, a) => sum + feeOf(a), 0);
 
   const newUsersMonth = countThisMonth(allUsers);
   const newAdsMonth = countThisMonth(allAnnonces);
@@ -306,7 +343,13 @@ function updateKPIs() {
   document.getElementById('stat-total-users').textContent = fmt(totalUsers);
   document.getElementById('stat-pro-users').textContent = fmt(proUsers);
   document.getElementById('stat-total-ads').textContent = fmt(totalAds);
-  document.getElementById('stat-total-revenue').textContent = fmt(totalRevenue) + ' FCFA';
+  // Encaissé réel. Si le journal n'est pas lisible on affiche « — » : un tiret
+  // est une information honnête, un 0 ou un total estimé ne le serait pas.
+  document.getElementById('stat-total-revenue').textContent =
+    paiementsDispo ? fmt(totalEncaisse()) + ' FCFA' : '—';
+  document.getElementById('stat-revenue-trend').innerHTML = paiementsDispo
+    ? `<i class="fa-solid fa-receipt mr-1"></i> ${fmt(allPaiements.length)} paiement(s) encaissé(s)`
+    : '<i class="fa-solid fa-triangle-exclamation mr-1"></i> journal illisible';
 
   document.getElementById('stat-users-trend').innerHTML = `<i class="fa-solid fa-arrow-trend-up mr-1"></i> ${fmt(newUsersMonth)} ce mois`;
   document.getElementById('stat-ads-trend').innerHTML = `<i class="fa-solid fa-arrow-trend-up mr-1"></i> ${fmt(newAdsMonth)} ce mois`;
@@ -392,14 +435,23 @@ function accountBadge(type) {
     : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-600 border border-gray-200">Particulier</span>';
 }
 
+// `est_payee` ne renseigne plus sur le paiement : l'application l'écrit à TRUE
+// pour toute publication, gratuite comprise. Le badge reflète donc le statut
+// réel de l'annonce, et non plus un état de paiement qui n'existe pas.
 function statusBadge(a) {
-  if (a.statut === 'suspendu') {
-    return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">Suspendue</span>';
-  }
-  if (a.est_payee) {
-    return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">En ligne</span>';
-  }
-  return '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">Attente paiement</span>';
+  const chip = (cls, label) =>
+    `<span class="px-2 py-0.5 rounded text-[10px] font-bold ${cls}">${label}</span>`;
+  if (a.statut === 'suspendu')   return chip('bg-red-50 text-red-700 border border-red-200', 'Suspendue');
+  if (a.statut === 'vendu')      return chip('bg-gray-100 text-gray-600 border border-gray-200', 'Vendue');
+  if (a.statut === 'expire')     return chip('bg-gray-100 text-gray-600 border border-gray-200', 'Expirée');
+  if (a.statut === 'en_attente') return chip('bg-amber-50 text-amber-700 border border-amber-200', 'En attente');
+  return chip('bg-emerald-50 text-emerald-700 border border-emerald-200', 'En ligne');
+}
+
+// Boost en cours : c'est une information payante, donc affichée à part du statut.
+function boostBadge(a) {
+  if (!a.boost_expire_le || new Date(a.boost_expire_le) <= new Date()) return '';
+  return ' <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-violet-50 text-violet-700 border border-violet-200">Boostée</span>';
 }
 
 // ================= TABLES RÉCENTES (Dashboard) =================
@@ -496,8 +548,9 @@ function renderAnnoncesPage() {
   let list = allAnnonces;
   if (annoncesUserFilter) list = list.filter(a => a.user_id === annoncesUserFilter.id);
   if (cat !== 'all') list = list.filter(a => a.categorie === cat);
-  if (status === 'paid') list = list.filter(a => a.est_payee === true && a.statut !== 'suspendu');
-  if (status === 'pending') list = list.filter(a => !a.est_payee);
+  if (status === 'active')   list = list.filter(a => a.statut === 'active');
+  if (status === 'suspendu') list = list.filter(a => a.statut === 'suspendu');
+  if (status === 'boost')    list = list.filter(a => a.boost_expire_le && new Date(a.boost_expire_le) > new Date());
   if (search) list = list.filter(a => (a.titre || '').toLowerCase().includes(search));
 
   // Chip du filtre utilisateur (activé depuis l'onglet Parrainage)
@@ -520,7 +573,7 @@ function renderAnnoncesPage() {
         <td class="py-3.5 text-gray-400 text-xs">${fullName(a.users)}</td>
         <td class="py-3.5 text-xs text-gray-400">${CATEGORY_LABELS[a.categorie] || a.categorie || '—'}</td>
         <td class="py-3.5 text-emerald-600 font-bold">${fmt(a.prix)} FCFA</td>
-        <td class="py-3.5">${statusBadge(a)}</td>
+        <td class="py-3.5">${statusBadge(a)}${boostBadge(a)}</td>
         <td class="py-3.5 text-right pr-2 text-gray-500 text-xs">${fmtDate(a.date_creation)}</td>
         <td class="py-3.5 text-right pr-2 space-x-1 whitespace-nowrap">
           <button onclick="toggleAnnonceStatus('${a.id}', '${a.statut}')" class="px-2.5 py-1 text-xs font-semibold rounded-lg border ${a.statut === 'suspendu' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100'} transition-all">${a.statut === 'suspendu' ? 'Réactiver' : 'Suspendre'}</button>
@@ -534,75 +587,167 @@ document.getElementById('annonces-cat-filter').addEventListener('change', render
 document.getElementById('annonces-status-filter').addEventListener('change', renderAnnoncesPage);
 
 // ================= PAGE FINANCES =================
+// RÈGLE ABSOLUE DE CETTE PAGE : elle ne montre que des encaissements
+// enregistrés dans `public.paiements`. Rien n'est déduit d'un barème, d'un
+// type de compte, ni d'un `est_payee`. Si le journal n'est pas lisible, on
+// affiche « — » et un avertissement : jamais un montant de remplacement.
+
+// Libellé + couleur par type d'encaissement. Il n'y a plus d'abonnement :
+// depuis le 2026-08-31, l'accès Pro / Service / Vendeur est un PAIEMENT
+// UNIQUE à vie (migration_paiement_unique.sql). Rien ne se renouvelle, donc
+// aucun revenu récurrent ne doit être présenté ni projeté.
+const TYPES_PAIEMENT = {
+  boost:   ['bg-violet-50 text-violet-700 border-violet-200',    'Boost'],
+  acces:   ['bg-blue-50 text-blue-700 border-blue-200',          'Accès à vie'],
+  annonce: ['bg-emerald-50 text-emerald-700 border-emerald-200', 'Annonce payée']
+};
+
+// Les trois offres à paiement unique.
+const OFFRES = { pro: 'PRO / Boutique', service: 'Prestataire de service', vendeur: 'Vendeur' };
+
+function typePaiementBadge(t) {
+  const [cls, label] = TYPES_PAIEMENT[t] || ['bg-gray-100 text-gray-600 border-gray-200', t || '—'];
+  return `<span class="px-2 py-0.5 rounded text-[10px] font-bold border ${cls}">${label}</span>`;
+}
+
+// Ce que signifie réellement chaque mode de `app_config.monetization_mode`
+// (voir supabase/migration_p1_entitlements.sql).
+const MODES_MONETISATION = {
+  FREE_LAUNCH:  ['bg-gray-100 text-gray-700 border-gray-200',       'Lancement gratuit',
+                 "Aucun quota appliqué, aucune facturation : un encaissement ne peut venir que d'un boost ou d'un paiement volontaire."],
+  SHADOW:       ['bg-gray-100 text-gray-700 border-gray-200',       'Observation',
+                 "Les quotas sont calculés et journalisés, mais rien n'est bloqué ni facturé."],
+  SOFT_PAYWALL: ['bg-amber-50 text-amber-700 border-amber-200',     'Offre visible',
+                 "L'offre payante est affichée, mais la publication reste autorisée : peu de paiements attendus."],
+  LIVE:         ['bg-emerald-50 text-emerald-700 border-emerald-200', 'Monétisation active',
+                 "Quotas appliqués : au-delà de son quota, l'utilisateur doit payer sa publication ou acheter un accès à vie."],
+  PAUSED:       ['bg-amber-50 text-amber-700 border-amber-200',     'En pause',
+                 'Aucun nouveau paiement accepté ; les droits déjà payés sont conservés.']
+};
+
+// Les deux interrupteurs de `app_config`, en clair. `payments_enabled` ne
+// gouverne que les offres d'accès (Pro / Service / Vendeur) ;
+// `boost_payments_enabled` ne gouverne que le boost d'annonce. Une colonne
+// absente (migration pas encore passée) est traitée comme « payant », comme
+// côté application, pour ne jamais annoncer une gratuité qui n'existe pas.
+function etatInterrupteurs() {
+  if (!appConfig) return '';
+  const acces = appConfig.payments_enabled === false ? 'gratuits' : 'payants';
+  const boost = appConfig.boost_payments_enabled === false ? 'offert' : 'payant';
+  return `Accès (Pro / Service / Vendeur) : ${acces}. Boost d'annonce : ${boost}.`;
+}
+
 function renderFinancesPage() {
-  const paidAds = allAnnonces.filter(a => a.est_payee === true);
-  const pendingAds = allAnnonces.filter(a => !a.est_payee);
+  // --- Le journal est-il lisible ? ---
+  document.getElementById('fin-avertissement').classList.toggle('hidden', paiementsDispo);
 
-  const totalRevenue = paidAds.reduce((sum, a) => sum + feeOf(a), 0);
-  const pendingRevenue = pendingAds.reduce((sum, a) => sum + feeOf(a), 0);
+  // --- Mode de monétisation réellement en vigueur ---
+  const mode = appConfig?.monetization_mode || null;
+  const badgeEl = document.getElementById('fin-mode-badge');
+  const texteEl = document.getElementById('fin-mode-text');
+  if (mode && MODES_MONETISATION[mode]) {
+    const [cls, label, explication] = MODES_MONETISATION[mode];
+    badgeEl.className = `px-2.5 py-1 rounded-lg text-[11px] font-bold border ${cls}`;
+    badgeEl.textContent = `${label} · ${mode}`;
+    // Le mode seul ne dit plus tout : depuis le 2026-09-02 les accès et le
+    // boost ont chacun leur interrupteur. Sans cette ligne, un « Lancement
+    // gratuit » laisse croire que le boost l'est aussi.
+    texteEl.textContent = `${explication} ${etatInterrupteurs()}`;
+  } else {
+    badgeEl.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-gray-100 text-gray-600 border-gray-200';
+    badgeEl.textContent = mode || 'inconnu';
+    texteEl.textContent = "Impossible de lire app_config : le mode de monétisation en vigueur n'est pas confirmé.";
+  }
 
-  document.getElementById('fin-total-revenue').textContent = fmt(totalRevenue) + ' FCFA';
-  document.getElementById('fin-paid-count').textContent = fmt(paidAds.length);
-  document.getElementById('fin-pending-count').textContent = fmt(pendingAds.length);
-  document.getElementById('fin-pending-revenue').textContent = fmt(pendingRevenue) + ' FCFA';
+  // --- KPI : uniquement des sommes de lignes réelles ---
+  const parType = (t) => allPaiements.filter(p => p.type === t);
+  const money = (v) => paiementsDispo ? fmt(v) + ' FCFA' : '—';
 
-  // --- Graphique : revenus par mois (12 derniers mois) ---
+  const boosts = parType('boost');
+  const acces  = parType('acces');
+  const payees = parType('annonce');
+
+  document.getElementById('fin-total-revenue').textContent = money(totalEncaisse());
+  document.getElementById('fin-total-sub').textContent = paiementsDispo
+    ? `${fmt(allPaiements.length)} encaissement(s) enregistré(s)`
+    : 'Journal des paiements illisible';
+
+  document.getElementById('fin-boost-total').textContent   = money(totalEncaisse(boosts));
+  document.getElementById('fin-boost-count').textContent   = `${fmt(boosts.length)} boost(s) payé(s)`;
+  document.getElementById('fin-acces-total').textContent   = money(totalEncaisse(acces));
+  document.getElementById('fin-acces-count').textContent   = `${fmt(acces.length)} achat(s) — paiement unique`;
+  document.getElementById('fin-annonce-total').textContent = money(totalEncaisse(payees));
+  document.getElementById('fin-annonce-count').textContent = `${fmt(payees.length)} publication(s) payée(s)`;
+
+  // --- Graphique : encaissements par mois (12 derniers mois) ---
   const months = [];
   const now = new Date();
   for (let i = 11; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }), total: 0 });
+    months.push({
+      key: `${d.getFullYear()}-${d.getMonth()}`,
+      label: d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }),
+      total: 0
+    });
   }
   const monthIndex = {};
   months.forEach((m, i) => monthIndex[m.key] = i);
 
-  paidAds.forEach(a => {
-    if (!a.date_creation) return;
-    const d = new Date(a.date_creation);
+  allPaiements.forEach(p => {
+    if (!p.date_paiement) return;
+    const d = new Date(p.date_paiement);
     const key = `${d.getFullYear()}-${d.getMonth()}`;
-    if (monthIndex[key] !== undefined) months[monthIndex[key]].total += feeOf(a);
+    if (monthIndex[key] !== undefined) months[monthIndex[key]].total += Number(p.montant_fcfa || 0);
   });
 
   if (revenueChartInstance) revenueChartInstance.destroy();
   revenueChartInstance = new Chart(document.getElementById('revenueChart').getContext('2d'), {
-    type: 'line',
+    type: 'bar',
     data: {
       labels: months.map(m => m.label),
       datasets: [{
-        label: 'Revenus de dépôt (FCFA)',
+        label: 'Encaissé (FCFA)',
         data: months.map(m => m.total),
+        backgroundColor: 'rgba(16,185,129,0.55)',
         borderColor: '#10b981',
-        backgroundColor: 'rgba(16,185,129,0.12)',
-        fill: true,
-        tension: 0.35,
-        pointBackgroundColor: '#10b981',
-        pointRadius: 3,
-        pointHoverRadius: 5
+        borderWidth: 1.5,
+        borderRadius: 8,
+        hoverBackgroundColor: '#10b981'
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.07)' }, ticks: { color: '#6b7280', font: { family: 'Outfit' }, callback: v => fmt(v) } },
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.07)' }, ticks: { color: '#6b7280', font: { family: 'Outfit' }, precision: 0, callback: v => fmt(v) } },
         x: { grid: { display: false }, ticks: { color: '#6b7280', font: { family: 'Outfit' } } }
       },
       plugins: { legend: { display: false }, tooltip: tooltipStyle() }
     }
   });
 
-  // --- Table : derniers paiements ---
+  // --- Table : TOUS les encaissements, un par ligne, sans agrégat ---
   const body = document.getElementById('table-finances');
-  const recentPaid = paidAds.slice(0, 15);
-  body.innerHTML = recentPaid.length === 0
-    ? '<tr><td colspan="4" class="py-8 text-center text-gray-500">Aucun paiement enregistré.</td></tr>'
-    : recentPaid.map(a => `
+  if (allPaiements.length === 0) {
+    const message = paiementsDispo
+      ? "Aucun encaissement enregistré à ce jour. C'est la réalité de la base, pas une erreur de chargement."
+      : "Journal illisible : exécutez supabase/migration_paiements.sql, puis rechargez.";
+    body.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-gray-500">${message}</td></tr>`;
+    return;
+  }
+
+  body.innerHTML = allPaiements.map(p => {
+    const objet = p.annonces?.titre || OFFRES[p.plan_code] || p.plan_code || '—';
+    return `
       <tr class="hover:bg-gray-50 transition-colors">
-        <td class="py-3.5 pl-2 font-semibold text-gray-900 truncate max-w-[200px]" title="${a.titre || ''}">${a.titre || '—'}</td>
-        <td class="py-3.5 text-gray-400 text-xs">${fullName(a.users)}</td>
-        <td class="py-3.5 text-emerald-600 font-bold">${fmt(feeOf(a))} FCFA</td>
-        <td class="py-3.5 text-right pr-2 text-gray-500 text-xs">${fmtDate(a.date_creation)}</td>
-      </tr>`).join('');
+        <td class="py-3.5 pl-2 text-gray-500 text-xs whitespace-nowrap">${fmtDateHeure(p.date_paiement)}</td>
+        <td class="py-3.5">${typePaiementBadge(p.type)}</td>
+        <td class="py-3.5 font-semibold text-gray-900">${fullName(p.users)}</td>
+        <td class="py-3.5 text-gray-400 text-xs truncate max-w-[200px]" title="${objet}">${objet}</td>
+        <td class="py-3.5 text-gray-400 text-[11px] font-mono">${p.transaction_id || '—'}</td>
+        <td class="py-3.5 text-right pr-2 text-emerald-600 font-bold whitespace-nowrap">${fmt(p.montant_fcfa)} FCFA</td>
+      </tr>`;
+  }).join('');
 }
 
 // ================= PAGE SIGNALEMENTS =================

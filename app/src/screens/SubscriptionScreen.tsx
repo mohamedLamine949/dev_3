@@ -141,9 +141,23 @@ export default function SubscriptionScreen({ navigation }: Props) {
     setModalVisible(true);
   };
 
-  const handleSuccess = async () => {
+  const handleSuccess = async (reference: string) => {
     if (!plan) return;
     await appliquerOffre(plan);
+
+    // L'encaissement est journalisé APRÈS l'ouverture des droits, et sans
+    // jamais faire échouer le parcours : le client a payé, il doit obtenir son
+    // accès même si l'écriture du journal échoue. Sans cet appel, un achat
+    // payé ne laisserait aucune trace du montant ni de la transaction — c'est
+    // ce qui rendait le chiffre d'affaires impossible à établir. Le montant
+    // n'est pas transmis : il est lu dans `plans` côté base.
+    const { error: journalError } = await supabase.rpc('enregistrer_paiement_acces', {
+      p_plan_code: plan.planAchete,
+      p_transaction_id: reference,
+    });
+    if (journalError) {
+      console.error('Paiement encaissé mais non journalisé :', journalError.message);
+    }
   };
 
   return (

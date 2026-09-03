@@ -4,7 +4,7 @@ import Gradient from '../components/Gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { FONTS, SPACING, RADIUS, SHADOWS, METIER_CATEGORIES } from '../constants/theme';
 import { useTheme } from '../contexts/ThemeContext';
-import { useMetierCounts } from '../hooks/useDecouvertePro';
+import { useMetierCounts, METIER_AUTRES } from '../hooks/useDecouvertePro';
 
 interface Props {
   navigation: any;
@@ -31,6 +31,10 @@ export default function DecouverteProScreen({ navigation }: Props) {
 
         {METIER_CATEGORIES.map(cat => {
           const count = counts[cat.id] || 0;
+          // « Autres boutiques » n'a de sens que s'il y en a : une tuile vide
+          // en permanence serait du bruit, alors que les métiers annoncés
+          // (Immobilier, Restaurants…) valent comme invitation même à zéro.
+          if (cat.id === METIER_AUTRES && count === 0) return null;
           return (
             <TouchableOpacity
               key={cat.id}

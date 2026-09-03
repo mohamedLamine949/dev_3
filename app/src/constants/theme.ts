@@ -381,6 +381,16 @@ export const METIER_CATEGORIES = [
     icon: 'construct-outline',
     gradient: ['#15803d', '#166534'],
   },
+  // Fourre-tout. Une boutique qui n'entre dans aucune case (électroménager,
+  // motos, alimentation…) doit rester atteignable : sans cette tuile elle
+  // n'existait nulle part dans l'annuaire. Elle n'est affichée dans
+  // « Nos Professionnels » que lorsqu'elle contient au moins une boutique.
+  {
+    id: 'autres_pro',
+    label: 'Autres boutiques',
+    icon: 'storefront-outline',
+    gradient: ['#475569', '#334155'],
+  },
 ];
 
 // Sous-catégories par catégorie principale. Même prix de publication que la

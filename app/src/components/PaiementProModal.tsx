@@ -22,7 +22,7 @@ interface Props {
   customer: Customer;
   /** Appelé quand le paiement est confirmé. Doit effectuer la mise à jour métier
    *  (ex: activation de l'abonnement). Si ça throw, le modal affiche une erreur. */
-  onSuccess: () => void | Promise<void>;
+  onSuccess: (reference: string) => void | Promise<void>;
   onClose: () => void;
   /** Titres personnalisables — par défaut ceux de l'abonnement PRO, pour ne
    *  rien changer aux appels existants. */
@@ -50,6 +50,10 @@ export default function PaiementProModal({
   const [paymentUrl, setPaymentUrl] = useState('');
   const [error, setError] = useState('');
   const processingRef = useRef(false);
+  // Référence transmise à PaiementPro. Conservée pour que l'appelant puisse
+  // journaliser l'encaissement : sans elle, un paiement réel est
+  // indistinguable d'un accès accordé à la main.
+  const referenceRef = useRef('');
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   useEffect(() => {
@@ -74,6 +78,7 @@ export default function PaiementProModal({
       if (cleaned.length > 0) finalPhone = cleaned;
     }
     const refNum = `CC-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    referenceRef.current = refNum;
 
     try {
       const response = await fetch('https://www.paiementpro.net/webservice/onlinepayment/init/curl-init.php', {
@@ -120,7 +125,7 @@ export default function PaiementProModal({
     processingRef.current = true;
     setStep('processing');
     try {
-      await onSuccess();
+      await onSuccess(referenceRef.current);
       setStep('success');
       setTimeout(() => { onClose(); }, 2500);
     } catch (e: any) {

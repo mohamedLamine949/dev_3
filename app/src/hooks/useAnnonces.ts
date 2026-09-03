@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, Annonce, ImageAnnonce } from '../lib/supabase';
 import { scoreAnnonce, filterByRelevance } from '../lib/relevance';
-import * as FileSystem from 'expo-file-system/legacy';
-import { decode } from 'base64-arraybuffer';
-import { UPLOAD_CACHE_CONTROL } from '../lib/imageOptimizer';
+import { televerserPhotosAnnonce } from '../lib/photosAnnonce';
 
 /** Nombre d'annonces chargées par page sur les listes paginées. */
 export const ANNONCES_PAGE_SIZE = 20;
@@ -287,7 +285,7 @@ function rpcAbsente(error: any): boolean {
 export async function createAnnonce(
   annonceData: Omit<Annonce, 'id' | 'date_creation' | 'images' | 'user'>,
   imageUris: string[]
-): Promise<{ annonce: Annonce | null; error: string | null }> {
+): Promise<{ annonce: Annonce | null; error: string | null; photosEchouees: number }> {
   try {
     // 1. Publier l'annonce.
     //
@@ -345,56 +343,20 @@ export async function createAnnonce(
 
     console.log("✅ [CreateAnnonce] Annonce créée avec ID:", annonce.id);
 
-    // 2. Upload des images et insertion des URLs
+    // 2. Photos. Les echecs ne sont plus avales : une annonce sans photo est
+    // invendable, et le vendeur doit savoir tout de suite qu'il lui en manque
+    // pour pouvoir les rajouter (§ modification d'annonce).
+    let photosEchouees = 0;
     if (annonce && imageUris.length > 0) {
-      for (let i = 0; i < imageUris.length; i++) {
-        const uri = imageUris[i];
-        const fileExt = 'jpg';
-        const fileName = `${annonce.id}/${i}.${fileExt}`;
-
-        console.log(`📤 [CreateAnnonce] Upload image ${i+1}/${imageUris.length}...`);
-
-        try {
-          // Upload vers Supabase Storage via Base64 pour React Native
-          const base64 = await FileSystem.readAsStringAsync(uri, { 
-            encoding: 'base64' as any
-          });
-
-          const { error: uploadError } = await supabase.storage
-            .from('annonces-images')
-            .upload(fileName, decode(base64), { 
-              contentType: 'image/jpeg',
-              upsert: true,
-              // Cache CDN 1 an : sans ça Supabase applique max-age=3600 et la
-              // même photo est re-téléchargée toutes les heures par chaque
-              // utilisateur (première cause de l'egress).
-              cacheControl: UPLOAD_CACHE_CONTROL,
-            });
-
-          if (uploadError) {
-            console.error(`❌ [CreateAnnonce Error] Upload image ${i}:`, uploadError);
-            continue;
-          }
-
-          // Récupérer l'URL publique
-          const { data: urlData } = supabase.storage
-            .from('annonces-images')
-            .getPublicUrl(fileName);
-
-          console.log(`🔗 [CreateAnnonce] Image ${i} URL:`, urlData.publicUrl);
-
-          // Insérer la référence dans images_annonce
-          const { error: imgTableError } = await supabase.from('images_annonce').insert({
-            annonce_id: annonce.id,
-            image_url: urlData.publicUrl,
-            ordre: i,
-          });
-
-          if (imgTableError) {
-            console.error(`❌ [CreateAnnonce Error] Table images_annonce:`, imgTableError);
-          }
-        } catch (uploadErr) {
-          console.error(`❌ [CreateAnnonce Exception] Image ${i}:`, uploadErr);
+      const { urls, echecs } = await televerserPhotosAnnonce(annonce.id, imageUris);
+      photosEchouees = echecs;
+      if (urls.length > 0) {
+        const { error: imgTableError } = await supabase.from('images_annonce').insert(
+          urls.map((image_url, ordre) => ({ annonce_id: annonce.id, image_url, ordre }))
+        );
+        if (imgTableError) {
+          console.error('[CreateAnnonce] Table images_annonce:', imgTableError);
+          photosEchouees = imageUris.length;
         }
       }
     }
@@ -412,14 +374,14 @@ export async function createAnnonce(
 
     if (finalError) {
       console.warn("⚠️ [CreateAnnonce] Erreur récup finale (non bloquant):", finalError);
-      return { annonce: annonce as Annonce, error: null };
+      return { annonce: annonce as Annonce, error: null, photosEchouees };
     }
 
     console.log("✨ [CreateAnnonce] Annonce complète prête !");
-    return { annonce: finalAnnonce as Annonce, error: null };
+    return { annonce: finalAnnonce as Annonce, error: null, photosEchouees };
   } catch (err: any) {
     console.error("🔥 [CreateAnnonce Exception]:", err);
-    return { annonce: null, error: err.message || 'Erreur lors de la création' };
+    return { annonce: null, error: err.message || 'Erreur lors de la création', photosEchouees: 0 };
   }
 }
 
