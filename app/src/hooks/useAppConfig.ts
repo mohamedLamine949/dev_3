@@ -18,10 +18,15 @@ import { supabase } from '../lib/supabase';
  * publication ni le boost gratuitement par erreur. C'est aussi pourquoi on
  * lit la ligne entière (`*`) : une colonne manquante rendrait la requête
  * entière invalide, et la config lisible passerait pour illisible.
+ *
+ * `versionMinimale` obéit à la logique INVERSE : son fallback est « aucun
+ * blocage ». Une config illisible ne doit jamais enfermer quelqu'un derrière un
+ * écran de mise à jour dont il ne peut pas sortir.
  */
 export function useAppConfig() {
   const [paymentsEnabled, setPaymentsEnabled] = useState(true);
   const [boostPaymentsEnabled, setBoostPaymentsEnabled] = useState(true);
+  const [versionMinimale, setVersionMinimale] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,6 +44,9 @@ export function useAppConfig() {
         if (data && typeof data.boost_payments_enabled === 'boolean') {
           setBoostPaymentsEnabled(data.boost_payments_enabled);
         }
+        if (data && typeof data.version_minimale === 'string' && data.version_minimale.trim()) {
+          setVersionMinimale(data.version_minimale.trim());
+        }
         setLoading(false);
       });
     return () => {
@@ -46,5 +54,5 @@ export function useAppConfig() {
     };
   }, []);
 
-  return { paymentsEnabled, boostPaymentsEnabled, loading };
+  return { paymentsEnabled, boostPaymentsEnabled, versionMinimale, loading };
 }
