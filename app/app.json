@@ -12,9 +12,7 @@
       "url": "https://u.expo.dev/388e45d1-3af0-4012-b1c8-68ecd8748b7a",
       "fallbackToCacheTimeout": 0
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.2",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
