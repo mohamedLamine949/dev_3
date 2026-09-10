@@ -248,8 +248,12 @@ export default function HomeScreen({ navigation }: Props) {
           style={[
             styles.categoryCircle,
             {
-              backgroundColor: isSelected ? circleColor : (isDark ? theme.surfaceElevated : theme.surfaceMuted),
-              borderColor: isSelected ? circleColor : 'transparent',
+              // Retour utilisateur : le fond gris neutre faisait paraitre
+              // l'appli trop blanche/basique. Non selectionne = teinte legere
+              // de la couleur PROPRE a la categorie (pas un gris generique) ;
+              // selectionne = la meme couleur pleine, donc plus foncee.
+              backgroundColor: isSelected ? circleColor : circleColor + '1F',
+              borderColor: isSelected ? circleColor : circleColor + '55',
             },
           ]}
         >
