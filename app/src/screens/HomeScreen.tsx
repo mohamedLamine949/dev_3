@@ -506,6 +506,17 @@ export default function HomeScreen({ navigation }: Props) {
               end={{ x: 1, y: 1 }}
               style={styles.proCta}
             >
+              {/* Motifs decoratifs discrets : sans eux la carte est un aplat
+                  de couleur uni, ce qui la fait paraitre "basique" (retour
+                  utilisateur). Purement visuel, pointerEvents="none" pour ne
+                  jamais intercepter le tap. */}
+              <View style={styles.proCtaGlow} pointerEvents="none" />
+              <Ionicons
+                name="storefront"
+                size={130}
+                color="rgba(255,255,255,0.10)"
+                style={styles.proCtaWatermark}
+              />
               <View style={styles.proCtaTop}>
                 <View style={styles.proCtaIcon}>
                   <Ionicons name="storefront" size={19} color="#fff" />
@@ -547,6 +558,12 @@ export default function HomeScreen({ navigation }: Props) {
             onPress={() => navigation.navigate('Subscription')}
             style={styles.devenirProCard}
           >
+            <Ionicons
+              name="ribbon"
+              size={100}
+              color="rgba(255,255,255,0.12)"
+              style={styles.devenirProWatermark}
+            />
             <View style={styles.devenirProIcon}>
               <Ionicons name="ribbon-outline" size={20} color="#fff" />
             </View>
@@ -593,6 +610,16 @@ export default function HomeScreen({ navigation }: Props) {
           >
             <Text style={styles.sectionLink}>Voir tout</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Rappel de sécurité juste au-dessus des annonces : c'est ici, au
+            moment de parcourir les articles, qu'il est le plus utile —
+            pas seulement enterré dans chaque fiche produit. */}
+        <View style={styles.safetyNote}>
+          <Ionicons name="shield-checkmark-outline" size={15} color={theme.textSecondary} />
+          <Text style={styles.safetyNoteText}>
+            Remise en main propre conseillée — vérifiez l'article avant de payer.
+          </Text>
         </View>
       </View>
   );
@@ -984,12 +1011,27 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
 
   // Bannière
   bannerContainer: {
-    marginBottom: SPACING.xl,
+    marginBottom: SPACING.lg,
   },
   proCta: {
     borderRadius: RADIUS.xl,
-    padding: SPACING.lg,
+    padding: SPACING.md,
+    overflow: 'hidden',
     ...SHADOWS.colored,
+  },
+  // Motifs decoratifs (retour "trop basique, juste un aplat de couleur") :
+  // un halo doux en haut a droite + une grande icone en filigrane, tous deux
+  // pointerEvents="none" pour rester purement visuels.
+  proCtaGlow: {
+    position: 'absolute',
+    top: -50, right: -40,
+    width: 150, height: 150, borderRadius: 75,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  proCtaWatermark: {
+    position: 'absolute',
+    right: -16, bottom: -20,
+    transform: [{ rotate: '-12deg' }],
   },
   proCtaTop: {
     flexDirection: 'row',
@@ -1018,7 +1060,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   proCtaFacesRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
   },
   proCtaFace: {
     width: 26, height: 26, borderRadius: 13,
@@ -1042,8 +1084,14 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   devenirProCard: {
     flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
     backgroundColor: theme.info, borderRadius: RADIUS.lg,
-    padding: SPACING.lg, marginTop: SPACING.sm, minHeight: 72,
+    padding: SPACING.md, marginTop: SPACING.sm, minHeight: 60,
+    overflow: 'hidden',
     ...SHADOWS.sm,
+  },
+  devenirProWatermark: {
+    position: 'absolute',
+    right: -14, bottom: -18,
+    transform: [{ rotate: '14deg' }],
   },
   devenirProIcon: {
     width: 40, height: 40, borderRadius: 20,
@@ -1052,6 +1100,12 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   },
   devenirProTitle: { fontSize: FONTS.sm, fontWeight: FONTS.extrabold, color: '#fff' },
   devenirProSubtitle: { fontSize: FONTS.xs, color: 'rgba(255,255,255,0.9)', marginTop: 2 },
+
+  safetyNote: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: SPACING.sm, marginBottom: SPACING.sm,
+  },
+  safetyNoteText: { flex: 1, fontSize: FONTS.xs, color: theme.textSecondary, lineHeight: 16 },
 
   // Récemment vus
   recentSection: {
