@@ -661,7 +661,12 @@ export default function HomeScreen({ navigation }: Props) {
           initialNumToRender={6}
           maxToRenderPerBatch={6}
           windowSize={5}
-          removeClippedSubviews
+          // `removeClippedSubviews` retiré : c'est un bug connu de React
+          // Native (surtout Android) — recyclage trop agressif des cellules
+          // pendant un scroll rapide, qui fait clignoter/alterner deux
+          // images sur la même carte. Le gain de mémoire ne vaut pas ce
+          // glitch ; `windowSize`/`maxToRenderPerBatch` réduits suffisent
+          // déjà à limiter les téléchargements d'images en avance.
           ListFooterComponent={
             loadingMore ? (
               <View style={styles.footerLoader}>
