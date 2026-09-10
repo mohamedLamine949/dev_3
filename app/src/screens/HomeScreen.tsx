@@ -298,7 +298,11 @@ export default function HomeScreen({ navigation }: Props) {
         {/* Image */}
         <View style={styles.cardImageContainer}>
           {imageUrl
-            ? <Image source={{ uri: imageUrl }} style={styles.cardImage} />
+            // `key` force un remontage propre par URL : sans lui, une image
+            // en cours de telechargement sur une cellule recyclee peut se
+            // terminer APRES qu'une autre image ait deja commence a charger
+            // sur la meme cellule, et "gagner" la course a l'affichage.
+            ? <Image key={imageUrl} source={{ uri: imageUrl }} style={styles.cardImage} />
             : <View style={[styles.cardImage, styles.imagePlaceholder]}>
                 <Ionicons name="image-outline" size={32} color={theme.border} />
               </View>
@@ -655,18 +659,21 @@ export default function HomeScreen({ navigation }: Props) {
           keyboardShouldPersistTaps="handled"
           onEndReached={loadMore}
           onEndReachedThreshold={0.6}
-          // Fenêtre de rendu resserrée : par défaut la FlatList monte
-          // plusieurs écrans de cartes d'avance, donc autant d'images
-          // téléchargées avant même d'être vues.
-          initialNumToRender={6}
-          maxToRenderPerBatch={6}
-          windowSize={5}
+          // `windowSize` à 5 (contre 21 par défaut) économisait de la bande
+          // passante, mais avec si peu de marge, un scroll rapide fait
+          // sortir des cartes de la fenêtre montée puis les fait remonter
+          // aussitôt dès que le flick décélère et oscille légèrement — deux
+          // cartes pile à la frontière se démontent/remontent en boucle et
+          // rechargent leur image à chaque fois, d'où le clignotement. On
+          // remonte la marge pour que ça n'arrive plus ; le gain de bande
+          // passante ne vaut pas ce glitch.
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={11}
           // `removeClippedSubviews` retiré : c'est un bug connu de React
           // Native (surtout Android) — recyclage trop agressif des cellules
           // pendant un scroll rapide, qui fait clignoter/alterner deux
-          // images sur la même carte. Le gain de mémoire ne vaut pas ce
-          // glitch ; `windowSize`/`maxToRenderPerBatch` réduits suffisent
-          // déjà à limiter les téléchargements d'images en avance.
+          // images sur la même carte.
           ListFooterComponent={
             loadingMore ? (
               <View style={styles.footerLoader}>
