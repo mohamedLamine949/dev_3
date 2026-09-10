@@ -334,6 +334,7 @@ export default function CompteScreen({ navigation }: Props) {
           accessibilityRole="button"
           accessibilityLabel="Mes annonces"
         >
+          <Ionicons name="list" size={90} color="rgba(255,255,255,0.12)" style={styles.carteProWatermark} />
           <View style={styles.carteProIcone}>
             <Ionicons name="list" size={22} color="#fff" />
           </View>
@@ -351,6 +352,7 @@ export default function CompteScreen({ navigation }: Props) {
           accessibilityRole="button"
           accessibilityLabel="Booster mes annonces"
         >
+          <Ionicons name="rocket" size={90} color="rgba(255,255,255,0.14)" style={styles.carteProWatermark} />
           <View style={styles.carteProIcone}>
             <Ionicons name="rocket" size={22} color="#fff" />
           </View>
@@ -368,6 +370,7 @@ export default function CompteScreen({ navigation }: Props) {
           accessibilityRole="button"
           accessibilityLabel="Services payants"
         >
+          <Ionicons name="card" size={90} color="rgba(255,255,255,0.12)" style={styles.carteProWatermark} />
           <View style={styles.carteProIcone}>
             <Ionicons name="card" size={22} color="#fff" />
           </View>
@@ -390,6 +393,7 @@ export default function CompteScreen({ navigation }: Props) {
             accessibilityRole="button"
             accessibilityLabel="Mon espace professionnel"
           >
+            <Ionicons name="storefront" size={90} color="rgba(255,255,255,0.12)" style={styles.carteProWatermark} />
             <View style={styles.carteProIcone}>
               <Ionicons name="storefront" size={24} color="#fff" />
             </View>
@@ -464,12 +468,19 @@ const createStyles = (theme: any, isDark: boolean) =>
       flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
       marginTop: SPACING.lg, marginHorizontal: SPACING.lg,
       backgroundColor: theme.primary, borderRadius: RADIUS.lg,
-      padding: SPACING.lg, minHeight: 84, ...SHADOWS.md,
+      padding: SPACING.lg, minHeight: 84, overflow: 'hidden', ...SHADOWS.md,
     },
     carteProIcone: {
       width: 46, height: 46, borderRadius: 23,
       backgroundColor: 'rgba(255,255,255,0.22)',
       justifyContent: 'center', alignItems: 'center',
+    },
+    // Motif decoratif discret (meme traitement que l'accueil) : sans lui la
+    // carte est un aplat de couleur uni, ce qui la fait paraitre basique.
+    carteProWatermark: {
+      position: 'absolute',
+      right: -14, bottom: -16,
+      transform: [{ rotate: '-10deg' }],
     },
     carteProTitre: { fontSize: FONTS.md, fontWeight: FONTS.extrabold, color: '#fff' },
     carteProDetail: { fontSize: FONTS.xs, color: 'rgba(255,255,255,0.9)', marginTop: 2 },

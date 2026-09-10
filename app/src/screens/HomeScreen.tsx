@@ -251,9 +251,9 @@ export default function HomeScreen({ navigation }: Props) {
               // Retour utilisateur : le fond gris neutre faisait paraitre
               // l'appli trop blanche/basique. Non selectionne = teinte legere
               // de la couleur PROPRE a la categorie (pas un gris generique) ;
-              // selectionne = la meme couleur pleine, donc plus foncee.
+              // selectionne = la meme couleur pleine, donc plus foncee. Pas
+              // de contour : juste le cercle teinte (retour utilisateur).
               backgroundColor: isSelected ? circleColor : circleColor + '1F',
-              borderColor: isSelected ? circleColor : circleColor + '55',
             },
           ]}
         >
@@ -809,7 +809,6 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     borderRadius: 26,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
     marginBottom: SPACING.xs,
   },
   categoryCircleLabel: {
