@@ -48,6 +48,14 @@ export default function DecouverteProScreen({ navigation }: Props) {
                 end={{ x: 1, y: 1 }}
                 style={styles.tile}
               >
+                {/* Motif decoratif (meme traitement que l'accueil et le
+                    compte) : sans lui la tuile est un aplat de couleur uni. */}
+                <Ionicons
+                  name={cat.icon as any}
+                  size={100}
+                  color="rgba(255,255,255,0.14)"
+                  style={styles.tileWatermark}
+                />
                 <View style={styles.tileIcon}>
                   <Ionicons name={cat.icon as any} size={22} color="#fff" />
                 </View>
@@ -70,6 +78,12 @@ export default function DecouverteProScreen({ navigation }: Props) {
           onPress={() => navigation.navigate('Subscription')}
           style={styles.devenirProCard}
         >
+          <Ionicons
+            name="ribbon"
+            size={90}
+            color="rgba(255,255,255,0.14)"
+            style={styles.tileWatermark}
+          />
           <View style={styles.devenirProIcon}>
             <Ionicons name="ribbon-outline" size={22} color="#fff" />
           </View>
@@ -105,7 +119,12 @@ const createStyles = (theme: any) => StyleSheet.create({
     borderRadius: RADIUS.xl,
     paddingVertical: SPACING.lg, paddingHorizontal: SPACING.lg,
     flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
-    minHeight: 84,
+    minHeight: 84, overflow: 'hidden',
+  },
+  tileWatermark: {
+    position: 'absolute',
+    right: -14, bottom: -18,
+    transform: [{ rotate: '-10deg' }],
   },
   tileIcon: {
     width: 44, height: 44, borderRadius: RADIUS.lg,
@@ -119,6 +138,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: SPACING.md,
     backgroundColor: theme.info, borderRadius: RADIUS.xl,
     padding: SPACING.lg, marginTop: SPACING.sm, minHeight: 80,
+    overflow: 'hidden',
     ...SHADOWS.md,
   },
   devenirProIcon: {
