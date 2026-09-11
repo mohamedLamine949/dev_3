@@ -30,6 +30,9 @@ import { SkeletonCard, SkeletonCategories } from '../components/SkeletonLoader';
 import { useDecouverteProPreview } from '../hooks/useDecouvertePro';
 
 
+/** Fenetre du bouton « Nouveautes » de l'accueil : les 3 derniers jours. */
+const NOUVEAUTES_HEURES = 72;
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - SPACING.lg * 2 - SPACING.md) / 2;
 
@@ -171,6 +174,8 @@ export default function HomeScreen({ navigation }: Props) {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSousCategorie, setSelectedSousCategorie] = useState<string | null>(null);
+  // Bouton « Nouveautes » : ne montrer que ce qui a ete publie depuis 72 h.
+  const [nouveautes, setNouveautes] = useState(false);
 
   // Debounce search query to avoid spamming Supabase
   useEffect(() => {
@@ -184,6 +189,7 @@ export default function HomeScreen({ navigation }: Props) {
     categorie: selectedCategory,
     sousCategorie: selectedSousCategorie,
     search: debouncedSearch,
+    depuisHeures: nouveautes ? NOUVEAUTES_HEURES : null,
     // Le fil chargeait toutes les annonces actives d'un coup : on charge par
     // paquets de 20, la suite arrive au scroll.
     pageSize: ANNONCES_PAGE_SIZE,
@@ -201,9 +207,15 @@ export default function HomeScreen({ navigation }: Props) {
   // cartes. Les suivantes sont repoussees plus bas, jamais supprimees.
   // Puis un leger tri par categorie deja consultee (vues locales, aucun
   // appel Supabase) — sans jamais repasser derriere une annonce boostee.
+  // En mode « Nouveautes », on n'applique PAS la personnalisation par
+  // categorie : elle remonte les categories deja consultees et casserait
+  // l'ordre chronologique, qui est justement tout l'interet du bouton.
+  // L'anti-monopole par vendeur, lui, reste actif dans les deux cas.
   const filAffiche = React.useMemo(
-    () => personnaliserParCategorie(diversifierParVendeur(annonces), recentAnnonces),
-    [annonces, recentAnnonces]
+    () => nouveautes
+      ? diversifierParVendeur(annonces)
+      : personnaliserParCategorie(diversifierParVendeur(annonces), recentAnnonces),
+    [annonces, recentAnnonces, nouveautes]
   );
 
   const loadRecent = useCallback(async () => {
@@ -505,7 +517,51 @@ export default function HomeScreen({ navigation }: Props) {
           />
         )}
 
-        {/* Découverte Pro : point d'entrée vers l'annuaire des boutiques PRO */}
+        {/* Nouveautés : un seul appui pour ne voir que les annonces publiées
+            dans les 72 dernières heures. Placé haut, juste sous les
+            catégories, pour être visible sans faire défiler l'écran. */}
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => { hapticLight(); setNouveautes(v => !v); }}
+          style={styles.nouveautesCta}
+        >
+          <Gradient
+            colors={nouveautes ? ['#7C2D12', '#C2410C', '#EA580C'] : ['#B45309', '#F59E0B', '#FBBF24']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.nouveautesInner}
+          >
+            <Ionicons
+              name="flash"
+              size={96}
+              color="rgba(255,255,255,0.13)"
+              style={styles.nouveautesWatermark}
+            />
+            <View style={styles.nouveautesIcon}>
+              <Ionicons name={nouveautes ? 'checkmark' : 'flash'} size={20} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.nouveautesTitle}>
+                {nouveautes ? 'Nouveautés des 3 derniers jours' : 'Voir les nouveautés'}
+              </Text>
+              <Text style={styles.nouveautesSubtitle}>
+                {nouveautes
+                  ? 'Appuyez pour revoir toutes les annonces'
+                  : 'Tout ce qui a été publié depuis 3 jours'}
+              </Text>
+            </View>
+            <Ionicons
+              name={nouveautes ? 'close-circle' : 'chevron-forward'}
+              size={nouveautes ? 22 : 18}
+              color="#fff"
+            />
+          </Gradient>
+        </TouchableOpacity>
+
+        {/* Découverte Pro : point d'entrée vers l'annuaire des boutiques PRO.
+            Masqué en mode Nouveautés : le bouton doit mener DIRECTEMENT aux
+            annonces récentes, pas les repousser sous deux bannières. */}
+        {!nouveautes && (
         <View style={styles.bannerContainer}>
           <TouchableOpacity activeOpacity={0.9} onPress={() => navigation.navigate('DecouvertePro')}>
             <Gradient
@@ -582,11 +638,12 @@ export default function HomeScreen({ navigation }: Props) {
             <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.9)" />
           </TouchableOpacity>
         </View>
+        )}
 
         {/* Récemment consultés */}
         {/* §7.1 : une seule carte laisse un grand vide — on n'affiche la
             section qu'a partir de deux elements. */}
-        {recentAnnonces.length >= 2 && (
+        {!nouveautes && recentAnnonces.length >= 2 && (
           <View style={styles.recentSection}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Récemment consultés</Text>
@@ -611,12 +668,16 @@ export default function HomeScreen({ navigation }: Props) {
 
         {/* Section titre */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Annonces récentes</Text>
+          <Text style={styles.sectionTitle}>
+            {nouveautes ? 'Publiées ces 3 derniers jours' : 'Annonces récentes'}
+          </Text>
           <TouchableOpacity
-            onPress={() => navigation.navigate('Recherche', { screen: 'SearchMain' })}
+            onPress={() => nouveautes
+              ? setNouveautes(false)
+              : navigation.navigate('Recherche', { screen: 'SearchMain' })}
             activeOpacity={0.7}
           >
-            <Text style={styles.sectionLink}>Voir tout</Text>
+            <Text style={styles.sectionLink}>{nouveautes ? 'Tout voir' : 'Voir tout'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -695,7 +756,16 @@ export default function HomeScreen({ navigation }: Props) {
             /* §7.10 : un etat vide propose toujours une action realiste.
                « Modifiez vos criteres » n'en est pas une quand il n'y a
                aucun critere : c'est une impasse. */
-            selectedCategory ? (
+            nouveautes ? (
+              <EtatEcran
+                variante="vide"
+                icone="flash-outline"
+                titre="Rien de neuf ces 3 derniers jours"
+                message="Aucune annonce n'a été publiée récemment. Regardez tout ce qui est déjà en ligne."
+                actionLabel="Voir toutes les annonces"
+                onAction={() => setNouveautes(false)}
+              />
+            ) : selectedCategory ? (
               <EtatEcran
                 variante="vide"
                 titre="Rien dans cette catégorie"
@@ -1023,6 +1093,35 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     flex: 1,
     paddingHorizontal: SPACING.lg,
   },
+
+  // Nouveautés (72 h)
+  nouveautesCta: {
+    marginBottom: SPACING.lg,
+  },
+  // L'ombre est portee par le degrade lui-meme (comme proCta) : sur Android,
+  // `elevation` sur un conteneur transparent ne dessine rien.
+  nouveautesInner: {
+    ...SHADOWS.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+    minHeight: 64,
+    overflow: 'hidden',
+  },
+  nouveautesWatermark: {
+    position: 'absolute',
+    right: -12, bottom: -18,
+    transform: [{ rotate: '12deg' }],
+  },
+  nouveautesIcon: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  nouveautesTitle: { fontSize: FONTS.sm, fontWeight: FONTS.extrabold, color: '#fff' },
+  nouveautesSubtitle: { fontSize: FONTS.xs, color: 'rgba(255,255,255,0.9)', marginTop: 2 },
 
   // Bannière
   bannerContainer: {
