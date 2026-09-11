@@ -24,6 +24,11 @@ export function useAnnonces(options?: {
   maxPrice?: number | null;
   etat?: string | null;
   orderBy?: 'newest' | 'price_asc' | 'price_desc';
+  /**
+   * Ne garder que les annonces publiees depuis moins de N heures
+   * (bouton « Nouveautes » de l'accueil : 72 h). `null`/absent = tout.
+   */
+  depuisHeures?: number | null;
 }) {
   const [annonces, setAnnonces] = useState<Annonce[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,10 +37,18 @@ export function useAnnonces(options?: {
   const [error, setError] = useState<string | null>(null);
   const pageRef = useRef(0);
   const fetchingMoreRef = useRef(false);
+  /**
+   * Borne basse de la fenetre « Nouveautes », figee au moment du chargement
+   * de la premiere page. Si on la recalculait a chaque appel, `loadMore()`
+   * interrogerait une fenetre legerement decalee quelques secondes plus tard
+   * et pourrait sauter ou repeter une annonce a la frontiere des pages.
+   */
+  const depuisRef = useRef<string | null>(null);
 
   const searchTerm = options?.search?.trim() ?? '';
   const isSearching = searchTerm.length > 0;
   const pageSize = options?.pageSize;
+  const depuisHeures = options?.depuisHeures ?? null;
   // La recherche est scorée côté client (pertinence fuzzy) : elle a besoin du
   // corpus complet, on ne pagine donc pas dans ce cas. Ce sont les images —
   // virtualisées par la FlatList — qui coûtent cher, pas les lignes.
@@ -90,6 +103,12 @@ export function useAnnonces(options?: {
       query = query.eq('etat_article', options.etat);
     }
 
+    // Fenetre « Nouveautes » : la borne vient de `depuisRef` (posee par
+    // fetchAnnonces) pour rester identique entre la page 1 et les suivantes.
+    if (depuisHeures && depuisRef.current) {
+      query = query.gte('date_creation', depuisRef.current);
+    }
+
     // `limit` et `range` ne se combinent pas : en mode paginé c'est `range`
     // qui découpe le résultat.
     if (options?.limit && !paginated) {
@@ -105,6 +124,7 @@ export function useAnnonces(options?: {
     options?.maxPrice,
     options?.etat,
     options?.orderBy,
+    depuisHeures,
     paginated,
   ]);
 
@@ -149,6 +169,10 @@ export function useAnnonces(options?: {
       setLoading(true);
       setError(null);
 
+      depuisRef.current = depuisHeures
+        ? new Date(Date.now() - depuisHeures * 3600 * 1000).toISOString()
+        : null;
+
       // Nettoie les boosts expirés avant de trier dessus (voir buildQuery).
       // Best-effort : si la migration n'est pas encore appliquée, la RPC est
       // absente et on l'ignore silencieusement plutôt que de casser le fil.
@@ -185,7 +209,7 @@ export function useAnnonces(options?: {
     } finally {
       if (!timedOut) setLoading(false);
     }
-  }, [buildQuery, applySearch, paginated, pageSize]);
+  }, [buildQuery, applySearch, paginated, pageSize, depuisHeures]);
 
   /**
    * Charge la page suivante et l'ajoute à la liste. Sans effet si la
