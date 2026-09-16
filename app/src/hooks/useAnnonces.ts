@@ -2,9 +2,27 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, Annonce, ImageAnnonce } from '../lib/supabase';
 import { scoreAnnonce, filterByRelevance } from '../lib/relevance';
 import { televerserPhotosAnnonce } from '../lib/photosAnnonce';
+import { composerFil } from '../lib/feed';
 
 /** Nombre d'annonces chargées par page sur les listes paginées. */
 export const ANNONCES_PAGE_SIZE = 20;
+
+/**
+ * Colonnes d'une carte d'annonce. Le type de compte du vendeur est joint pour
+ * afficher le badge PRO (il dérive du type_compte : les annonces déjà en ligne
+ * d'un compte pro l'obtiennent automatiquement).
+ */
+const SELECT_CARTE =
+  '*, images:images_annonce(id, image_url, ordre), user:users!annonces_user_id_fkey(id, prenom, nom, nom_boutique, avatar_url, type_compte)';
+
+/**
+ * Colonnes de l'INDEX du fil : de quoi décider d'un ordre, rien de plus.
+ * Une ligne pèse une centaine d'octets et ne déclenche aucun téléchargement
+ * d'image — c'est ce qui permet de classer tout le catalogue d'un coup sans
+ * peser sur le quota (les photos, elles, ne partent que pour les cartes
+ * effectivement affichées par la FlatList).
+ */
+const SELECT_INDEX = 'id, user_id, categorie, boost_expire_le, date_creation';
 
 /**
  * Hook pour récupérer les annonces actives avec filtrage
@@ -29,12 +47,26 @@ export function useAnnonces(options?: {
    * (bouton « Nouveautes » de l'accueil : 72 h). `null`/absent = tout.
    */
   depuisHeures?: number | null;
+  /**
+   * Fil d'accueil : compose l'ordre à partir de l'index complet plutôt que de
+   * servir les annonces par date (voir composerFil). Sans effet sur une
+   * recherche, où c'est la pertinence qui commande.
+   */
+  diversifie?: boolean;
+  /** Catégories déjà consultées, pour classer les vendeurs du premier tour. */
+  categoriesPreferees?: string[];
 }) {
   const [annonces, setAnnonces] = useState<Annonce[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Vrai quand l'ordre affiché vient de `composerFil`. L'écran s'en sert pour
+   * savoir s'il doit encore répartir les vendeurs lui-même : inutile ici, et
+   * indispensable si l'index n'a pas pu être lu.
+   */
+  const [compose, setCompose] = useState(false);
   const pageRef = useRef(0);
   const fetchingMoreRef = useRef(false);
   /**
@@ -44,6 +76,12 @@ export function useAnnonces(options?: {
    * et pourrait sauter ou repeter une annonce a la frontiere des pages.
    */
   const depuisRef = useRef<string | null>(null);
+  /**
+   * Ordre du fil composé (ids), décidé une fois sur l'index complet. Les
+   * pages suivantes y puisent : sans lui, `loadMore` repartirait du tri par
+   * date et ramènerait le paquet d'annonces qu'on venait justement d'étaler.
+   */
+  const ordreRef = useRef<string[]>([]);
 
   const searchTerm = options?.search?.trim() ?? '';
   const isSearching = searchTerm.length > 0;
@@ -53,33 +91,20 @@ export function useAnnonces(options?: {
   // corpus complet, on ne pagine donc pas dans ce cas. Ce sont les images —
   // virtualisées par la FlatList — qui coûtent cher, pas les lignes.
   const paginated = !!pageSize && !isSearching;
+  // Une recherche répond à une demande précise : c'est la pertinence qui
+  // ordonne, pas la diversité des vendeurs.
+  const diversifie = !!options?.diversifie && paginated;
+  // Les catégories arrivent dans un tableau recréé à chaque rendu : on
+  // dépend de son CONTENU, sinon chaque rendu relancerait un chargement.
+  const cleCategories = (options?.categoriesPreferees || []).join(',');
 
-  const buildQuery = useCallback(() => {
-    let query = supabase
-      .from('annonces')
-      // On joint le type de compte du vendeur pour afficher le badge PRO sur
-      // les cartes (le badge dérive du type_compte : les annonces déjà en
-      // ligne d'un compte pro l'obtiennent automatiquement).
-      .select('*, images:images_annonce(id, image_url, ordre), user:users!annonces_user_id_fkey(id, prenom, nom, nom_boutique, avatar_url, type_compte)')
-      .eq('statut', 'active')
-      .eq('est_payee', true);
-
-    // Tri
-    const sort = options?.orderBy || 'newest';
-    if (sort === 'newest') {
-      // Boost payant (§ boost 250 FCFA) : une annonce boostée passe devant
-      // le fil chronologique. `expirerBoostsSiBesoin()` (appelée dans
-      // fetchAnnonces) nettoie les boosts expirés avant cette requête, sinon
-      // une annonce dont le boost est terminé resterait coincée en tête —
-      // sa colonne resterait non-NULL sans ce nettoyage.
-      query = query
-        .order('boost_expire_le', { ascending: false, nullsFirst: false })
-        .order('date_creation', { ascending: false });
-    } else if (sort === 'price_asc') {
-      query = query.order('prix', { ascending: true });
-    } else if (sort === 'price_desc') {
-      query = query.order('prix', { ascending: false });
-    }
+  /**
+   * Filtres communs à la liste affichée et à l'index du fil : les deux doivent
+   * porter exactement sur le même périmètre, sinon l'ordre composé désignerait
+   * des annonces que la liste ne sait pas charger.
+   */
+  const appliquerFiltres = useCallback((requete: any) => {
+    let query = requete.eq('statut', 'active').eq('est_payee', true);
 
     if (options?.categorie) {
       query = query.eq('categorie', options.categorie);
@@ -109,6 +134,36 @@ export function useAnnonces(options?: {
       query = query.gte('date_creation', depuisRef.current);
     }
 
+    return query;
+  }, [
+    options?.categorie,
+    options?.sousCategorie,
+    options?.minPrice,
+    options?.maxPrice,
+    options?.etat,
+    depuisHeures,
+  ]);
+
+  const buildQuery = useCallback(() => {
+    let query = appliquerFiltres(supabase.from('annonces').select(SELECT_CARTE));
+
+    // Tri
+    const sort = options?.orderBy || 'newest';
+    if (sort === 'newest') {
+      // Boost payant (§ boost 250 FCFA) : une annonce boostée passe devant
+      // le fil chronologique. `expirerBoostsSiBesoin()` (appelée dans
+      // fetchAnnonces) nettoie les boosts expirés avant cette requête, sinon
+      // une annonce dont le boost est terminé resterait coincée en tête —
+      // sa colonne resterait non-NULL sans ce nettoyage.
+      query = query
+        .order('boost_expire_le', { ascending: false, nullsFirst: false })
+        .order('date_creation', { ascending: false });
+    } else if (sort === 'price_asc') {
+      query = query.order('prix', { ascending: true });
+    } else if (sort === 'price_desc') {
+      query = query.order('prix', { ascending: false });
+    }
+
     // `limit` et `range` ne se combinent pas : en mode paginé c'est `range`
     // qui découpe le résultat.
     if (options?.limit && !paginated) {
@@ -116,17 +171,7 @@ export function useAnnonces(options?: {
     }
 
     return query;
-  }, [
-    options?.categorie,
-    options?.sousCategorie,
-    options?.limit,
-    options?.minPrice,
-    options?.maxPrice,
-    options?.etat,
-    options?.orderBy,
-    depuisHeures,
-    paginated,
-  ]);
+  }, [appliquerFiltres, options?.limit, options?.orderBy, paginated]);
 
   /**
    * Retire du fil et de la recherche ce que la moderation a limite (§16.6).
@@ -145,6 +190,28 @@ export function useAnnonces(options?: {
       const statut = (a as any).moderation_status;
       return !statut || statut === 'approved';
     });
+
+  /**
+   * Charge les cartes d'une page du fil composé, dans l'ordre demandé.
+   *
+   * `.in('id', ...)` ne garantit aucun ordre : c'est ici qu'on rétablit celui
+   * de `composerFil`. Les filtres de base sont réappliqués car une annonce
+   * peut avoir été vendue ou retirée entre la lecture de l'index et celle des
+   * cartes ; dans ce cas elle disparaît simplement de la page.
+   */
+  const chargerParIds = useCallback(async (ids: string[]): Promise<Annonce[]> => {
+    if (ids.length === 0) return [];
+    const { data, error: fetchError } = await supabase
+      .from('annonces')
+      .select(SELECT_CARTE)
+      .in('id', ids)
+      .eq('statut', 'active')
+      .eq('est_payee', true);
+    if (fetchError) throw fetchError;
+
+    const parId = new Map((data as Annonce[]).map(a => [a.id, a]));
+    return ids.map(id => parId.get(id)).filter(Boolean) as Annonce[];
+  }, []);
 
   const applySearch = useCallback((rows: Annonce[]) => {
     if (!isSearching) return rows;
@@ -180,6 +247,39 @@ export function useAnnonces(options?: {
         if (e && !rpcAbsente(e)) console.warn('expirer_boosts:', e.message);
       });
 
+      // Fil d'accueil : on lit d'abord l'index complet (léger, sans image)
+      // pour composer un ordre où les vendeurs alternent, puis on ne charge
+      // que la première page de cet ordre.
+      if (diversifie) {
+        const { data: index, error: indexError } = await appliquerFiltres(
+          supabase.from('annonces').select(SELECT_INDEX)
+        );
+
+        if (timedOut) return;
+
+        if (!indexError && index) {
+          ordreRef.current = composerFil(index as any[], {
+            categoriesPreferees: cleCategories ? cleCategories.split(',') : [],
+          });
+          const rows = await chargerParIds(ordreRef.current.slice(0, pageSize!));
+
+          if (timedOut) return;
+          clearTimeout(timeoutId);
+
+          pageRef.current = 1;
+          setHasMore(ordreRef.current.length > pageSize!);
+          setCompose(true);
+          setAnnonces(retirerLesLimitees(rows));
+          return;
+        }
+
+        // L'index n'a pas pu être lu : plutôt qu'un écran vide, on sert le
+        // fil chronologique habituel.
+        console.warn('Index du fil indisponible, retour au tri par date:', indexError?.message);
+        ordreRef.current = [];
+        setCompose(false);
+      }
+
       let query = buildQuery();
       if (paginated) {
         query = query.range(0, pageSize! - 1);
@@ -200,6 +300,7 @@ export function useAnnonces(options?: {
 
       pageRef.current = 1;
       setHasMore(paginated && rows.length === pageSize);
+      setCompose(false);
       setAnnonces(applySearch(retirerLesLimitees(rows)));
     } catch (err: any) {
       if (timedOut) return;
@@ -209,7 +310,7 @@ export function useAnnonces(options?: {
     } finally {
       if (!timedOut) setLoading(false);
     }
-  }, [buildQuery, applySearch, paginated, pageSize, depuisHeures]);
+  }, [buildQuery, applySearch, paginated, pageSize, depuisHeures, diversifie, appliquerFiltres, chargerParIds, cleCategories]);
 
   /**
    * Charge la page suivante et l'ajoute à la liste. Sans effet si la
@@ -223,6 +324,21 @@ export function useAnnonces(options?: {
     setLoadingMore(true);
     try {
       const from = pageRef.current * pageSize!;
+
+      // Fil composé : la suite est déjà décidée, il n'y a qu'à charger la
+      // tranche d'ids suivante.
+      if (diversifie && ordreRef.current.length > 0) {
+        const suite = ordreRef.current.slice(from, from + pageSize!);
+        const rows = await chargerParIds(suite);
+        pageRef.current += 1;
+        setHasMore(ordreRef.current.length > from + pageSize!);
+        setAnnonces(prev => {
+          const seen = new Set(prev.map(a => a.id));
+          return [...prev, ...retirerLesLimitees(rows).filter(a => !seen.has(a.id))];
+        });
+        return;
+      }
+
       const { data, error: fetchError } = await buildQuery().range(from, from + pageSize! - 1);
       if (fetchError) throw fetchError;
 
@@ -242,13 +358,13 @@ export function useAnnonces(options?: {
       fetchingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [buildQuery, paginated, hasMore, loading, pageSize]);
+  }, [buildQuery, paginated, hasMore, loading, pageSize, diversifie, chargerParIds]);
 
   useEffect(() => {
     fetchAnnonces();
   }, [fetchAnnonces]);
 
-  return { annonces, loading, loadingMore, hasMore, error, refetch: fetchAnnonces, loadMore };
+  return { annonces, loading, loadingMore, hasMore, error, compose, refetch: fetchAnnonces, loadMore };
 }
 
 /**

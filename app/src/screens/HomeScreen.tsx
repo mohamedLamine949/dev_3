@@ -185,11 +185,26 @@ export default function HomeScreen({ navigation }: Props) {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  const { annonces, loading, loadingMore, hasMore, error, refetch, loadMore } = useAnnonces({
+  const [recentAnnonces, setRecentAnnonces] = useState<Annonce[]>([]);
+
+  // Catégories déjà consultées, de la plus récente à la plus ancienne. Elles
+  // ne filtrent rien : elles départagent les vendeurs du premier tour du fil.
+  // En mode « Nouveautés », on ne les transmet pas — ce bouton promet l'ordre
+  // chronologique, pas un classement par affinité.
+  const categoriesPreferees = React.useMemo(
+    () => (nouveautes ? [] : recentAnnonces.map(a => a.categorie).filter(Boolean) as string[]),
+    [recentAnnonces, nouveautes]
+  );
+
+  const { annonces, loading, loadingMore, hasMore, error, compose, refetch, loadMore } = useAnnonces({
     categorie: selectedCategory,
     sousCategorie: selectedSousCategorie,
     search: debouncedSearch,
     depuisHeures: nouveautes ? NOUVEAUTES_HEURES : null,
+    // Le fil ne se sert plus par ordre d'arrivée : l'ordre est composé sur le
+    // catalogue entier pour que les vendeurs alternent (voir composerFil).
+    diversifie: true,
+    categoriesPreferees,
     // Le fil chargeait toutes les annonces actives d'un coup : on charge par
     // paquets de 20, la suite arrive au scroll.
     pageSize: ANNONCES_PAGE_SIZE,
@@ -201,22 +216,19 @@ export default function HomeScreen({ navigation }: Props) {
   // Badge PRO valide par le serveur : un abonnement expire ne le porte plus (§11.7).
   const { proIds } = useProStatus();
 
-  const [recentAnnonces, setRecentAnnonces] = useState<Annonce[]>([]);
-
-  // §7.1 : pas plus de deux annonces du meme vendeur dans les vingt premieres
-  // cartes. Les suivantes sont repoussees plus bas, jamais supprimees.
-  // Puis un leger tri par categorie deja consultee (vues locales, aucun
-  // appel Supabase) — sans jamais repasser derriere une annonce boostee.
-  // En mode « Nouveautes », on n'applique PAS la personnalisation par
-  // categorie : elle remonte les categories deja consultees et casserait
-  // l'ordre chronologique, qui est justement tout l'interet du bouton.
-  // L'anti-monopole par vendeur, lui, reste actif dans les deux cas.
-  const filAffiche = React.useMemo(
-    () => nouveautes
+  // Quand le fil est composé (cas normal), l'ordre a déjà été décidé sur le
+  // catalogue entier : deux annonces du même vendeur ne peuvent pas se
+  // suivre, et les catégories consultées ont déjà pesé. Il n'y a rien à
+  // retoucher ici — le refaire ne ferait que regrouper à nouveau.
+  //
+  // Les fonctions ci-dessous ne servent donc plus que de filet, quand l'index
+  // n'a pas pu être lu et que le fil est retombé sur l'ordre chronologique.
+  const filAffiche = React.useMemo(() => {
+    if (compose) return annonces;
+    return nouveautes
       ? diversifierParVendeur(annonces)
-      : personnaliserParCategorie(diversifierParVendeur(annonces), recentAnnonces),
-    [annonces, recentAnnonces, nouveautes]
-  );
+      : personnaliserParCategorie(diversifierParVendeur(annonces), recentAnnonces);
+  }, [annonces, recentAnnonces, nouveautes, compose]);
 
   const loadRecent = useCallback(async () => {
     const list = await getRecentAnnonces();
