@@ -217,7 +217,7 @@ export default function HomeScreen({ navigation }: Props) {
     () => recentAnnonces.map(a => a.sous_categorie).filter(Boolean) as string[],
     [recentAnnonces]
   );
-  const { rayons } = useRayons(index, {
+  const { rayons, tendances } = useRayons(index, {
     sousCategoriesPreferees,
     actif: !nouveautes && !selectedCategory && !debouncedSearch,
   });
@@ -397,6 +397,34 @@ export default function HomeScreen({ navigation }: Props) {
   // ─────────────────────────────────────────────
   // Render: Recent Card
   // ─────────────────────────────────────────────
+
+  const renderTendanceCard = ({ item }: { item: Annonce }) => {
+    const imageUrl = item.images?.[0]?.image_url || null;
+    return (
+      <PressableCard
+        style={styles.tendanceCard}
+        onPress={() => navigation.navigate('AnnonceDetail', { annonce: item })}
+      >
+        <View style={styles.tendanceImageContainer}>
+          {imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.rayonImage} />
+          ) : (
+            <View style={styles.rayonImagePlaceholder}>
+              <Ionicons name="image-outline" size={28} color={theme.border} />
+            </View>
+          )}
+          {/* La mise en avant est payante : elle s'annonce, l'acheteur doit
+              pouvoir faire la difference avec le reste du fil. */}
+          <View style={styles.tendanceBadge}>
+            <Ionicons name="flame" size={11} color="#fff" />
+            <Text style={styles.tendanceBadgeTexte}>En avant</Text>
+          </View>
+        </View>
+        <Text style={styles.rayonCardTitle} numberOfLines={2}>{item.titre}</Text>
+        <Text style={styles.rayonCardPrice} numberOfLines={1}>{formatPrix(item.prix)}</Text>
+      </PressableCard>
+    );
+  };
 
   const renderRayonCard = ({ item }: { item: Annonce }) => {
     const imageUrl = item.images?.[0]?.image_url || null;
@@ -592,6 +620,39 @@ export default function HomeScreen({ navigation }: Props) {
               );
             }}
           />
+        )}
+
+        {/* Tendances : les annonces dont le vendeur a paye une mise en avant.
+            Placees tout en haut, juste sous les categories — c'est la
+            contrepartie visible du boost, et ce que voient les vendeurs qui
+            hesitent a en prendre un. La section n'existe pas tant que
+            personne n'a boost : pas de rangee vide. */}
+        {tendances.length > 0 && (
+          <View style={styles.recentSection}>
+            <View style={styles.sectionHeader}>
+              <View style={{ flex: 1 }}>
+                <View style={styles.tendanceTitreLigne}>
+                  <Ionicons name="flame" size={18} color="#EA580C" />
+                  <Text style={styles.sectionTitle}>Tendances</Text>
+                </View>
+                <Text style={styles.rayonSousTitre}>Mises en avant par leurs vendeurs</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => { hapticLight(); navigation.navigate('BoosterMesAnnonces'); }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.tendanceLien}>Booster la mienne</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={tendances}
+              renderItem={renderTendanceCard}
+              keyExtractor={(item) => `tendance-${item.id}`}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.recentListContainer}
+            />
+          </View>
         )}
 
         {/* Nouveautés : un seul appui pour ne voir que les annonces publiées
@@ -1352,6 +1413,48 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     color: theme.textPrimary,
     marginTop: SPACING.sm,
     marginHorizontal: SPACING.sm,
+  },
+  tendanceTitreLigne: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  tendanceLien: {
+    fontSize: FONTS.sm,
+    fontWeight: FONTS.semibold,
+    color: '#EA580C',
+  },
+  tendanceCard: {
+    width: 170,
+    backgroundColor: theme.surface,
+    borderRadius: RADIUS.md,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+    paddingBottom: SPACING.sm,
+    ...SHADOWS.sm,
+  },
+  tendanceImageContainer: {
+    width: '100%',
+    height: 170,
+    backgroundColor: theme.surfaceMuted,
+  },
+  tendanceBadge: {
+    position: 'absolute',
+    top: SPACING.sm,
+    left: SPACING.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 3,
+    borderRadius: RADIUS.full,
+    backgroundColor: '#EA580C',
+  },
+  tendanceBadgeTexte: {
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.bold,
+    color: '#fff',
   },
   rayonSousTitre: {
     fontSize: FONTS.xs,

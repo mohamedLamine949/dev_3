@@ -87,15 +87,17 @@ export interface LigneIndex {
   date_creation?: string | null;
 }
 
+/** Boost payant encore valide a cet instant (§ boost 250 FCFA). */
+export function estBoostee(ligne: { boost_expire_le?: string | null }): boolean {
+  return !!ligne.boost_expire_le && new Date(ligne.boost_expire_le).getTime() > Date.now();
+}
+
 export function composerFil(
   lignes: LigneIndex[],
   options?: { categoriesPreferees?: string[] }
 ): string[] {
   if (lignes.length === 0) return [];
 
-  const maintenant = Date.now();
-  const estBoostee = (l: LigneIndex) =>
-    !!l.boost_expire_le && new Date(l.boost_expire_le).getTime() > maintenant;
   const quand = (l: LigneIndex) => (l.date_creation ? new Date(l.date_creation).getTime() : 0);
 
   // Poids des catégories déjà consultées : les plus récemment vues comptent
@@ -150,6 +152,25 @@ export function composerFil(
     }
   }
   return ordre;
+}
+
+/**
+ * « Tendances » : les annonces dont le vendeur a payé une mise en avant.
+ *
+ * C'est la contrepartie visible du boost — ce qu'on vend quand on vend un
+ * boost. Deux garde-fous pour qu'elle reste regardable :
+ *   - la section n'existe pas s'il n'y a aucun boost actif (pas de rangée
+ *     vide, pas de promesse en l'air) ;
+ *   - les vendeurs y alternent comme partout ailleurs : celui qui boosterait
+ *     cinq annonces d'un coup ne s'achète pas la rangée entière, sinon la
+ *     section perd sa valeur pour tous les autres — et pour lui aussi, le
+ *     jour où quelqu'un booste plus que lui.
+ */
+export function composerTendances(lignes: LigneIndex[], options?: { max?: number }): string[] {
+  const max = options?.max ?? 10;
+  const boostees = lignes.filter(estBoostee);
+  if (boostees.length === 0) return [];
+  return composerFil(boostees).slice(0, max);
 }
 
 /**

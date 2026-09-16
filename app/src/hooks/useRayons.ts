@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, Annonce } from '../lib/supabase';
-import { composerRayons, LigneIndex } from '../lib/feed';
+import { composerRayons, composerTendances, LigneIndex } from '../lib/feed';
 import { SELECT_CARTE } from './useAnnonces';
 
 export interface RayonAffiche {
@@ -29,6 +29,8 @@ export function useRayons(
   options?: { sousCategoriesPreferees?: string[]; actif?: boolean }
 ) {
   const [rayons, setRayons] = useState<RayonAffiche[]>([]);
+  /** Annonces boostées, vides tant que personne n'a payé de mise en avant. */
+  const [tendances, setTendances] = useState<Annonce[]>([]);
   const [loading, setLoading] = useState(false);
 
   const actif = options?.actif !== false;
@@ -38,6 +40,7 @@ export function useRayons(
   useEffect(() => {
     if (!actif || index.length === 0) {
       setRayons([]);
+      setTendances([]);
       return;
     }
 
@@ -46,9 +49,13 @@ export function useRayons(
     const plan = composerRayons(index, {
       sousCategoriesPreferees: clePreferees ? clePreferees.split(',') : [],
     });
-    const ids = plan.flatMap(r => r.ids);
+    // Les tendances voyagent avec les rayons : une seule requête pour tout ce
+    // que l'accueil montre en haut.
+    const idsTendances = composerTendances(index);
+    const ids = [...new Set([...idsTendances, ...plan.flatMap(r => r.ids)])];
     if (ids.length === 0) {
       setRayons([]);
+      setTendances([]);
       return;
     }
 
@@ -67,10 +74,12 @@ export function useRayons(
           // reste affiché juste en dessous.
           console.warn('Rayons indisponibles:', error?.message);
           setRayons([]);
+          setTendances([]);
           return;
         }
 
         const parId = new Map((data as Annonce[]).map(a => [a.id, a]));
+        setTendances(idsTendances.map(id => parId.get(id)).filter(Boolean) as Annonce[]);
         setRayons(
           plan
             .map(r => ({
@@ -90,5 +99,5 @@ export function useRayons(
     return () => { annule = true; };
   }, [index, clePreferees, actif]);
 
-  return { rayons, loading };
+  return { rayons, tendances, loading };
 }

@@ -3,11 +3,13 @@
  * réellement en ligne — c'est le seul jeu de données où le problème existe :
  * une vendeuse à elle seule y pèse un tiers du catalogue.
  *
- * Contrôle trois promesses :
+ * Contrôle les promesses de l'accueil :
  *   1. rien n'est perdu ni dupliqué (une annonce répartie, jamais supprimée) ;
  *   2. deux annonces d'affilée ne viennent jamais du même vendeur tant qu'il
  *      reste quelqu'un d'autre à servir ;
- *   3. la première page montre autant de vendeurs que de cartes.
+ *   3. la première page montre autant de vendeurs que de cartes ;
+ *   4. aucun rayon n'est monopolisé par un seul vendeur ;
+ *   5. « Tendances » n'existe pas sans boost actif, et y alterne les vendeurs.
  *
  *   node scripts/tester-fil.js
  */
@@ -15,7 +17,7 @@ require('./charger-ts');
 const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
-const { composerFil, composerRayons } = require('../src/lib/feed.ts');
+const { composerFil, composerRayons, composerTendances } = require('../src/lib/feed.ts');
 const { getSousCategorieLabel } = require('../src/constants/theme.ts');
 
 const PAGE = 20;
@@ -101,6 +103,38 @@ async function main() {
     r.ids.forEach(id => { if (!parId.has(id)) echec('un rayon cite une annonce inconnue'); });
   });
   if (rayons.length === 0) echec('aucun rayon composable');
+  console.log('');
+
+  // 5. Section « Tendances » : elle n'existe que s'il y a des boosts actifs.
+  //    Aucun boost n'est en cours aujourd'hui, on en simule pour verifier les
+  //    deux comportements — absence de section, et alternance des vendeurs
+  //    quand un meme vendeur booste plusieurs annonces.
+  if (composerTendances(data).length !== 0) echec('des tendances sans boost actif');
+
+  const demain = new Date(Date.now() + 86400000).toISOString();
+  const hier = new Date(Date.now() - 86400000).toISOString();
+  const grosVendeur = [...new Set(data.map(a => a.user_id))][0];
+  const simule = data.map((a, k) => {
+    // Un vendeur booste plusieurs annonces, d'autres une seule, et un boost
+    // deja expire est glisse dans le lot : il ne doit pas remonter.
+    if (a.user_id === grosVendeur && k % 7 === 0 && k < 40) return { ...a, boost_expire_le: demain };
+    if (k === 3 || k === 11) return { ...a, boost_expire_le: demain };
+    if (k === 5) return { ...a, boost_expire_le: hier };
+    return a;
+  });
+
+  const tendances = composerTendances(simule);
+  const parIdSimule = new Map(simule.map(a => [a.id, a]));
+  const vendeursTendances = tendances.map(id => parIdSimule.get(id).user_id);
+  const boostsActifs = simule.filter(a => a.boost_expire_le && new Date(a.boost_expire_le) > new Date()).length;
+
+  console.log('  Section Tendances (boosts simules) :');
+  console.log('    sans aucun boost actif   : section absente');
+  console.log('    ' + boostsActifs + ' boosts actifs        : ' + tendances.length + ' cartes | ' + new Set(vendeursTendances).size + ' vendeurs');
+
+  if (tendances.length !== boostsActifs) echec('toutes les annonces boostees ne sont pas montrees');
+  if (vendeursTendances[0] === vendeursTendances[1]) echec('le meme vendeur ouvre deux cartes de suite dans les tendances');
+  if (tendances.some(id => !parIdSimule.get(id).boost_expire_le)) echec('une annonce non boostee dans les tendances');
   console.log('');
 
   if (erreurs === 0) console.log('  Tout est conforme.\n');
