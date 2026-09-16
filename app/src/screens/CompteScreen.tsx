@@ -209,6 +209,15 @@ export default function CompteScreen({ navigation }: Props) {
       onPress: () => navigation.navigate('Settings'),
     },
     {
+      cle: 'guide',
+      icone: 'school-outline',
+      titre: 'Revoir le guide',
+      // Le guide ne s'affiche qu'une fois. Sans cette entree, quelqu'un qui
+      // l'a passe trop vite n'a plus aucun moyen d'apprendre a quoi sert le
+      // boost ou comment choisir sa categorie.
+      onPress: () => navigation.navigate('Tutoriel'),
+    },
+    {
       cle: 'aide',
       icone: 'help-circle-outline',
       titre: 'Aide et conditions',

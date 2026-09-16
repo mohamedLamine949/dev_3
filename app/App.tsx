@@ -3,6 +3,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import GardeVersion from './src/components/GardeVersion';
+import GardeTutoriel from './src/components/GardeTutoriel';
 import { useOtaUpdates } from './src/hooks/useOtaUpdates';
 import AppNavigator from './src/navigation/AppNavigator';
 
@@ -19,7 +20,11 @@ export default function App() {
             un binaire de store trop ancien. Invisible par défaut. */}
         <GardeVersion>
           <AuthProvider>
-            <AppNavigator />
+            {/* Guide d'accueil au premier lancement. Il précède l'application
+                plutôt que d'en être un écran : rien ne peut y ramener. */}
+            <GardeTutoriel>
+              <AppNavigator />
+            </GardeTutoriel>
           </AuthProvider>
         </GardeVersion>
       </ThemeProvider>

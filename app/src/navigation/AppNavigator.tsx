@@ -52,6 +52,7 @@ import SubscriptionScreen from '../screens/SubscriptionScreen';
 import BoostAnnonceScreen from '../screens/BoostAnnonceScreen';
 import BoostResultsScreen from '../screens/BoostResultsScreen';
 import BoosterMesAnnoncesScreen from '../screens/BoosterMesAnnoncesScreen';
+import TutorielScreen from '../screens/TutorielScreen';
 import AdminModerationScreen from '../screens/AdminModerationScreen';
 import SignalementsScreen from '../screens/SignalementsScreen';
 import DemandeDevisScreen from '../screens/DemandeDevisScreen';
@@ -463,6 +464,13 @@ export default function AppNavigator() {
         <Stack.Screen
           name="Login"
           component={LoginScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
+        {/* Guide d'accueil rouvert depuis le compte. Au tout premier
+            lancement, il est affiche AVANT la navigation (GardeTutoriel). */}
+        <Stack.Screen
+          name="Tutoriel"
+          component={TutorielScreen}
           options={{ animation: 'slide_from_bottom' }}
         />
         <Stack.Screen
