@@ -80,7 +80,17 @@ WHERE id IN (
     'cf5a6bfc-caff-41b6-83bd-3e3e677ab6d1',
     '7ca2718b-9874-4d13-b199-11d8b67b0b08',
     '6d41e556-b70b-4455-bf96-3b29f89af7be',
-    '54aa2770-805f-4ae0-9056-f8fb657dd772'
+    '54aa2770-805f-4ae0-9056-f8fb657dd772',
+    '130ec478-d65d-4e9d-ac98-fba5592c132f',
+    '16d16e06-1514-48e7-a699-f8cc8e8d2dd2',
+    '143c0327-3442-421d-815b-dc0a5eef6a86',
+    '6763dc95-19d0-4076-af49-04eb96713544',
+    'd9c4a630-1a6b-4f27-8078-89717dd0f68e',
+    'c43e6d67-3aa8-48d2-a2f1-a5d553ad3bc9',
+    '30814807-afd3-44aa-aa57-5cf4ddd2f2ba',
+    '6af19ca1-fe50-4dd8-9b8d-91ca717843ff',
+    '99a19ae6-ca18-49d8-aded-8aa2e8e65334',
+    'aa2e79d9-bd5d-42e5-a7b0-e880229b47ee'
   )
 ON CONFLICT (id) DO NOTHING;
 
@@ -357,41 +367,87 @@ UPDATE public.annonces SET sous_categorie = 'meubles'
 UPDATE public.annonces SET sous_categorie = 'accessoires_electronique'
   WHERE id = '54aa2770-805f-4ae0-9056-f8fb657dd772' AND sous_categorie = 'autre_telephonie_electronique';
 
+
+-- ──────────────────────────────────────────────────────────────────────
+-- 5. ARBITRAGES À LA MAIN — 10 annonces
+-- Décidés en regardant l'annonce elle-même ; ils priment sur la détection.
+-- ──────────────────────────────────────────────────────────────────────
+
+-- « CAFÉ 100% africain en grains et en capsules. »
+--   Alimentation / (vide) → Alimentation / Supermarchés & Épicerie
+--   cafe en grains
+UPDATE public.annonces SET sous_categorie = 'supermarches'
+  WHERE id = '130ec478-d65d-4e9d-ac98-fba5592c132f' AND categorie = 'alimentation' AND sous_categorie IS NOT DISTINCT FROM NULL;
+
+-- « Répétiteur de wifi »
+--   Téléphonie & Électronique / Autre → Téléphonie & Électronique / Accessoires
+--   appareil wifi : rayon Accessoires plutot que « Autre »
+UPDATE public.annonces SET sous_categorie = 'accessoires_electronique'
+  WHERE id = '16d16e06-1514-48e7-a699-f8cc8e8d2dd2' AND categorie = 'telephonie_electronique' AND sous_categorie IS NOT DISTINCT FROM 'autre_telephonie_electronique';
+
+-- « 🛴⚡ HOVERBOARD »
+--   Maison & Électroménager / Autre → Motos / Motos & Scooters
+--   engin roulant, meme famille que les trottinettes
+UPDATE public.annonces SET categorie = 'motos', sous_categorie = 'motos_scooters'
+  WHERE id = '143c0327-3442-421d-815b-dc0a5eef6a86' AND categorie = 'maison_electromenager' AND sous_categorie IS NOT DISTINCT FROM 'autre_maison_electromenager';
+
+-- « Sangles Élastiques Plates avec Crochets en Acier – Haute Résistance »
+--   Motos / Autre → Maison & Électroménager / Autre
+--   sangles d'arrimage : usage maison
+UPDATE public.annonces SET categorie = 'maison_electromenager', sous_categorie = 'autre_maison_electromenager'
+  WHERE id = '6763dc95-19d0-4076-af49-04eb96713544' AND categorie = 'motos' AND sous_categorie IS NOT DISTINCT FROM 'autre_motos';
+
+-- « Formation Netflix illimité »
+--   Téléphonie & Électronique / Autre → Services / Autres services
+--   abonnement revendu : service, et non « Cours & Formation »
+UPDATE public.annonces SET categorie = 'services', sous_categorie = 'autres_services'
+  WHERE id = 'd9c4a630-1a6b-4f27-8078-89717dd0f68e' AND categorie = 'telephonie_electronique' AND sous_categorie IS NOT DISTINCT FROM 'autre_telephonie_electronique';
+
+-- « Ensemble crochet pour enfants sur commande »
+--   Mode & Beauté / (vide) → Mode & Beauté / Autre
+--   vetements enfants : pas de rayon dedie
+UPDATE public.annonces SET sous_categorie = 'autre_mode_beaute'
+  WHERE id = 'c43e6d67-3aa8-48d2-a2f1-a5d553ad3bc9' AND categorie = 'mode_beaute' AND sous_categorie IS NOT DISTINCT FROM NULL;
+
+-- « The Gingembre »
+--   Mode & Beauté / Beauté & Cosmétiques → Alimentation / Supermarchés & Épicerie
+--   the au gingembre
+UPDATE public.annonces SET categorie = 'alimentation', sous_categorie = 'supermarches'
+  WHERE id = '30814807-afd3-44aa-aa57-5cf4ddd2f2ba' AND categorie = 'mode_beaute' AND sous_categorie IS NOT DISTINCT FROM 'beaute_cosmetiques';
+
+-- « TOUDY GRAND »
+--   Services / (vide) → Mode & Beauté / Beauté & Cosmétiques
+--   creme, rangee a tort dans les services
+UPDATE public.annonces SET categorie = 'mode_beaute', sous_categorie = 'beaute_cosmetiques'
+  WHERE id = '6af19ca1-fe50-4dd8-9b8d-91ca717843ff' AND categorie = 'services' AND sous_categorie IS NOT DISTINCT FROM NULL;
+
+-- « Clair naturelle »
+--   Mode & Beauté / (vide) → Mode & Beauté / Beauté & Cosmétiques
+--   creme
+UPDATE public.annonces SET sous_categorie = 'beaute_cosmetiques'
+  WHERE id = '99a19ae6-ca18-49d8-aded-8aa2e8e65334' AND categorie = 'mode_beaute' AND sous_categorie IS NOT DISTINCT FROM NULL;
+
+-- « Clair, naturel, carottes, et miel »
+--   Services / (vide) → Mode & Beauté / Beauté & Cosmétiques
+--   creme eclaircissante — DEDUIT, a verifier
+UPDATE public.annonces SET categorie = 'mode_beaute', sous_categorie = 'beaute_cosmetiques'
+  WHERE id = 'aa2e79d9-bd5d-42e5-a7b0-e880229b47ee' AND categorie = 'services' AND sous_categorie IS NOT DISTINCT FROM NULL;
+
+-- Arbitrages « ne rien changer » (2) — le détecteur se trompait :
+--   « Pink sugar » reste en Mode & Beauté / Beauté & Cosmétiques — Pink sugar est un parfum, pas un produit alimentaire
+--   « Gaz manette portable » reste en Maison & Électroménager / Électroménager — rechaud a gaz, comme une gaziniere
+
 COMMIT;
 
 -- ══════════════════════════════════════════════════════════════════════
 -- RESTE À TRANCHER À LA MAIN (aucun UPDATE ci-dessous)
 -- ══════════════════════════════════════════════════════════════════════
 
--- A. Désaccords non concluants — 7 annonces.
+-- A. Désaccords non concluants — 0 annonces.
 --    Le texte suggère autre chose, mais pas assez nettement pour agir seul.
---    « Pink sugar »  Mode & Beauté → Alimentation ? [faible]
---      UPDATE public.annonces SET categorie = 'alimentation', sous_categorie = 'supermarches' WHERE id = 'c1d5d2b6-3381-4556-a75b-37a5bf50b142';
---    « Gaz manette portable »  Maison & Électroménager → Téléphonie & Électronique ? [moyenne]
---      UPDATE public.annonces SET categorie = 'telephonie_electronique', sous_categorie = 'telephones' WHERE id = '0b155719-f391-40eb-99b0-139f40317485';
---    « Répétiteur de wifi »  Téléphonie & Électronique → Services ? [moyenne]
---      UPDATE public.annonces SET categorie = 'services', sous_categorie = 'cours_formation' WHERE id = '16d16e06-1514-48e7-a699-f8cc8e8d2dd2';
---    « 🛴⚡ HOVERBOARD »  Maison & Électroménager → Téléphonie & Électronique ? [faible]
---      UPDATE public.annonces SET categorie = 'telephonie_electronique', sous_categorie = 'accessoires_electronique' WHERE id = '143c0327-3442-421d-815b-dc0a5eef6a86';
---    « Sangles Élastiques Plates avec Crochets en Acier – Haute Résistance »  Motos → Services ? [faible]
---      UPDATE public.annonces SET categorie = 'services', sous_categorie = 'transport_demenagement' WHERE id = '6763dc95-19d0-4076-af49-04eb96713544';
---    « Formation Netflix illimité »  Téléphonie & Électronique → Services ? [moyenne]
---      UPDATE public.annonces SET categorie = 'services', sous_categorie = 'cours_formation' WHERE id = 'd9c4a630-1a6b-4f27-8078-89717dd0f68e';
---    « The Gingembre »  Mode & Beauté → Services ? [faible]
---      UPDATE public.annonces SET categorie = 'services', sous_categorie = 'transport_demenagement' WHERE id = '30814807-afd3-44aa-aa57-5cf4ddd2f2ba';
 
--- B. Toujours sans sous-catégorie — 6 annonces.
+-- B. Toujours sans sous-catégorie — 1 annonces.
 --    Ni le titre ni l'habitude du vendeur ne permettent de conclure.
---    « CAFÉ 100% africain en grains et en capsules. »  (Alimentation)
---      UPDATE public.annonces SET sous_categorie = '???' WHERE id = '130ec478-d65d-4e9d-ac98-fba5592c132f';
---    « Ensemble crochet pour enfants sur commande »  (Mode & Beauté)
---      UPDATE public.annonces SET sous_categorie = '???' WHERE id = 'c43e6d67-3aa8-48d2-a2f1-a5d553ad3bc9';
---    « TOUDY GRAND »  (Services)
---      UPDATE public.annonces SET sous_categorie = '???' WHERE id = '6af19ca1-fe50-4dd8-9b8d-91ca717843ff';
---    « Clair naturelle »  (Mode & Beauté)
---      UPDATE public.annonces SET sous_categorie = '???' WHERE id = '99a19ae6-ca18-49d8-aded-8aa2e8e65334';
---    « Clair, naturel, carottes, et miel »  (Services)
---      UPDATE public.annonces SET sous_categorie = '???' WHERE id = 'aa2e79d9-bd5d-42e5-a7b0-e880229b47ee';
 --    « Shopping 🛍️ 🛍️🛒 »  (Mode & Beauté)
 --      UPDATE public.annonces SET sous_categorie = '???' WHERE id = 'a215d451-169e-45f0-8b0b-6599b9c45df7';
 
