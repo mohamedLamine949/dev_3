@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Dimensions,
   StatusBar,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +20,8 @@ import { BOOST_PRIX, BOOST_DURATION_HOURS } from '../hooks/useBoost';
 import { formatPrix } from '../lib/format';
 import { hapticLight } from '../lib/haptics';
 import { marquerGuideVu } from '../lib/tutoriel';
+import { supabase, Annonce } from '../lib/supabase';
+import { formatPrixCompact } from '../lib/format';
 
 /**
  * Guide d'accueil — cinq écrans, une idée par écran.
@@ -70,6 +73,36 @@ export default function TutorielScreen({ onTermine, navigation }: Props) {
   const [page, setPage] = useState(0);
   const listeRef = useRef<FlatList>(null);
 
+  /**
+   * Vraies annonces de Flash Market, pour illustrer le guide.
+   *
+   * Plutôt que des photos de banque d'images — étrangères au Mali, et dont
+   * les droits se paient — le guide montre ce que les gens vendent
+   * réellement ici. L'exemple devient une preuve : il y a déjà du monde.
+   *
+   * Si le réseau ne répond pas, les cartes gardent leur dessin : le guide
+   * doit s'afficher même hors ligne, c'est le tout premier écran de
+   * quelqu'un qui vient d'installer l'application.
+   */
+  const [exemples, setExemples] = useState<Annonce[]>([]);
+
+  React.useEffect(() => {
+    let monte = true;
+    supabase
+      .from('annonces')
+      .select('id, titre, prix, images:images_annonce(image_url, ordre)')
+      .eq('statut', 'active')
+      .eq('est_payee', true)
+      .order('date_creation', { ascending: false })
+      .limit(12)
+      .then(({ data, error }) => {
+        if (!monte || error || !data) return;
+        // Seules les annonces avec photo peuvent illustrer quoi que ce soit.
+        setExemples((data as any[]).filter(a => a.images?.length > 0).slice(0, 4) as Annonce[]);
+      });
+    return () => { monte = false; };
+  }, []);
+
   const terminer = async () => {
     hapticLight();
     await marquerGuideVu();
@@ -82,26 +115,35 @@ export default function TutorielScreen({ onTermine, navigation }: Props) {
   // sombre, ne pèsent rien dans le bundle, et ne se périment pas quand
   // l'interface change de couleur.
 
-  const CarteExemple = ({ titre, prix, badge }: { titre: string; prix: string; badge?: boolean }) => (
-    <View style={styles.carteExemple}>
-      <View style={styles.carteImage}>
-        <Ionicons name="image-outline" size={26} color={theme.border} />
-        {badge && (
-          <View style={styles.carteBadge}>
-            <Ionicons name="flame" size={10} color="#fff" />
-            <Text style={styles.carteBadgeTexte}>En avant</Text>
-          </View>
-        )}
+  const CarteExemple = ({
+    titre, prix, badge, annonce,
+  }: { titre: string; prix: string; badge?: boolean; annonce?: Annonce }) => {
+    const photo = annonce?.images?.[0]?.image_url;
+    return (
+      <View style={styles.carteExemple}>
+        <View style={styles.carteImage}>
+          {photo
+            ? <Image source={{ uri: photo }} style={styles.cartePhoto} />
+            : <Ionicons name="image-outline" size={26} color={theme.border} />}
+          {badge && (
+            <View style={styles.carteBadge}>
+              <Ionicons name="flame" size={10} color="#fff" />
+              <Text style={styles.carteBadgeTexte}>En avant</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.carteTitre} numberOfLines={1}>{annonce?.titre || titre}</Text>
+        <Text style={styles.cartePrix}>
+          {annonce ? formatPrixCompact(annonce.prix) : prix}
+        </Text>
       </View>
-      <Text style={styles.carteTitre} numberOfLines={1}>{titre}</Text>
-      <Text style={styles.cartePrix}>{prix}</Text>
-    </View>
-  );
+    );
+  };
 
   const illustrationBienvenue = (
     <View style={styles.rangee}>
-      <CarteExemple titre="Téléphone" prix="75 000 F" />
-      <CarteExemple titre="Mouton" prix="150 000 F" />
+      <CarteExemple titre="Téléphone" prix="75 000 F" annonce={exemples[0]} />
+      <CarteExemple titre="Mouton" prix="150 000 F" annonce={exemples[1]} />
     </View>
   );
 
@@ -170,8 +212,8 @@ export default function TutorielScreen({ onTermine, navigation }: Props) {
         <Text style={styles.tendancesTitre}>Tendances</Text>
       </View>
       <View style={styles.rangee}>
-        <CarteExemple titre="Votre annonce" prix="25 000 F" badge />
-        <CarteExemple titre="Ordinateur" prix="120 000 F" badge />
+        <CarteExemple titre="Votre annonce" prix="25 000 F" badge annonce={exemples[2]} />
+        <CarteExemple titre="Ordinateur" prix="120 000 F" badge annonce={exemples[3]} />
       </View>
     </View>
   );
@@ -367,6 +409,10 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     backgroundColor: theme.surfaceMuted,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  cartePhoto: {
+    width: '100%',
+    height: '100%',
   },
   carteBadge: {
     position: 'absolute',

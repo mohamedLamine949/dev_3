@@ -174,8 +174,8 @@ export default function InvitationsScreen({ navigation }: { navigation: any }) {
         </View>
         <Text style={styles.concoursTexte}>
           {stats.concoursParticipe
-            ? `Vous participez au tirage. Un gagnant recevra ${CONCOURS_MONTANT} en main propre, en vidéo.`
-            : `Parrainez ${stats.concoursRequis} personnes pour participer au tirage de ${CONCOURS_MONTANT}, remis en main propre et filmé.`}
+            ? `Vous participez au tirage. Vous pouvez remporter ${CONCOURS_MONTANT}.`
+            : `Parrainez ${stats.concoursRequis} personnes pour participer au tirage et tenter de remporter ${CONCOURS_MONTANT}.`}
         </Text>
 
         <View style={styles.jauge}>

@@ -10,7 +10,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useTabBarSpace } from '../hooks/useTabBarSpace';
 import { useIsAdmin } from '../hooks/useIsAdmin';
-import { useParrainage } from '../hooks/useParrainage';
 import { useEntitlements } from '../hooks/useEntitlements';
 import { useAppConfig } from '../hooks/useAppConfig';
 import { supabase } from '../lib/supabase';
@@ -54,7 +53,6 @@ export default function CompteScreen({ navigation }: Props) {
   const { session, user } = useAuth();
   const tabBarSpace = useTabBarSpace();
   const { isAdmin } = useIsAdmin(session?.user?.id);
-  const { campagne, parrain: parrainRow, monParrainage } = useParrainage(session?.user?.id);
   const { paymentsEnabled } = useAppConfig();
   const { entitlements } = useEntitlements(user, 0, paymentsEnabled);
 
@@ -244,25 +242,11 @@ export default function CompteScreen({ navigation }: Props) {
     },
   ];
 
-  // Le parrainage rejoint le bloc « Mon compte » : c'est une fonction du
-  // compte, pas une fonction annexe releguee en bas de page.
-  if (campagne?.active && parrainRow) {
-    lignesCompte.splice(1, 0, {
-      cle: 'partenaire',
-      icone: 'gift-outline',
-      titre: 'Programme partenaire',
-      detail: parrainRow.code ? `Code ${parrainRow.code}` : 'Vous êtes invité',
-      onPress: () => navigation.navigate('DevenirPartenaire'),
-    });
-  }
-  if (campagne?.active && !parrainRow && !monParrainage) {
-    lignesCompte.splice(1, 0, {
-      cle: 'code',
-      icone: 'ticket-outline',
-      titre: "J'ai un code de parrainage",
-      onPress: () => navigation.navigate('SaisirCodeParrainage'),
-    });
-  }
+  // L'ancien programme (« Programme partenaire », campagnes activees a la main
+  // par l'admin) n'a plus d'entree ici : deux parrainages cote a cote dans le
+  // meme menu, c'est un choix a faire pour quelqu'un qui n'en demandait pas.
+  // Seul « Parrainage et concours » reste. Le code et les ecrans de l'ancien
+  // programme sont conserves, prets a resservir si une campagne repart.
 
   // ─── « Plus » : administration seulement ──────────────────────────────
   const lignesPlus: Ligne[] = [];
