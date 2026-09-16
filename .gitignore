@@ -29,3 +29,6 @@ app/web-build/
 
 # Rendus video (fichiers lourds, regenerables via marketing/tools)
 marketing/export/
+
+# Rapports generes localement (scripts/rapport-categories.js)
+app/rapport-categories.csv
