@@ -222,6 +222,13 @@ async function main() {
   l.push('  sauvegarde_le TIMESTAMPTZ DEFAULT NOW()');
   l.push(');');
   l.push('');
+  // Sans RLS, cette table serait ecrivable par n'importe quel client portant
+  // la cle anon : le filet de securite du retour arriere pourrait etre vide
+  // par un tiers. RLS activee SANS aucune policy = personne n'y touche via
+  // l'API ; l'editeur SQL du dashboard, lui, est administrateur et la
+  // contourne, donc la sauvegarde et le retour arriere fonctionnent.
+  l.push('ALTER TABLE public.annonces_categories_sauvegarde ENABLE ROW LEVEL SECURITY;');
+  l.push('');
   const placeholderSauvegarde = l.length;
   l.push('__SAUVEGARDE__');
 

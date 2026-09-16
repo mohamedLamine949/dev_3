@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS public.annonces_categories_sauvegarde (
   sauvegarde_le TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.annonces_categories_sauvegarde ENABLE ROW LEVEL SECURITY;
+
 INSERT INTO public.annonces_categories_sauvegarde (id, categorie, sous_categorie)
 SELECT id, categorie, sous_categorie FROM public.annonces
 WHERE id IN (
