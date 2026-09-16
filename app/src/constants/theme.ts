@@ -492,6 +492,16 @@ export function getSousCategorieLabel(id?: string | null): string | null {
   return null;
 }
 
+// Categorie parente d'une sous-categorie : les rayons de l'accueil affichent
+// une sous-categorie, mais le filtre de l'ecran a besoin des deux.
+export function getCategorieDeSousCategorie(id?: string | null): string | null {
+  if (!id) return null;
+  for (const [categorie, subs] of Object.entries(SUBCATEGORIES)) {
+    if (subs.some((s) => s.id === id)) return categorie;
+  }
+  return null;
+}
+
 // Texte de recherche (label + mots-clés, en minuscules) d'une sous-catégorie,
 // utilisé par le scoring de pertinence des annonces.
 export function getSousCategorieSearchText(id?: string | null): string {

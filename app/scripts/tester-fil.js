@@ -15,7 +15,8 @@ require('./charger-ts');
 const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
-const { composerFil } = require('../src/lib/feed.ts');
+const { composerFil, composerRayons } = require('../src/lib/feed.ts');
+const { getSousCategorieLabel } = require('../src/constants/theme.ts');
 
 const PAGE = 20;
 
@@ -44,7 +45,7 @@ async function main() {
 
   const { data, error } = await supabase
     .from('annonces')
-    .select('id, user_id, categorie, boost_expire_le, date_creation')
+    .select('id, user_id, categorie, sous_categorie, boost_expire_le, date_creation')
     .eq('statut', 'active')
     .eq('est_payee', true);
   if (error) throw new Error(error.message);
@@ -86,6 +87,20 @@ async function main() {
   console.log(`  Première page, par date    : ${vendeursAvant.size} vendeurs (le plus gros en occupe ${plusGrosAvant}/${PAGE})`);
   console.log(`  Première page, fil composé : ${premiere.size} vendeurs`);
   console.log(`  Annonces collées au même vendeur, sur tout le fil : ${collages}`);
+  console.log('');
+
+  // 4. Les rayons de l'accueil : un rayon monopolise par un seul vendeur
+  //    reproduirait a l'interieur le probleme qu'on vient de corriger.
+  const rayons = composerRayons(data);
+  console.log('  Rayons de la page d accueil :');
+  rayons.forEach(r => {
+    const v = new Set(r.ids.map(id => parId.get(id).user_id));
+    const nom = getSousCategorieLabel(r.sousCategorie) || r.sousCategorie;
+    console.log('    ' + nom.padEnd(24) + String(r.ids.length).padStart(2) + ' cartes | ' + v.size + ' vendeurs | ' + r.total + ' annonces au total');
+    if (v.size < 2 && r.ids.length > 2) echec('le rayon ' + r.sousCategorie + ' ne montre qu un seul vendeur');
+    r.ids.forEach(id => { if (!parId.has(id)) echec('un rayon cite une annonce inconnue'); });
+  });
+  if (rayons.length === 0) echec('aucun rayon composable');
   console.log('');
 
   if (erreurs === 0) console.log('  Tout est conforme.\n');

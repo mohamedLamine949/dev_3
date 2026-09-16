@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, Annonce, ImageAnnonce } from '../lib/supabase';
 import { scoreAnnonce, filterByRelevance } from '../lib/relevance';
 import { televerserPhotosAnnonce } from '../lib/photosAnnonce';
-import { composerFil } from '../lib/feed';
+import { composerFil, LigneIndex } from '../lib/feed';
 
 /** Nombre d'annonces chargées par page sur les listes paginées. */
 export const ANNONCES_PAGE_SIZE = 20;
@@ -12,7 +12,7 @@ export const ANNONCES_PAGE_SIZE = 20;
  * afficher le badge PRO (il dérive du type_compte : les annonces déjà en ligne
  * d'un compte pro l'obtiennent automatiquement).
  */
-const SELECT_CARTE =
+export const SELECT_CARTE =
   '*, images:images_annonce(id, image_url, ordre), user:users!annonces_user_id_fkey(id, prenom, nom, nom_boutique, avatar_url, type_compte)';
 
 /**
@@ -22,7 +22,7 @@ const SELECT_CARTE =
  * peser sur le quota (les photos, elles, ne partent que pour les cartes
  * effectivement affichées par la FlatList).
  */
-const SELECT_INDEX = 'id, user_id, categorie, boost_expire_le, date_creation';
+const SELECT_INDEX = 'id, user_id, categorie, sous_categorie, boost_expire_le, date_creation';
 
 /**
  * Hook pour récupérer les annonces actives avec filtrage
@@ -67,6 +67,11 @@ export function useAnnonces(options?: {
    * indispensable si l'index n'a pas pu être lu.
    */
   const [compose, setCompose] = useState(false);
+  /**
+   * L'index qui a servi à composer le fil. Exposé car les rayons de l'accueil
+   * se construisent dessus : ils n'ont ainsi aucune requête à refaire.
+   */
+  const [index, setIndex] = useState<LigneIndex[]>([]);
   const pageRef = useRef(0);
   const fetchingMoreRef = useRef(false);
   /**
@@ -258,7 +263,8 @@ export function useAnnonces(options?: {
         if (timedOut) return;
 
         if (!indexError && index) {
-          ordreRef.current = composerFil(index as any[], {
+          setIndex(index as LigneIndex[]);
+          ordreRef.current = composerFil(index as LigneIndex[], {
             categoriesPreferees: cleCategories ? cleCategories.split(',') : [],
           });
           const rows = await chargerParIds(ordreRef.current.slice(0, pageSize!));
@@ -277,6 +283,7 @@ export function useAnnonces(options?: {
         // fil chronologique habituel.
         console.warn('Index du fil indisponible, retour au tri par date:', indexError?.message);
         ordreRef.current = [];
+        setIndex([]);
         setCompose(false);
       }
 
@@ -364,7 +371,7 @@ export function useAnnonces(options?: {
     fetchAnnonces();
   }, [fetchAnnonces]);
 
-  return { annonces, loading, loadingMore, hasMore, error, compose, refetch: fetchAnnonces, loadMore };
+  return { annonces, loading, loadingMore, hasMore, error, compose, index, refetch: fetchAnnonces, loadMore };
 }
 
 /**

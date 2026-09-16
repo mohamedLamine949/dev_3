@@ -82,6 +82,7 @@ export interface LigneIndex {
   id: string;
   user_id?: string | null;
   categorie?: string | null;
+  sous_categorie?: string | null;
   boost_expire_le?: string | null;
   date_creation?: string | null;
 }
@@ -149,6 +150,81 @@ export function composerFil(
     }
   }
   return ordre;
+}
+
+/**
+ * Rayons de l'accueil : des rangées courtes, chacune consacrée à UNE
+ * sous-catégorie (« Parfums », « Montres », « Consoles »), à la manière d'un
+ * magasin — et non un empilement où le parfum voisine la PlayStation.
+ *
+ * Pourquoi la sous-catégorie et non la catégorie : sur 248 annonces, Mode &
+ * Beauté en concentre 142. Un rayon « Mode & Beauté » serait le fil mélangé
+ * d'aujourd'hui avec un titre dessus, pendant que quatre des neuf catégories
+ * seraient vides. Les sous-catégories, elles, décrivent vraiment un produit.
+ *
+ * Trois règles pour qu'un rayon tienne ses promesses :
+ *   - il faut assez d'annonces (`minimum`), sinon la rangée paraît vide ;
+ *   - les rayons « Autre » sont exclus : ils ne décrivent rien ;
+ *   - à l'intérieur d'un rayon, les vendeurs alternent (même composition que
+ *     le fil) — sans quoi le rayon « Parfums » afficherait huit annonces de
+ *     la même boutique, c'est-à-dire le problème qu'on vient de corriger.
+ */
+export interface Rayon {
+  sousCategorie: string;
+  /** Vrai si la sous-catégorie fait partie de celles déjà consultées. */
+  suggerePourVous: boolean;
+  /** Nombre total d'annonces de ce rayon, au-delà de celles affichées. */
+  total: number;
+  ids: string[];
+}
+
+export function composerRayons(
+  lignes: LigneIndex[],
+  options?: {
+    sousCategoriesPreferees?: string[];
+    nbRayons?: number;
+    parRayon?: number;
+    minimum?: number;
+  }
+): Rayon[] {
+  const nbRayons = options?.nbRayons ?? 4;
+  const parRayon = options?.parRayon ?? 8;
+  const minimum = options?.minimum ?? 6;
+  const preferees = (options?.sousCategoriesPreferees || []).filter(Boolean);
+
+  const groupes = new Map<string, LigneIndex[]>();
+  lignes.forEach(l => {
+    const sous = l.sous_categorie;
+    // « Autre » est un fourre-tout : en faire un rayon, c'est promettre un
+    // rangement qu'on ne tient pas.
+    if (!sous || sous.startsWith('autre')) return;
+    const groupe = groupes.get(sous) || [];
+    groupe.push(l);
+    groupes.set(sous, groupe);
+  });
+
+  // Rang d'intérêt : la sous-catégorie vue en dernier passe en premier.
+  const rangPrefere = new Map<string, number>();
+  preferees.forEach((s, i) => {
+    if (!rangPrefere.has(s)) rangPrefere.set(s, i);
+  });
+
+  return [...groupes.entries()]
+    .filter(([, groupe]) => groupe.length >= minimum)
+    .sort((a, b) => {
+      const ra = rangPrefere.has(a[0]) ? rangPrefere.get(a[0])! : Infinity;
+      const rb = rangPrefere.has(b[0]) ? rangPrefere.get(b[0])! : Infinity;
+      // À intérêt égal (ou sans intérêt connu), le rayon le mieux fourni
+      // passe devant : c'est celui qui aura l'air le plus vivant.
+      return ra - rb || b[1].length - a[1].length;
+    })
+    .slice(0, nbRayons)
+    .map(([sousCategorie, groupe]) => ({
+      sousCategorie,
+      suggerePourVous: rangPrefere.has(sousCategorie),
+      total: groupe.length,
+      ids: composerFil(groupe).slice(0, parRayon),
+    }));
 }
 
 /**

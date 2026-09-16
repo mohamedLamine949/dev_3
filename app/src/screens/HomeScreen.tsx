@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import Gradient from '../components/Gradient';
-import { FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, SUBCATEGORIES, TYPOGRAPHY } from '../constants/theme';
+import { FONTS, SPACING, RADIUS, SHADOWS, CATEGORIES, SUBCATEGORIES, TYPOGRAPHY, getSousCategorieLabel, getCategorieDeSousCategorie } from '../constants/theme';
 import { useAnnonces, ANNONCES_PAGE_SIZE } from '../hooks/useAnnonces';
 import { Annonce } from '../lib/supabase';
 import { useLocation, getDistance, formatDistance } from '../hooks/useLocation';
@@ -28,6 +28,7 @@ import { useFavoris, toggleFavori } from '../hooks/useFavoris';
 import { getRecentAnnonces } from '../lib/recentStorage';
 import { SkeletonCard, SkeletonCategories } from '../components/SkeletonLoader';
 import { useDecouverteProPreview } from '../hooks/useDecouvertePro';
+import { useRayons, RayonAffiche } from '../hooks/useRayons';
 
 
 /** Fenetre du bouton « Nouveautes » de l'accueil : les 3 derniers jours. */
@@ -196,7 +197,7 @@ export default function HomeScreen({ navigation }: Props) {
     [recentAnnonces, nouveautes]
   );
 
-  const { annonces, loading, loadingMore, hasMore, error, compose, refetch, loadMore } = useAnnonces({
+  const { annonces, loading, loadingMore, hasMore, error, compose, index, refetch, loadMore } = useAnnonces({
     categorie: selectedCategory,
     sousCategorie: selectedSousCategorie,
     search: debouncedSearch,
@@ -209,6 +210,24 @@ export default function HomeScreen({ navigation }: Props) {
     // paquets de 20, la suite arrive au scroll.
     pageSize: ANNONCES_PAGE_SIZE,
   });
+  // Rayons de l'accueil : des rangees par sous-categorie, construites sur
+  // l'index deja lu par useAnnonces. Masques des qu'on filtre ou qu'on
+  // cherche : l'ecran repond alors a une demande precise, pas a une flanerie.
+  const sousCategoriesPreferees = React.useMemo(
+    () => recentAnnonces.map(a => a.sous_categorie).filter(Boolean) as string[],
+    [recentAnnonces]
+  );
+  const { rayons } = useRayons(index, {
+    sousCategoriesPreferees,
+    actif: !nouveautes && !selectedCategory && !debouncedSearch,
+  });
+
+  const ouvrirRayon = useCallback((sousCategorie: string) => {
+    hapticLight();
+    setSelectedCategory(getCategorieDeSousCategorie(sousCategorie));
+    setSelectedSousCategorie(sousCategorie);
+  }, []);
+
   const { location } = useLocation();
   const { session, user } = useAuth();
   const { favorisIds, refetch: refetchFavoris } = useFavoris(session?.user?.id);
@@ -378,6 +397,52 @@ export default function HomeScreen({ navigation }: Props) {
   // ─────────────────────────────────────────────
   // Render: Recent Card
   // ─────────────────────────────────────────────
+
+  const renderRayonCard = ({ item }: { item: Annonce }) => {
+    const imageUrl = item.images?.[0]?.image_url || null;
+    return (
+      <PressableCard
+        style={styles.rayonCard}
+        onPress={() => navigation.navigate('AnnonceDetail', { annonce: item })}
+      >
+        <View style={styles.rayonImageContainer}>
+          {imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.rayonImage} />
+          ) : (
+            <View style={styles.rayonImagePlaceholder}>
+              <Ionicons name="image-outline" size={28} color={theme.border} />
+            </View>
+          )}
+        </View>
+        <Text style={styles.rayonCardTitle} numberOfLines={2}>{item.titre}</Text>
+        <Text style={styles.rayonCardPrice} numberOfLines={1}>{formatPrix(item.prix)}</Text>
+      </PressableCard>
+    );
+  };
+
+  const renderRayon = (rayon: RayonAffiche) => (
+    <View key={rayon.sousCategorie} style={styles.recentSection}>
+      <View style={styles.sectionHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.sectionTitle}>{getSousCategorieLabel(rayon.sousCategorie)}</Text>
+          {rayon.suggerePourVous && (
+            <Text style={styles.rayonSousTitre}>D'apres ce que vous avez regarde</Text>
+          )}
+        </View>
+        <TouchableOpacity onPress={() => ouvrirRayon(rayon.sousCategorie)} activeOpacity={0.7}>
+          <Text style={styles.sectionLink}>Voir les {rayon.total}</Text>
+        </TouchableOpacity>
+      </View>
+      <FlatList
+        data={rayon.annonces}
+        renderItem={renderRayonCard}
+        keyExtractor={(item) => `${rayon.sousCategorie}-${item.id}`}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.recentListContainer}
+      />
+    </View>
+  );
 
   const renderRecentCard = ({ item }: { item: Annonce }) => {
     const imageUrl = item.images?.[0]?.image_url || null;
@@ -678,10 +743,19 @@ export default function HomeScreen({ navigation }: Props) {
           </View>
         )}
 
+        {/* Rayons : une rangee par sous-categorie, pour que l'accueil se
+            parcoure comme un magasin et non comme un tas. Chaque rangee
+            alterne les vendeurs, comme le fil. */}
+        {rayons.map(renderRayon)}
+
         {/* Section titre */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
-            {nouveautes ? 'Publiées ces 3 derniers jours' : 'Annonces récentes'}
+            {nouveautes
+              ? 'Publiées ces 3 derniers jours'
+              : rayons.length > 0
+                ? 'Toutes les annonces'
+                : 'Annonces récentes'}
           </Text>
           <TouchableOpacity
             onPress={() => nouveautes
@@ -1277,6 +1351,51 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     fontWeight: FONTS.semibold,
     color: theme.textPrimary,
     marginTop: SPACING.sm,
+    marginHorizontal: SPACING.sm,
+  },
+  rayonSousTitre: {
+    fontSize: FONTS.xs,
+    color: theme.textMuted,
+    marginTop: 2,
+  },
+  rayonCard: {
+    width: 160,
+    backgroundColor: theme.surface,
+    borderRadius: RADIUS.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.borderLight,
+    paddingBottom: SPACING.sm,
+    ...SHADOWS.sm,
+  },
+  rayonImageContainer: {
+    width: '100%',
+    height: 160,
+    backgroundColor: theme.surfaceMuted,
+  },
+  rayonImage: {
+    width: '100%',
+    height: '100%',
+  },
+  rayonImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rayonCardTitle: {
+    fontSize: FONTS.sm,
+    fontWeight: FONTS.semibold,
+    color: theme.textPrimary,
+    marginTop: SPACING.sm,
+    marginHorizontal: SPACING.sm,
+    minHeight: 34,
+  },
+  rayonCardPrice: {
+    fontSize: FONTS.md,
+    fontWeight: FONTS.bold,
+    color: theme.primary,
+    marginTop: 2,
     marginHorizontal: SPACING.sm,
   },
   recentCardPrice: {
