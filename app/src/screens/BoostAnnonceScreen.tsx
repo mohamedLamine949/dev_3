@@ -5,6 +5,7 @@ import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAppConfig } from '../hooks/useAppConfig';
+import { useInvitations, utiliserBoostGratuit } from '../hooks/useInvitations';
 import { Annonce } from '../lib/supabase';
 import { formatPrix } from '../lib/format';
 import { BOOST_PRIX, BOOST_DURATION_HOURS, activerBoost, isBoostActif } from '../hooks/useBoost';
@@ -32,6 +33,10 @@ export default function BoostAnnonceScreen({ navigation, route }: Props) {
   // Interrupteur DU BOOST, distinct de celui des offres d'acces : depuis le
   // 2026-09-02, devenir professionnel est gratuit mais booster est payant.
   const { boostPaymentsEnabled } = useAppConfig();
+  // Boosts gagnes par parrainage : s'il en reste un, on ne demande pas
+  // d'argent a quelqu'un qui a deja paye en amenant du monde.
+  const { stats: invitations, refetch: refetchInvitations } = useInvitations(session?.user?.id);
+  const boostsGratuits = invitations?.boostsDisponibles ?? 0;
   const styles = React.useMemo(() => createStyles(theme), [theme]);
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -53,9 +58,30 @@ export default function BoostAnnonceScreen({ navigation, route }: Props) {
   // lancement) : quand les paiements sont désactivés, le boost s'active
   // directement sans passer par PaiementPro — sert aussi à tester tout le
   // parcours (résultats, expiration…) sans payer.
+  /** Consomme un boost gagne par parrainage. Rien n'est facture. */
+  const handleBoostGratuit = async () => {
+    setActivating(true);
+    try {
+      const reponse = await utiliserBoostGratuit(annonce.id);
+      if (!reponse.ok) {
+        Alert.alert('Erreur', reponse.message || "Impossible d'utiliser ce boost.");
+        return;
+      }
+      await refetchInvitations();
+      navigation.replace('BoostResultats', { annonceId: annonce.id, annonceTitre: annonce.titre });
+    } finally {
+      setActivating(false);
+    }
+  };
+
   const handlePressBoost = async () => {
     if (!session?.user) {
       navigation.navigate('Login');
+      return;
+    }
+    // Un boost deja gagne passe avant le paiement.
+    if (boostsGratuits > 0) {
+      await handleBoostGratuit();
       return;
     }
     if (!boostPaymentsEnabled) {
@@ -134,7 +160,11 @@ export default function BoostAnnonceScreen({ navigation, route }: Props) {
         >
           <Ionicons name="rocket-outline" size={20} color="#fff" />
           <Text style={styles.boostBtnText}>
-            {boostPaymentsEnabled ? `Booster maintenant — ${formatPrix(BOOST_PRIX)}` : 'Booster gratuitement (test)'}
+            {boostsGratuits > 0
+              ? `Utiliser mon boost gratuit (${boostsGratuits})`
+              : boostPaymentsEnabled
+                ? `Booster maintenant — ${formatPrix(BOOST_PRIX)}`
+                : 'Booster gratuitement (test)'}
           </Text>
         </TouchableOpacity>
       </View>

@@ -209,6 +209,12 @@ export default function CompteScreen({ navigation }: Props) {
       onPress: () => navigation.navigate('Settings'),
     },
     {
+      cle: 'invitations',
+      icone: 'gift-outline',
+      titre: 'Parrainage et concours',
+      onPress: () => navigation.navigate('Invitations'),
+    },
+    {
       cle: 'guide',
       icone: 'school-outline',
       titre: 'Revoir le guide',

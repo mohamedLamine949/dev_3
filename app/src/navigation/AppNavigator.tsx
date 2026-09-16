@@ -53,6 +53,8 @@ import BoostAnnonceScreen from '../screens/BoostAnnonceScreen';
 import BoostResultsScreen from '../screens/BoostResultsScreen';
 import BoosterMesAnnoncesScreen from '../screens/BoosterMesAnnoncesScreen';
 import TutorielScreen from '../screens/TutorielScreen';
+import InvitationsScreen from '../screens/InvitationsScreen';
+import SaisirCodeInvitationScreen from '../screens/SaisirCodeInvitationScreen';
 import AdminModerationScreen from '../screens/AdminModerationScreen';
 import SignalementsScreen from '../screens/SignalementsScreen';
 import DemandeDevisScreen from '../screens/DemandeDevisScreen';
@@ -471,6 +473,19 @@ export default function AppNavigator() {
         <Stack.Screen
           name="Tutoriel"
           component={TutorielScreen}
+          options={{ animation: 'slide_from_bottom' }}
+        />
+        {/* Parrainage ouvert (§ migration_invitations.sql). L'ancien
+            programme, active a la main par l'admin, garde ses propres
+            ecrans : les deux coexistent sans se croiser. */}
+        <Stack.Screen
+          name="Invitations"
+          component={InvitationsScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="SaisirCodeInvitation"
+          component={SaisirCodeInvitationScreen}
           options={{ animation: 'slide_from_bottom' }}
         />
         <Stack.Screen

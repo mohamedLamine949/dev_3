@@ -76,30 +76,25 @@ export default function CompleteProfileScreen({ navigation, route }: Props) {
       if (error) throw error;
       await refreshUser();
 
-      // Programme de parrainage : si une campagne est active et que ce compte
-      // n'a pas encore de parrain, on propose la saisie du code (skippable).
-      // En cas d'échec de lecture (table absente, réseau), parcours normal.
+      // Parrainage ouvert : on propose la saisie du code a tout nouvel
+      // inscrit (§ migration_invitations.sql). L'ecran est passable, et un
+      // compte deja rattache n'a rien a saisir.
       let proposerCode = false;
       try {
-        const { data: camp } = await supabase
-          .from('campagnes_parrainage')
+        const { data: dejaFilleul } = await supabase
+          .from('invitations')
           .select('id')
-          .eq('active', true)
+          .eq('filleul_id', session.user.id)
           .maybeSingle();
-        if (camp) {
-          const { data: dejaParraine } = await supabase
-            .from('parrainages')
-            .select('id')
-            .eq('filleul_id', session.user.id)
-            .maybeSingle();
-          proposerCode = !dejaParraine;
-        }
-      } catch {}
+        proposerCode = !dejaFilleul;
+      } catch {
+        // Table absente (migration pas encore passee) : parcours normal.
+      }
 
       if (proposerCode) {
         navigation.reset({
           index: 0,
-          routes: [{ name: 'SaisirCodeParrainage', params: { fromSignup: true } }],
+          routes: [{ name: 'SaisirCodeInvitation', params: { fromSignup: true } }],
         });
       } else {
         navigation.reset({

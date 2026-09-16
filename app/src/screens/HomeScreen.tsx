@@ -29,6 +29,7 @@ import { getRecentAnnonces } from '../lib/recentStorage';
 import { SkeletonCard, SkeletonCategories } from '../components/SkeletonLoader';
 import { useDecouverteProPreview } from '../hooks/useDecouvertePro';
 import { useRayons, RayonAffiche } from '../hooks/useRayons';
+import { useInvitations } from '../hooks/useInvitations';
 
 
 /** Fenetre du bouton « Nouveautes » de l'accueil : les 3 derniers jours. */
@@ -230,6 +231,11 @@ export default function HomeScreen({ navigation }: Props) {
 
   const { location } = useLocation();
   const { session, user } = useAuth();
+  // Parrainage : la banniere n'existe que si le programme est en place en
+  // base. Elle change de texte selon l'avancee — un compteur fige a « 0/5 »
+  // ne donne envie a personne.
+  const { stats: invitations } = useInvitations(session?.user?.id);
+
   const { favorisIds, refetch: refetchFavoris } = useFavoris(session?.user?.id);
   const { shops: proShops, total: proTotal } = useDecouverteProPreview();
   // Badge PRO valide par le serveur : un abonnement expire ne le porte plus (§11.7).
@@ -653,6 +659,48 @@ export default function HomeScreen({ navigation }: Props) {
               contentContainerStyle={styles.recentListContainer}
             />
           </View>
+        )}
+
+        {/* Parrainage : la promesse est concrete (un boost gratuit, puis le
+            concours), donc elle se dit en clair sur l'accueil et pas dans un
+            sous-menu. Masquee tant que la migration n'est pas passee, et en
+            mode « Nouveautes » ou l'ecran doit aller droit aux annonces. */}
+        {!nouveautes && invitations && (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => { hapticLight(); navigation.navigate('Invitations'); }}
+            style={styles.parrainageCta}
+          >
+            <Gradient
+              colors={['#7C2D12', '#B45309', '#D97706']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.parrainageInner}
+            >
+              <Ionicons
+                name="gift"
+                size={96}
+                color="rgba(255,255,255,0.13)"
+                style={styles.nouveautesWatermark}
+              />
+              <View style={styles.nouveautesIcon}>
+                <Ionicons name="gift" size={20} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.nouveautesTitle}>
+                  {invitations.boostsDisponibles > 0
+                    ? `${invitations.boostsDisponibles} boost${invitations.boostsDisponibles > 1 ? 's' : ''} gratuit${invitations.boostsDisponibles > 1 ? 's' : ''} a utiliser`
+                    : 'Invitez, gagnez un boost gratuit'}
+                </Text>
+                <Text style={styles.nouveautesSubtitle}>
+                  {invitations.concoursParticipe
+                    ? 'Vous participez au tirage de 100 000 F'
+                    : `Encore ${invitations.concoursManque} pour jouer les 100 000 F`}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#fff" />
+            </Gradient>
+          </TouchableOpacity>
         )}
 
         {/* Nouveautés : un seul appui pour ne voir que les annonces publiées
@@ -1413,6 +1461,22 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     color: theme.textPrimary,
     marginTop: SPACING.sm,
     marginHorizontal: SPACING.sm,
+  },
+  // Meme gabarit que la carte « Nouveautes » juste en dessous : la liste
+  // porte deja le retrait horizontal, et l'ombre va sur le degrade (sur
+  // Android, `elevation` sur un conteneur transparent ne dessine rien).
+  parrainageCta: {
+    marginBottom: SPACING.lg,
+  },
+  parrainageInner: {
+    ...SHADOWS.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    overflow: 'hidden',
   },
   tendanceTitreLigne: {
     flexDirection: 'row',
