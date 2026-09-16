@@ -37,6 +37,13 @@ export interface Detection {
   indices: string[];
   /** Au moins un indice vient du titre (et pas seulement de la description). */
   indiceDansTitre: boolean;
+  /**
+   * Toutes les sous-catégories arrivées au meilleur score, `sousCategorie`
+   * comprise. Plusieurs veut dire que le texte ne tranche pas : le rayon
+   * choisi par le vendeur, s'il est dans cette liste, est aussi valable que
+   * celui qu'on aurait retenu, et rien ne doit bouger.
+   */
+  sousCategoriesPossibles: string[];
 }
 
 // ─────────────────────────────────────────────
@@ -84,11 +91,14 @@ const MOTS_EN_PLUS: Record<string, string[]> = {
   tablettes: ['galaxy tab'],
   ordinateurs: ['asus', 'acer', 'toshiba', 'core i5', 'core i7', 'clavier'],
   tv_audio: ['smart tv', 'home cinema', 'ampli', 'haut parleur', 'barre de son', 'woofer', 'microphone', 'micro lavalliere'],
-  consoles_jeux_video: ['compte playstation', 'fifa', 'gta', 'psn', 'carte psn', 'efootball', 'free fire'],
+  consoles_jeux_video: [
+    'compte playstation', 'play station', 'fifa', 'gta', 'psn', 'carte psn',
+    'efootball', 'free fire',
+  ],
   accessoires_electronique: [
     'ecouteur', 'airpods', 'protecteur ecran', 'support telephone', 'power bank',
     'wifi', 'routeur', 'modem', 'repetiteur wifi', 'repeteur wifi', 'cle wifi',
-    'trepied', 'tripied', 'camera', 'drone',
+    'trepied', 'tripied', 'camera', 'drone', 'air pod', 'air pods',
   ],
   // Comptes et abonnements numeriques : tres frequents au Mali (PlayStation,
   // Netflix, IPTV). Faute de rayon dedie, ils vivent dans « Autre » de la
@@ -97,14 +107,22 @@ const MOTS_EN_PLUS: Record<string, string[]> = {
 
   // Mode & Beauté
   vetements_homme: ['veste', 'jean', 'survetement', 'maillot', 'grand boubou'],
-  vetements_femme: ['bazin', 'basin', 'hijab', 'abaya', 'foulard', 'tenue femme', 'jube', 'khimar', 'tissu'],
+  vetements_femme: [
+    'bazin', 'basin', 'hijab', 'abaya', 'foulard', 'tenue femme', 'jube',
+    'khimar', 'tissu',
+    // Vetements sans genre, revendiques aussi par le rayon homme : un
+    // « Ensemble Pantalon » peut etre l'un ou l'autre, et le texte ne le dira
+    // jamais. Les inscrire des deux cotes les met a egalite, et une egalite
+    // ne deplace rien (voir sousCategoriesPossibles).
+    'pantalon', 'jean', 'tshirt', 'polo', 'survetement', 'veste',
+  ],
   chaussures: ['babouche', 'mocassin', 'escarpin', 'sandale', 'puma', 'converse'],
   sacs_accessoires: ['portefeuille', 'valise', 'sac a main', 'sac a dos'],
   beaute_cosmetiques: [
     'savon', 'gel douche', 'vernis', 'rouge a levres', 'fond de teint',
     'eau de parfum', 'eau de toilette', 'coffret parfum', 'deodorant', 'lotion',
     'karite', 'tissage', 'faux cils', 'soin visage', 'shampoing', 'gommage',
-    'serum', 'encens', 'woussoulan', 'wusulan',
+    'serum', 'encens', 'woussoulan', 'wusulan', 'vaseline',
     // « huile » seul est alimentaire autant que cosmetique : ce sont les
     // expressions qui tranchent (la regle du mot-cle le plus precis s'en
     // charge, voir retenirLesPlusPrecis).
@@ -147,7 +165,7 @@ const MOTS_EN_PLUS: Record<string, string[]> = {
 
   // Alimentation
   restaurants: ['pizza', 'shawarma', 'chawarma', 'poulet braise', 'gateau', 'patisserie', 'burger', 'jus naturel'],
-  supermarches: ['farine', 'lait', 'sac de riz', 'spaghetti', 'sucre en poudre'],
+  supermarches: ['farine', 'lait', 'sac de riz', 'spaghetti', 'sucre en poudre', 'cafe en grains'],
 
   // Services
   reparation_electronique: ['reparation telephone', 'deblocage', 'installation logiciel'],
@@ -156,6 +174,7 @@ const MOTS_EN_PLUS: Record<string, string[]> = {
   couture_tailleur: ['couturiere', 'brodeur'],
   coiffure_esthetique: ['maquilleuse', 'barbier', 'pedicure', 'manucure', 'massage'],
   cours_formation: ['repetiteur', 'coran', 'cours particulier'],
+  evenementiel: ['ticket', 'billet', 'concert'],
   transport_demenagement: ['camion', 'benne', 'transporteur', 'coursier', 'chauffeur', 'taxi'],
   photo_video: ['montage video', 'photographie', 'couverture mediatique'],
   informatique_design: ['community manager', 'application mobile', 'creation site'],
@@ -254,8 +273,19 @@ function positionsDe(cle: string, tokens: string[]): number[][] {
     return occurrences;
   }
 
-  const correspond = (t: string) =>
-    cle.length >= 5 ? t === cle || t.startsWith(cle) : t === cle;
+  const correspond = (t: string) => {
+    if (t === cle) return true;
+    if (cle.length < 5) return false;
+    // « montre » → « montres » : le texte en dit plus que le mot-clé.
+    if (t.startsWith(cle)) return true;
+    // « lunettes » (mot-clé) ↔ « lunette » (texte) : l'inverse arrive tout
+    // autant. Uniquement la marque du pluriel, rien d'autre : avec deux
+    // lettres libres, « brodé » attrapait « brodeur » et l'annonce de
+    // vêtements partait dans les services de couture.
+    if (t.length < 5 || !cle.startsWith(t)) return false;
+    const reste = cle.slice(t.length);
+    return reste === 's' || reste === 'es' || reste === 'x';
+  };
   tokens.forEach((t, i) => {
     if (correspond(t)) occurrences.push([i]);
   });
@@ -305,6 +335,7 @@ export function detecterCategorie(titre?: string | null, description?: string | 
   const vide: Detection = {
     categorie: null, sousCategorie: null, confiance: 'aucune',
     score: 0, scoreSuivant: 0, indices: [], indiceDansTitre: false,
+    sousCategoriesPossibles: [],
   };
   if (!titreNorm && !descNorm) return vide;
 
@@ -360,9 +391,13 @@ export function detecterCategorie(titre?: string | null, description?: string | 
 
   // Sous-catégorie : la meilleure PARMI celles de la catégorie gagnante.
   const sousCategories = (SUBCATEGORIES[categorie] || []).map(s => s.id);
-  const meilleureSous = [...parSousCategorie.entries()]
+  const classementSous = [...parSousCategorie.entries()]
     .filter(([id]) => sousCategories.includes(id))
-    .sort((a, b) => b[1] - a[1])[0];
+    .sort((a, b) => b[1] - a[1]);
+  const meilleureSous = classementSous[0];
+  const sousCategoriesPossibles = meilleureSous
+    ? classementSous.filter(([, n]) => Math.abs(n - meilleureSous[1]) < 0.001).map(([id]) => id)
+    : [];
 
   /**
    * La confiance répond à une seule question : « peut-on corriger sans
@@ -386,6 +421,7 @@ export function detecterCategorie(titre?: string | null, description?: string | 
     scoreSuivant: Math.round(scoreSuivant * 10) / 10,
     indices,
     indiceDansTitre,
+    sousCategoriesPossibles,
   };
 }
 
@@ -404,7 +440,9 @@ export function analyserAnnonce(annonce: {
   const detection = detecterCategorie(annonce.titre, annonce.description);
   const accord = !detection.categorie || detection.categorie === annonce.categorie;
   const accordSousCategorie =
-    !detection.sousCategorie || detection.sousCategorie === annonce.sous_categorie;
+    !detection.sousCategorie ||
+    (!!annonce.sous_categorie &&
+      detection.sousCategoriesPossibles.includes(annonce.sous_categorie));
 
   return {
     ...detection,
