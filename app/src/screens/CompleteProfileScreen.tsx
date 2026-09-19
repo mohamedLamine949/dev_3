@@ -40,6 +40,14 @@ export default function CompleteProfileScreen({ navigation, route }: Props) {
   const [nom, setNom] = useState(user?.nom || meta.family_name || rest.join(' ') || '');
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
   const [telephone, setTelephone] = useState(user?.telephone || '');
+  // WhatsApp obligatoire pour tout nouvel inscrit (§ décision produit) : les
+  // acheteurs y contactent de plus en plus les vendeurs, et un vendeur sans
+  // WhatsApp perd ces messages. Les comptes déjà inscrits ne sont pas
+  // concernés — cet écran ne s'affiche que quand telephone/prenom manquent,
+  // ce qui n'arrive plus une fois le profil complété une première fois.
+  const [memeQueTelephone, setMemeQueTelephone] = useState(true);
+  const [countryWhatsapp, setCountryWhatsapp] = useState(DEFAULT_COUNTRY);
+  const [whatsapp, setWhatsapp] = useState('');
   const [acceptCgv, setAcceptCgv] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -51,11 +59,21 @@ export default function CompleteProfileScreen({ navigation, route }: Props) {
     setTelephone((prev) => onlyDigits(prev).slice(0, next.max));
   }
 
+  function handleCountryWhatsappChange(next: typeof countryWhatsapp) {
+    setCountryWhatsapp(next);
+    setWhatsapp((prev) => onlyDigits(prev).slice(0, next.max));
+  }
+
   const phoneDigits = onlyDigits(telephone);
+  const whatsappDigits = onlyDigits(whatsapp);
+  const whatsappValide = memeQueTelephone
+    ? isValidNationalNumber(phoneDigits, country)
+    : isValidNationalNumber(whatsappDigits, countryWhatsapp);
   const canSubmit =
     prenom.trim().length >= 2 &&
     nom.trim().length >= 2 &&
     isValidNationalNumber(phoneDigits, country) &&
+    whatsappValide &&
     acceptCgv;
 
   async function handleSave() {
@@ -63,12 +81,16 @@ export default function CompleteProfileScreen({ navigation, route }: Props) {
     setLoading(true);
     try {
       const formattedPhone = toE164(country, phoneDigits);
+      const formattedWhatsapp = memeQueTelephone
+        ? formattedPhone
+        : toE164(countryWhatsapp, whatsappDigits);
       const { error } = await supabase.from('users').upsert(
         {
           id: session.user.id,
           prenom: prenom.trim(),
           nom: nom.trim(),
           telephone: formattedPhone,
+          whatsapp: formattedWhatsapp,
           email: session.user.email || null,
         },
         { onConflict: 'id' }
@@ -172,6 +194,39 @@ export default function CompleteProfileScreen({ navigation, route }: Props) {
             <Text style={styles.hint}>Ce numéro sera visible par les acheteurs pour vous contacter.</Text>
           </View>
 
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Numéro WhatsApp</Text>
+            <TouchableOpacity
+              style={styles.memeNumeroRow}
+              onPress={() => setMemeQueTelephone(!memeQueTelephone)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={memeQueTelephone ? 'checkbox' : 'square-outline'}
+                size={20}
+                color={memeQueTelephone ? theme.primary : theme.textMuted}
+              />
+              <Text style={styles.memeNumeroText}>Identique à mon numéro de téléphone</Text>
+            </TouchableOpacity>
+            {!memeQueTelephone && (
+              <View style={styles.inputWithIcon}>
+                <CountryCodePicker value={countryWhatsapp} onChange={handleCountryWhatsappChange} />
+                <TextInput
+                  style={styles.inputFlex}
+                  placeholder="70 00 00 00"
+                  placeholderTextColor={theme.textMuted}
+                  value={whatsapp}
+                  onChangeText={(t) => setWhatsapp(onlyDigits(t).slice(0, countryWhatsapp.max))}
+                  keyboardType="number-pad"
+                  maxLength={countryWhatsapp.max}
+                />
+              </View>
+            )}
+            <Text style={styles.hint}>
+              C'est par WhatsApp que la plupart des acheteurs vous écriront.
+            </Text>
+          </View>
+
           <View style={styles.cgvContainer}>
             <TouchableOpacity style={styles.cgvCheckbox} onPress={() => setAcceptCgv(!acceptCgv)} activeOpacity={0.7}>
               <Ionicons
@@ -225,6 +280,8 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   inputIcon: { marginRight: SPACING.sm },
   inputFlex: { flex: 1, paddingVertical: 13, fontSize: FONTS.md, color: theme.textPrimary },
   hint: { fontSize: FONTS.xs, color: theme.textMuted, marginTop: 2 },
+  memeNumeroRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingVertical: 4 },
+  memeNumeroText: { flex: 1, fontSize: FONTS.sm, color: theme.textSecondary },
   ctaBtn: { height: 54, backgroundColor: theme.primary, borderRadius: RADIUS.lg, justifyContent: 'center', alignItems: 'center', marginTop: SPACING.sm, ...SHADOWS.colored },
   ctaBtnDisabled: { backgroundColor: theme.textMuted, shadowOpacity: 0, elevation: 0 },
   ctaText: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
