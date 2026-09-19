@@ -25,23 +25,27 @@ const CATEGORY_LABELS = {
   'motos': 'Motos',
   'immobilier': 'Immobilier',
   'alimentation': 'Alimentation',
+  'animaux': 'Animaux',
   'services': 'Services'
 };
 
 // Métadonnées d'en-tête par page
 const PAGE_META = {
   dashboard:    { title: 'Tableau de Bord', subtitle: "Vue d'ensemble et métriques en temps réel de votre plateforme" },
+  stats:        { title: 'Statistiques',    subtitle: "Croissance, catégories qui marchent, et les utilisateurs à relancer" },
   users:        { title: 'Utilisateurs',    subtitle: "Liste complète des comptes inscrits sur Flash Market" },
   annonces:     { title: 'Annonces',        subtitle: "Tous les dépôts d'annonces publiés par vos vendeurs" },
   finances:     { title: 'Finances',        subtitle: "Encaissements réellement constatés — boosts, accès à vie, annonces payées" },
   signalements: { title: 'Signalements',    subtitle: "Gérez les plaintes et signalements d'annonces ou de vendeurs" },
-  parrainage:   { title: 'Parrainage',      subtitle: "Programme partenaire : activation des parrains, suivi des cycles et paiements Orange Money" }
+  parrainage:   { title: 'Parrainage',      subtitle: "Qui a parrainé qui, boosts offerts et participants au tirage" }
 };
 
 // Instances Chart.js (pour pouvoir les détruire au rechargement)
 let categoryChartInstance = null;
 let userRatioChartInstance = null;
 let revenueChartInstance = null;
+let growthChartInstance = null;
+let contactsChartInstance = null;
 
 // Données chargées en mémoire (servent à filtrer côté client)
 let allUsers = [];
@@ -60,6 +64,17 @@ let appConfig = null;
 let campagneSante = null;
 let allParrains = [];
 let allParrainages = [];
+// Parrainage ouvert (migration_invitations.sql). Lisible par l'admin
+// seulement après migration_admin_pilotage.sql : `invDispo` reste faux sinon.
+let invDispo = false;
+let allInvitations = [];
+let allInvitationCodes = [];
+let allCreditsBoost = [];
+
+// Mises en relation (contact_events) : même prérequis.
+let contactsDispo = false;
+let allContacts = [];
+
 // Filtre "annonces d'un utilisateur" (bouton Voir annonces d'un parrain)
 let annoncesUserFilter = null;
 
@@ -207,17 +222,19 @@ refreshBtn.addEventListener('click', () => {
 // ================= CHARGEMENT DES DONNÉES =================
 async function loadDashboardData() {
   try {
-    const { data: users, error: usersError } = await _supabase
+    // Paginé : l'API Supabase plafonne chaque réponse à 1000 lignes, au-delà
+    // les statistiques seraient fausses sans que rien ne le signale.
+    const users = await fetchAll(() => _supabase
       .from('users')
       .select('*')
-      .order('date_creation', { ascending: false });
-    if (usersError) throw usersError;
+      .order('date_creation', { ascending: false })
+      .order('id'));
 
-    const { data: annonces, error: annoncesError } = await _supabase
+    const annonces = await fetchAll(() => _supabase
       .from('annonces')
       .select('*, users(prenom, nom)')
-      .order('date_creation', { ascending: false });
-    if (annoncesError) throw annoncesError;
+      .order('date_creation', { ascending: false })
+      .order('id'));
 
     const { data: signalements, error: sigError } = await _supabase
       .from('signalements')
@@ -290,6 +307,52 @@ async function loadDashboardData() {
       allParrainages = [];
     }
 
+    // Parrainage ouvert + mises en relation. Sans les policies admin, un
+    // SELECT renvoie zéro ligne SANS erreur : on sonde donc d'abord la
+    // présence de migration_admin_pilotage.sql, pour dire « illisible »
+    // plutôt qu'afficher de faux zéros.
+    let pilotageInstalle = false;
+    try {
+      const { data, error } = await _supabase.rpc('admin_pilotage_installe');
+      if (error) throw error;
+      pilotageInstalle = data === true;
+    } catch (err) {
+      console.warn('migration_admin_pilotage.sql non exécutée :', err.message);
+    }
+
+    invDispo = false;
+    allInvitations = []; allInvitationCodes = []; allCreditsBoost = [];
+    if (pilotageInstalle) {
+      try {
+        const [invitations, codes, credits] = await Promise.all([
+          fetchAll(() => _supabase.from('invitations').select('*').order('date_saisie', { ascending: false }).order('id')),
+          fetchAll(() => _supabase.from('invitation_codes').select('user_id, code').order('user_id')),
+          fetchAll(() => _supabase.from('credits_boost').select('*').order('date_creation').order('id'))
+        ]);
+        allInvitations = invitations;
+        allInvitationCodes = codes;
+        allCreditsBoost = credits;
+        invDispo = true;
+      } catch (err) {
+        console.warn('Parrainage ouvert illisible :', err.message);
+      }
+    }
+
+    contactsDispo = false;
+    allContacts = [];
+    if (pilotageInstalle) {
+      try {
+        allContacts = await fetchAll(() => _supabase
+          .from('contact_events')
+          .select('annonce_id, vendeur_id, client_id, type, date_creation')
+          .order('date_creation', { ascending: false })
+          .order('id'));
+        contactsDispo = true;
+      } catch (err) {
+        console.warn('contact_events illisible :', err.message);
+      }
+    }
+
     // Rendu de toutes les vues
     updateKPIs();
     renderCharts();
@@ -299,6 +362,8 @@ async function loadDashboardData() {
     renderFinancesPage();
     renderSignalementsPage();
     renderParrainagePage();
+    renderInvitationsPage();
+    renderStatsPage();
   } catch (err) {
     console.error('Erreur lors du chargement des données:', err);
     alert('Impossible de charger les données du dashboard : ' + err.message);
@@ -316,6 +381,41 @@ function countThisMonth(list) {
 }
 
 function fmt(n) { return Number(n || 0).toLocaleString('fr-FR'); }
+
+// Tout texte saisi par un utilisateur (nom, titre…) passe par ici avant
+// d'entrer dans le HTML : un nom contenant une balise ne doit rien exécuter
+// dans la console admin.
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Lit une table entière par pages de 1000 (plafond de l'API Supabase).
+async function fetchAll(build) {
+  const PAGE = 1000;
+  let from = 0;
+  let out = [];
+  for (;;) {
+    const { data, error } = await build().range(from, from + PAGE - 1);
+    if (error) throw error;
+    out = out.concat(data || []);
+    if (!data || data.length < PAGE) return out;
+    from += PAGE;
+  }
+}
+
+const JOUR = 24 * 3600 * 1000;
+function pct(a, b) { return b > 0 ? Math.round((a / b) * 100) : 0; }
+function telephoneDe(u) { return u?.whatsapp || u?.num_telephone || u?.telephone || ''; }
+
+// Lien WhatsApp : numéros maliens saisis sur 8 chiffres, préfixés par 223.
+function lienWhatsApp(u) {
+  let n = String(telephoneDe(u)).replace(/\D/g, '');
+  if (!n) return '';
+  if (n.startsWith('00')) n = n.slice(2);
+  if (n.length === 8) n = '223' + n;
+  return 'https://wa.me/' + n;
+}
 
 // Total réellement encaissé : la somme des lignes du journal, rien d'autre.
 // Aucun appelant n'a le droit de fabriquer un montant autrement.
@@ -679,7 +779,7 @@ function renderFinancesPage() {
   document.getElementById('fin-annonce-total').textContent = money(totalEncaisse(payees));
   document.getElementById('fin-annonce-count').textContent = `${fmt(payees.length)} publication(s) payée(s)`;
 
-  // --- Graphique : encaissements par mois (12 derniers mois) ---
+  // --- Graphique : encaissements par mois (12 derniers mois), par type ---
   const months = [];
   const now = new Date();
   for (let i = 11; i >= 0; i--) {
@@ -687,7 +787,7 @@ function renderFinancesPage() {
     months.push({
       key: `${d.getFullYear()}-${d.getMonth()}`,
       label: d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }),
-      total: 0
+      boost: 0, acces: 0, annonce: 0
     });
   }
   const monthIndex = {};
@@ -696,8 +796,16 @@ function renderFinancesPage() {
   allPaiements.forEach(p => {
     if (!p.date_paiement) return;
     const d = new Date(p.date_paiement);
-    const key = `${d.getFullYear()}-${d.getMonth()}`;
-    if (monthIndex[key] !== undefined) months[monthIndex[key]].total += Number(p.montant_fcfa || 0);
+    const i = monthIndex[`${d.getFullYear()}-${d.getMonth()}`];
+    if (i !== undefined && months[i][p.type] !== undefined) months[i][p.type] += Number(p.montant_fcfa || 0);
+  });
+
+  const serie = (type, couleur) => ({
+    label: TYPES_PAIEMENT[type][1],
+    data: months.map(m => m[type]),
+    backgroundColor: couleur,
+    borderRadius: 4,
+    stack: 'fcfa'
   });
 
   if (revenueChartInstance) revenueChartInstance.destroy();
@@ -705,26 +813,27 @@ function renderFinancesPage() {
     type: 'bar',
     data: {
       labels: months.map(m => m.label),
-      datasets: [{
-        label: 'Encaissé (FCFA)',
-        data: months.map(m => m.total),
-        backgroundColor: 'rgba(16,185,129,0.55)',
-        borderColor: '#10b981',
-        borderWidth: 1.5,
-        borderRadius: 8,
-        hoverBackgroundColor: '#10b981'
-      }]
+      datasets: [
+        serie('boost', 'rgba(139,92,246,0.75)'),
+        serie('acces', 'rgba(59,130,246,0.75)'),
+        serie('annonce', 'rgba(16,185,129,0.75)')
+      ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.07)' }, ticks: { color: '#6b7280', font: { family: 'Outfit' }, precision: 0, callback: v => fmt(v) } },
-        x: { grid: { display: false }, ticks: { color: '#6b7280', font: { family: 'Outfit' } } }
+        y: { stacked: true, beginAtZero: true, grid: { color: 'rgba(0,0,0,0.07)' }, ticks: { color: '#6b7280', font: { family: 'Outfit' }, precision: 0, callback: v => fmt(v) } },
+        x: { stacked: true, grid: { display: false }, ticks: { color: '#6b7280', font: { family: 'Outfit' } } }
       },
-      plugins: { legend: { display: false }, tooltip: tooltipStyle() }
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#6b7280', boxWidth: 12, font: { family: 'Outfit', size: 12 } } },
+        tooltip: { ...tooltipStyle(), callbacks: { label: c => `${c.dataset.label} : ${fmt(c.raw)} FCFA` } }
+      }
     }
   });
+
+  renderFinancesClients();
 
   // --- Table : TOUS les encaissements, un par ligne, sans agrégat ---
   const body = document.getElementById('table-finances');
@@ -748,6 +857,56 @@ function renderFinancesPage() {
         <td class="py-3.5 text-right pr-2 text-emerald-600 font-bold whitespace-nowrap">${fmt(p.montant_fcfa)} FCFA</td>
       </tr>`;
   }).join('');
+}
+
+// Qui paie : agrégat du journal par payeur. Toujours des lignes réelles.
+function renderFinancesClients() {
+  const money = (v) => paiementsDispo ? fmt(v) + ' FCFA' : '—';
+  const parClient = {};
+  allPaiements.forEach(p => {
+    const k = p.user_id || 'inconnu';
+    const c = parClient[k] || (parClient[k] = { user: p.users, total: 0, n: 0, types: {}, dernier: null });
+    c.total += Number(p.montant_fcfa || 0);
+    c.n++;
+    c.types[p.type] = (c.types[p.type] || 0) + 1;
+    if (!c.dernier || new Date(p.date_paiement) > new Date(c.dernier)) c.dernier = p.date_paiement;
+  });
+  const clients = Object.values(parClient).sort((a, b) => b.total - a.total);
+
+  document.getElementById('fin-payeurs').textContent = paiementsDispo ? fmt(clients.length) : '—';
+  document.getElementById('fin-payeurs-sub').textContent = paiementsDispo
+    ? `${pct(clients.length, allUsers.length)} % des ${fmt(allUsers.length)} inscrits ont déjà payé`
+    : '—';
+
+  const panier = allPaiements.length ? totalEncaisse() / allPaiements.length : 0;
+  document.getElementById('fin-panier').textContent = allPaiements.length ? money(Math.round(panier)) : '—';
+  document.getElementById('fin-panier-sub').textContent = clients.length
+    ? `${fmt(Math.round(totalEncaisse() / clients.length))} FCFA par client en moyenne`
+    : 'Aucun paiement';
+
+  const now = new Date();
+  const moisDe = (d, decal) => {
+    const r = new Date(now.getFullYear(), now.getMonth() - decal, 1);
+    return d.getMonth() === r.getMonth() && d.getFullYear() === r.getFullYear();
+  };
+  const ceMois = allPaiements.filter(p => moisDe(new Date(p.date_paiement), 0));
+  const moisPrec = allPaiements.filter(p => moisDe(new Date(p.date_paiement), 1));
+  document.getElementById('fin-mois').textContent = money(totalEncaisse(ceMois));
+  document.getElementById('fin-mois-sub').textContent = paiementsDispo
+    ? `${fmt(ceMois.length)} paiement(s) · mois dernier : ${fmt(totalEncaisse(moisPrec))} FCFA`
+    : '—';
+
+  const body = document.getElementById('table-fin-clients');
+  body.innerHTML = clients.length === 0
+    ? '<tr><td colspan="5" class="py-8 text-center text-gray-400">Aucun client payant pour le moment.</td></tr>'
+    : clients.slice(0, 10).map(c => `
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="py-3 pl-2 font-semibold text-gray-900">${esc(fullName(c.user))}</td>
+        <td class="py-3 text-center">${fmt(c.n)}</td>
+        <td class="py-3 space-x-1">${Object.keys(c.types).map(t => typePaiementBadge(t) + (c.types[t] > 1 ? `<span class="text-[10px] text-gray-400">×${c.types[t]}</span>` : '')).join(' ')}</td>
+        <td class="py-3 text-xs text-gray-500">${fmtDate(c.dernier)}</td>
+        <td class="py-3 text-right pr-2 font-bold text-emerald-600 whitespace-nowrap">${fmt(c.total)} FCFA</td>
+      </tr>`).join('');
 }
 
 // ================= PAGE SIGNALEMENTS =================
@@ -1116,4 +1275,626 @@ window.dismissSignalement = async function(sigId) {
       alert('Erreur lors du rejet du signalement: ' + err.message);
     }
   }
+};
+
+// ================= PARRAINAGE OUVERT (programme en vigueur) =================
+// Règles (migration_invitations.sql) : le parrainage est VALIDÉ quand le
+// filleul publie sa première annonce ; chaque validation offre au parrain un
+// boost de 48 h ; cinq validations le font entrer au tirage.
+const CONCOURS_REQUIS = 5;
+
+const INV_BADGES = {
+  validee:    '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Validé</span>',
+  en_attente: '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-600 border border-gray-200">Attend sa 1re annonce</span>',
+  bloquee:    '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">Bloqué</span>',
+  rejetee:    '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-400 border border-gray-200 line-through">Rejeté</span>'
+};
+
+function usersParId() {
+  const m = {};
+  allUsers.forEach(u => m[u.id] = u);
+  return m;
+}
+
+// Une cellule « personne » : nom + numéro, lisible d'un coup d'œil.
+function cellulePersonne(u, extra = '') {
+  if (!u) return '<span class="text-xs text-gray-400 italic">Compte supprimé</span>';
+  const tel = telephoneDe(u);
+  return `<span class="font-semibold text-gray-900">${esc(fullName(u))}</span>${extra}
+    <br><span class="text-xs text-gray-400">${esc(tel || u.email || '')}</span>`;
+}
+
+// Agrège les parrainages par parrain. Sert au classement, aux KPI et au tirage.
+function statsParParrain() {
+  const par = {};
+  allInvitations.forEach(i => {
+    const p = par[i.parrain_id] || (par[i.parrain_id] = {
+      parrain_id: i.parrain_id, validee: 0, en_attente: 0, bloquee: 0, rejetee: 0,
+      dernier: null, boosts: 0, boostsUtilises: 0
+    });
+    p[i.statut] = (p[i.statut] || 0) + 1;
+    if (i.statut === 'validee' && (!p.dernier || new Date(i.date_validation) > new Date(p.dernier))) {
+      p.dernier = i.date_validation;
+    }
+  });
+  allCreditsBoost.forEach(c => {
+    const p = par[c.user_id];
+    if (!p) return;
+    p.boosts++;
+    if (c.utilise_le) p.boostsUtilises++;
+  });
+  return Object.values(par).sort((a, b) => b.validee - a.validee || b.en_attente - a.en_attente);
+}
+
+function renderInvitationsPage() {
+  document.getElementById('inv-not-ready').classList.toggle('hidden', invDispo);
+  document.getElementById('inv-content').classList.toggle('hidden', !invDispo);
+  if (!invDispo) return;
+
+  const users = usersParId();
+  const codeDe = {};
+  allInvitationCodes.forEach(c => codeDe[c.user_id] = c.code);
+  const parrains = statsParParrain();
+
+  // --- KPI ---
+  const nonRejetes = allInvitations.filter(i => i.statut !== 'rejetee');
+  const nb = (st) => allInvitations.filter(i => i.statut === st).length;
+  const validees = nb('validee');
+  const participants = parrains.filter(p => p.validee >= CONCOURS_REQUIS);
+  const proches = parrains.filter(p => p.validee >= 3 && p.validee < CONCOURS_REQUIS);
+
+  document.getElementById('inv-total').textContent = fmt(nonRejetes.length);
+  document.getElementById('inv-parrains-actifs').textContent = fmt(parrains.length);
+  document.getElementById('inv-codes').textContent = fmt(allInvitationCodes.length);
+  document.getElementById('inv-validees').textContent = fmt(validees);
+  document.getElementById('inv-conversion').textContent = pct(validees, nonRejetes.length) + ' %';
+  document.getElementById('inv-attente').textContent = fmt(nb('en_attente'));
+  document.getElementById('inv-boosts').textContent = fmt(allCreditsBoost.length);
+  const utilises = allCreditsBoost.filter(c => c.utilise_le).length;
+  document.getElementById('inv-boosts-utilises').textContent = fmt(utilises);
+  document.getElementById('inv-boosts-dispo').textContent = fmt(allCreditsBoost.length - utilises);
+  document.getElementById('inv-participants').textContent = fmt(participants.length);
+  document.getElementById('inv-proches').textContent = fmt(proches.length);
+
+  // --- À trancher ---
+  const bloquees = allInvitations.filter(i => i.statut === 'bloquee');
+  document.getElementById('inv-bloquees-section').classList.toggle('hidden', bloquees.length === 0);
+  document.getElementById('inv-bloquees-count').textContent = fmt(bloquees.length);
+  document.getElementById('table-inv-bloquees').innerHTML = bloquees.map(i => {
+    const nbAnnonces = adsCountByUser(i.filleul_id);
+    const nomFilleul = esc(fullName(users[i.filleul_id])).replace(/'/g, "\\'");
+    return `
+      <tr>
+        <td class="py-3 pl-2">${cellulePersonne(users[i.parrain_id])}</td>
+        <td class="py-3">${cellulePersonne(users[i.filleul_id])}</td>
+        <td class="py-3 text-xs text-red-700">${esc(i.motif_blocage || '—')}</td>
+        <td class="py-3 text-xs">${nbAnnonces > 0
+          ? `<button onclick="voirAnnoncesParrain('${i.filleul_id}', '${nomFilleul}')" class="text-emerald-600 font-semibold hover:underline">Oui, ${nbAnnonces} annonce(s) — voir</button>`
+          : '<span class="text-gray-400">Pas encore</span>'}</td>
+        <td class="py-3 text-xs text-gray-500">${fmtDate(i.date_saisie)}</td>
+        <td class="py-3 text-right pr-2 space-x-1 whitespace-nowrap">
+          <button onclick="debloquerInvitation('${i.id}')" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-all">Accepter</button>
+          <button onclick="rejeterInvitation('${i.id}')" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-white text-red-600 border border-red-200 hover:bg-red-50 transition-all">Refuser</button>
+        </td>
+      </tr>`;
+  }).join('');
+
+  // --- Classement ---
+  const filtre = document.getElementById('inv-classement-filter').value;
+  let classement = parrains;
+  if (filtre === 'tirage') classement = participants;
+  if (filtre === 'proches') classement = proches;
+
+  document.getElementById('inv-tirage-btn').disabled = participants.length === 0;
+  document.getElementById('table-inv-classement').innerHTML = classement.length === 0
+    ? '<tr><td colspan="8" class="py-8 text-center text-gray-400">Aucun parrain dans ce groupe.</td></tr>'
+    : classement.map((p, idx) => {
+        const v = p.validee;
+        const auTirage = v >= CONCOURS_REQUIS;
+        const largeur = Math.min(100, (v / CONCOURS_REQUIS) * 100);
+        const jauge = `
+          <div class="flex items-center gap-3">
+            <div class="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
+              <div class="h-2.5 rounded-full ${auTirage ? 'bg-amber-500' : 'bg-emerald-500'}" style="width:${largeur}%"></div>
+            </div>
+            <span class="text-sm font-bold ${auTirage ? 'text-amber-600' : 'text-gray-700'} whitespace-nowrap">${v} / ${CONCOURS_REQUIS}${auTirage ? ' <i class="fa-solid fa-trophy"></i>' : ''}</span>
+          </div>`;
+        return `
+        <tr class="hover:bg-gray-50 transition-colors ${auTirage ? 'bg-amber-50/40' : ''}">
+          <td class="py-3 pl-2 text-gray-400 font-bold">${idx + 1}</td>
+          <td class="py-3">${cellulePersonne(users[p.parrain_id])}</td>
+          <td class="py-3"><span class="font-mono font-bold text-gray-700 bg-gray-100 border border-gray-200 rounded px-2 py-0.5 text-xs">${esc(codeDe[p.parrain_id] || '—')}</span></td>
+          <td class="py-3">${jauge}</td>
+          <td class="py-3 text-center text-gray-600">${fmt(p.en_attente)}</td>
+          <td class="py-3 text-center ${p.bloquee ? 'text-red-600 font-bold' : 'text-gray-300'}">${fmt(p.bloquee)}</td>
+          <td class="py-3 text-center text-violet-600 font-semibold">${fmt(p.boosts)} <span class="text-gray-400 font-normal">/ ${fmt(p.boostsUtilises)}</span></td>
+          <td class="py-3 text-right pr-2 text-xs text-gray-500">${fmtDate(p.dernier)}</td>
+        </tr>`;
+      }).join('');
+
+  // --- Qui a parrainé qui ---
+  const creditDe = {};
+  allCreditsBoost.forEach(c => { if (c.invitation_id) creditDe[c.invitation_id] = c; });
+  const annonceParId = {};
+  allAnnonces.forEach(a => annonceParId[a.id] = a);
+
+  const statut = document.getElementById('inv-statut-filter').value;
+  const q = (document.getElementById('inv-search').value || '').toLowerCase().trim();
+  let liste = allInvitations;
+  if (statut !== 'all') liste = liste.filter(i => i.statut === statut);
+  if (q) {
+    liste = liste.filter(i => {
+      const p = users[i.parrain_id], f = users[i.filleul_id];
+      return [fullName(p), telephoneDe(p), fullName(f), telephoneDe(f), codeDe[i.parrain_id]]
+        .some(t => String(t || '').toLowerCase().includes(q));
+    });
+  }
+
+  document.getElementById('inv-liste-count').textContent = fmt(liste.length);
+  document.getElementById('table-inv-liste').innerHTML = liste.length === 0
+    ? '<tr><td colspan="7" class="py-8 text-center text-gray-400">Aucun parrainage ne correspond.</td></tr>'
+    : liste.map(i => {
+        const f = users[i.filleul_id];
+        const annonce = annonceParId[i.annonce_validante_id];
+        const credit = creditDe[i.id];
+        const boost = !credit ? '<span class="text-xs text-gray-300">—</span>'
+          : credit.utilise_le
+            ? `<span class="text-xs text-violet-600">Utilisé le ${fmtDate(credit.utilise_le)}</span>`
+            : '<span class="text-xs text-violet-600 font-semibold">En réserve</span>';
+        const inscrit = f ? `<span class="text-[11px] text-gray-400"> · inscrit le ${fmtDate(f.date_creation)}</span>` : '';
+        const code = codeDe[i.parrain_id] ? ` <span class="font-mono text-[11px] text-gray-400">${esc(codeDe[i.parrain_id])}</span>` : '';
+        const annonceCell = annonce
+          ? esc(annonce.titre) + `<br><span class="text-gray-400">le ${fmtDate(i.date_validation)}</span>`
+          : (i.statut === 'validee' ? '<span class="text-gray-400 italic">Annonce supprimée</span>' : '<span class="text-gray-300">—</span>');
+        let actions = '';
+        if (i.statut === 'bloquee') {
+          actions += `<button onclick="debloquerInvitation('${i.id}')" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 transition-all">Accepter</button> `;
+        }
+        if (i.statut !== 'rejetee') {
+          actions += `<button onclick="rejeterInvitation('${i.id}')" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-all">Rejeter</button>`;
+        }
+        return `
+        <tr class="hover:bg-gray-50 transition-colors">
+          <td class="py-3 pl-2">${cellulePersonne(users[i.parrain_id], code)}</td>
+          <td class="py-3">${cellulePersonne(f, inscrit)}</td>
+          <td class="py-3 text-xs text-gray-500">${fmtDate(i.date_saisie)}</td>
+          <td class="py-3">${INV_BADGES[i.statut] || esc(i.statut)}${i.statut === 'bloquee' && i.motif_blocage ? `<br><span class="text-[11px] text-red-500">${esc(i.motif_blocage)}</span>` : ''}</td>
+          <td class="py-3 text-xs text-gray-600 truncate max-w-[200px]" title="${esc(annonce?.titre || '')}">${annonceCell}</td>
+          <td class="py-3">${boost}</td>
+          <td class="py-3 text-right pr-2 space-x-1 whitespace-nowrap">${actions || '<span class="text-xs text-gray-300">—</span>'}</td>
+        </tr>`;
+      }).join('');
+}
+
+document.getElementById('inv-classement-filter').addEventListener('change', renderInvitationsPage);
+document.getElementById('inv-statut-filter').addEventListener('change', renderInvitationsPage);
+document.getElementById('inv-search').addEventListener('input', renderInvitationsPage);
+
+// Tirage au sort parmi les parrains à 5 validés ou plus. Chances égales,
+// aléa cryptographique. Rien n'est enregistré : filmez l'écran au moment du
+// tirage, c'est la preuve publique.
+document.getElementById('inv-tirage-btn').addEventListener('click', () => {
+  const participants = statsParParrain().filter(p => p.validee >= CONCOURS_REQUIS);
+  if (participants.length === 0) return;
+  if (!confirm(`Tirer au sort un gagnant parmi ${participants.length} participant(s) ? Pensez à filmer l'écran.`)) return;
+
+  const alea = new Uint32Array(1);
+  crypto.getRandomValues(alea);
+  const gagnant = participants[alea[0] % participants.length];
+  const u = usersParId()[gagnant.parrain_id];
+
+  const box = document.getElementById('inv-gagnant');
+  box.innerHTML = `
+    <div class="flex items-center gap-4">
+      <div class="w-12 h-12 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xl"><i class="fa-solid fa-trophy"></i></div>
+      <div>
+        <p class="text-xs font-bold uppercase tracking-widest text-amber-600">Gagnant tiré le ${fmtDateHeure(new Date().toISOString())}</p>
+        <p class="text-xl font-extrabold text-gray-900">${esc(fullName(u))}</p>
+        <p class="text-sm text-amber-700">${esc(telephoneDe(u))} · ${gagnant.validee} filleuls validés · tiré parmi ${participants.length} participant(s)</p>
+      </div>
+    </div>`;
+  box.classList.remove('hidden');
+});
+
+window.debloquerInvitation = async function(id) {
+  if (!confirm("Accepter ce parrainage ? Si le filleul a déjà publié, le parrain reçoit tout de suite son boost et le point pour le tirage.")) return;
+  try {
+    const { data, error } = await _supabase.rpc('debloquer_invitation', { p_invitation_id: id });
+    if (error) throw error;
+    if (!data.ok) { alert(data.erreur); return; }
+    loadDashboardData();
+  } catch (err) {
+    console.error(err);
+    alert('Erreur : ' + err.message);
+  }
+};
+
+window.rejeterInvitation = async function(id) {
+  if (!confirm("Rejeter ce parrainage (faux compte, annonce bidon) ? Il ne comptera plus pour le tirage et le boost non utilisé sera retiré. Définitif.")) return;
+  try {
+    const { data, error } = await _supabase.rpc('rejeter_invitation', { p_invitation_id: id });
+    if (error) throw error;
+    if (!data.ok) { alert(data.erreur); return; }
+    loadDashboardData();
+  } catch (err) {
+    console.error(err);
+    alert('Erreur : ' + err.message);
+  }
+};
+
+// ================= PAGE STATISTIQUES =================
+let statsJours = 30;
+
+const TYPES_CONTACT = {
+  whatsapp: ['WhatsApp', '#22c55e'],
+  appel:    ['Appel', '#3b82f6'],
+  message:  ['Message', '#8b5cf6'],
+  commande: ['Commande', '#f59e0b'],
+  devis:    ['Devis', '#64748b']
+};
+
+document.querySelectorAll('.periode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    statsJours = Number(btn.dataset.jours);
+    renderStatsPage();
+  });
+});
+
+function entre(dateStr, debut, fin) {
+  if (!dateStr) return false;
+  const t = new Date(dateStr).getTime();
+  return t >= debut && t < fin;
+}
+
+// Carte KPI avec évolution vs période précédente. `prec` null = pas de
+// comparaison possible (donnée écrasée à chaque visite, par exemple).
+function carteKpi(label, valeur, prec, suffixe = '', dispo = true) {
+  let delta = '';
+  if (dispo && prec !== null) {
+    if (prec === 0 && valeur === 0) delta = '<span class="text-gray-400">= stable</span>';
+    else if (prec === 0) delta = '<span class="text-emerald-600"><i class="fa-solid fa-arrow-up"></i> nouveau</span>';
+    else {
+      const d = Math.round(((valeur - prec) / prec) * 100);
+      delta = d >= 0
+        ? `<span class="text-emerald-600"><i class="fa-solid fa-arrow-up"></i> +${d} %</span>`
+        : `<span class="text-red-500"><i class="fa-solid fa-arrow-down"></i> ${d} %</span>`;
+    }
+  } else if (dispo) {
+    delta = '<span class="text-gray-400">sur la période</span>';
+  }
+  return `
+    <div class="glass-card border border-gray-200 rounded-2xl p-5">
+      <span class="block text-[11px] font-bold text-gray-500 uppercase tracking-widest">${label}</span>
+      <span class="block text-2xl font-extrabold text-gray-900 mt-2">${dispo ? fmt(valeur) + suffixe : '—'}</span>
+      <p class="text-xs font-semibold mt-1.5">${dispo ? delta : '<span class="text-gray-400">migration à exécuter</span>'}</p>
+    </div>`;
+}
+
+function renderStatsPage() {
+  document.querySelectorAll('.periode-btn').forEach(b =>
+    b.classList.toggle('active', Number(b.dataset.jours) === statsJours));
+
+  const maintenant = Date.now();
+  const debut = maintenant - statsJours * JOUR;
+  const debutPrec = debut - statsJours * JOUR;
+  const dansPeriode = (d) => entre(d, debut, maintenant + 1);
+  const dansPrec = (d) => entre(d, debutPrec, debut);
+
+  // --- KPI ---
+  const inscrits = allUsers.filter(u => dansPeriode(u.date_creation)).length;
+  const inscritsP = allUsers.filter(u => dansPrec(u.date_creation)).length;
+  const annoncesPer = allAnnonces.filter(a => dansPeriode(a.date_creation));
+  const annoncesPrec = allAnnonces.filter(a => dansPrec(a.date_creation));
+  const vendeurs = new Set(annoncesPer.map(a => a.user_id)).size;
+  const vendeursP = new Set(annoncesPrec.map(a => a.user_id)).size;
+  const actifs = allUsers.filter(u => dansPeriode(u.derniere_connexion)).length;
+  const contactsPer = allContacts.filter(c => dansPeriode(c.date_creation));
+  const contactsP = allContacts.filter(c => dansPrec(c.date_creation)).length;
+  const encaisse = totalEncaisse(allPaiements.filter(p => dansPeriode(p.date_paiement)));
+  const encaisseP = totalEncaisse(allPaiements.filter(p => dansPrec(p.date_paiement)));
+
+  document.getElementById('stats-kpis').innerHTML = [
+    carteKpi('Nouveaux inscrits', inscrits, inscritsP),
+    carteKpi('Nouvelles annonces', annoncesPer.length, annoncesPrec.length),
+    carteKpi('Vendeurs actifs', vendeurs, vendeursP),
+    // derniere_connexion est écrasée à chaque ouverture : aucune valeur
+    // historique, donc aucune comparaison honnête possible.
+    carteKpi('Utilisateurs venus', actifs, null),
+    carteKpi('Mises en relation', contactsPer.length, contactsP, '', contactsDispo),
+    carteKpi('Encaissé', encaisse, encaisseP, ' F', paiementsDispo)
+  ].join('');
+
+  renderGrowthChart(debut, maintenant);
+  renderFunnel();
+  renderContactsChart(contactsPer);
+  renderCategoriesTable(annoncesPer, contactsPer, dansPeriode);
+  renderVilles();
+  renderTopVendeurs(annoncesPer, contactsPer);
+  renderCrmSegments();
+}
+
+function renderGrowthChart(debut, fin) {
+  // Granularité : jour jusqu'à 30 j, semaine à 3 mois, mois à 12 mois.
+  const buckets = [];
+  if (statsJours <= 30) {
+    for (let t = debut; t < fin; t += JOUR) {
+      buckets.push({ debut: t, fin: Math.min(t + JOUR, fin + 1), label: new Date(t).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) });
+    }
+  } else if (statsJours <= 90) {
+    for (let t = debut; t < fin; t += 7 * JOUR) {
+      buckets.push({ debut: t, fin: Math.min(t + 7 * JOUR, fin + 1), label: 'sem. ' + new Date(t).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) });
+    }
+  } else {
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const a = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const b = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      buckets.push({ debut: a.getTime(), fin: b.getTime(), label: a.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }) });
+    }
+  }
+
+  const compte = (liste, b) => liste.filter(x => entre(x.date_creation, b.debut, b.fin)).length;
+  const cumul = (b) => allUsers.filter(u => u.date_creation && new Date(u.date_creation).getTime() < b.fin).length;
+
+  if (growthChartInstance) growthChartInstance.destroy();
+  growthChartInstance = new Chart(document.getElementById('growthChart').getContext('2d'), {
+    data: {
+      labels: buckets.map(b => b.label),
+      datasets: [
+        { type: 'line', label: 'Total des comptes', data: buckets.map(cumul), borderColor: '#0f172a', backgroundColor: '#0f172a', borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'y2' },
+        { type: 'bar', label: 'Nouveaux inscrits', data: buckets.map(b => compte(allUsers, b)), backgroundColor: 'rgba(16,185,129,0.7)', borderRadius: 4, yAxisID: 'y' },
+        { type: 'bar', label: 'Nouvelles annonces', data: buckets.map(b => compte(allAnnonces, b)), backgroundColor: 'rgba(139,92,246,0.6)', borderRadius: 4, yAxisID: 'y' }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        y:  { beginAtZero: true, position: 'left', grid: { color: 'rgba(0,0,0,0.07)' }, ticks: { color: '#6b7280', font: { family: 'Outfit' }, precision: 0 } },
+        y2: { beginAtZero: true, position: 'right', grid: { display: false }, ticks: { color: '#0f172a', font: { family: 'Outfit' }, precision: 0 } },
+        x:  { grid: { display: false }, ticks: { color: '#6b7280', font: { family: 'Outfit' }, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } }
+      },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#6b7280', boxWidth: 12, font: { family: 'Outfit', size: 12 } } },
+        tooltip: tooltipStyle()
+      }
+    }
+  });
+}
+
+function renderFunnel() {
+  const ids = new Set(allUsers.map(u => u.id));
+  const publie = new Set(allAnnonces.map(a => a.user_id).filter(id => ids.has(id)));
+  const contacte = new Set(allContacts.map(c => c.vendeur_id).filter(id => ids.has(id)));
+  const paye = new Set(allPaiements.map(p => p.user_id).filter(id => ids.has(id)));
+
+  const etapes = [
+    { label: 'Se sont inscrits', n: ids.size, couleur: 'bg-slate-700', dispo: true },
+    { label: 'Ont publié au moins une annonce', n: publie.size, couleur: 'bg-emerald-500', dispo: true },
+    { label: 'Ont reçu au moins un contact', n: contacte.size, couleur: 'bg-blue-500', dispo: contactsDispo },
+    { label: 'Ont payé au moins une fois', n: paye.size, couleur: 'bg-amber-500', dispo: paiementsDispo }
+  ];
+
+  document.getElementById('stats-funnel').innerHTML = etapes.map((e, i) => {
+    const largeur = e.dispo ? Math.max(1, pct(e.n, ids.size)) : 0;
+    const avant = etapes[i - 1];
+    const suite = i > 0 && avant.dispo && e.dispo
+      ? `<span class="text-xs text-gray-400">${pct(e.n, avant.n)} % de l'étape précédente</span>` : '';
+    return `
+      <div>
+        <div class="flex items-baseline justify-between mb-1.5">
+          <span class="text-sm font-semibold text-gray-700">${e.label}</span>
+          <span class="text-sm"><span class="font-extrabold text-gray-900">${e.dispo ? fmt(e.n) : '—'}</span> ${e.dispo ? `<span class="text-gray-400">(${pct(e.n, ids.size)} %)</span>` : ''}</span>
+        </div>
+        <div class="w-full bg-gray-100 rounded-lg h-7 overflow-hidden">
+          <div class="${e.couleur} h-7 rounded-lg" style="width:${largeur}%"></div>
+        </div>
+        <div class="text-right mt-1 h-4">${suite}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderContactsChart(contactsPer) {
+  const vide = document.getElementById('contacts-vide');
+  const parType = {};
+  contactsPer.forEach(c => parType[c.type] = (parType[c.type] || 0) + 1);
+  const types = Object.keys(TYPES_CONTACT).filter(t => parType[t]);
+
+  if (contactsChartInstance) { contactsChartInstance.destroy(); contactsChartInstance = null; }
+  if (!contactsDispo || types.length === 0) {
+    vide.textContent = contactsDispo ? 'Aucune mise en relation sur la période.' : 'Exécutez migration_admin_pilotage.sql pour voir les contacts.';
+    vide.classList.remove('hidden');
+    return;
+  }
+  vide.classList.add('hidden');
+  contactsChartInstance = new Chart(document.getElementById('contactsChart').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: types.map(t => TYPES_CONTACT[t][0]),
+      datasets: [{ data: types.map(t => parType[t]), backgroundColor: types.map(t => TYPES_CONTACT[t][1]), borderWidth: 2, borderColor: '#fff' }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: { legend: { position: 'bottom', labels: { color: '#6b7280', boxWidth: 12, font: { family: 'Outfit', size: 12 } } }, tooltip: tooltipStyle() }
+    }
+  });
+}
+
+function renderCategoriesTable(annoncesPer, contactsPer, dansPeriode) {
+  const catDe = {};
+  allAnnonces.forEach(a => catDe[a.id] = a.categorie);
+
+  const cles = new Set([...Object.keys(CATEGORY_LABELS), ...allAnnonces.map(a => a.categorie).filter(Boolean)]);
+  const lignes = [...cles].map(k => {
+    const enLigne = allAnnonces.filter(a => a.categorie === k && a.statut === 'active');
+    const vues = enLigne.reduce((s, a) => s + Number(a.nombre_vues || 0), 0);
+    const contacts = contactsPer.filter(c => catDe[c.annonce_id] === k).length;
+    const encaisse = totalEncaisse(allPaiements.filter(p => p.annonce_id && catDe[p.annonce_id] === k && dansPeriode(p.date_paiement)));
+    return {
+      label: CATEGORY_LABELS[k] || k,
+      nouvelles: annoncesPer.filter(a => a.categorie === k).length,
+      enLigne: enLigne.length,
+      vuesMoy: enLigne.length ? Math.round(vues / enLigne.length) : 0,
+      contacts,
+      ratio: enLigne.length ? contacts / enLigne.length : 0,
+      encaisse
+    };
+  }).sort((a, b) => b.contacts - a.contacts || b.nouvelles - a.nouvelles || b.enLigne - a.enLigne);
+
+  const maxNouv = Math.max(1, ...lignes.map(l => l.nouvelles));
+  const maxRatio = Math.max(...lignes.map(l => l.ratio));
+
+  document.getElementById('table-stats-categories').innerHTML = lignes.map(l => `
+    <tr class="hover:bg-gray-50 transition-colors">
+      <td class="py-3 pl-2 font-semibold text-gray-900">${esc(l.label)}</td>
+      <td class="py-3">
+        <div class="flex items-center gap-2">
+          <div class="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden"><div class="bg-violet-500 h-2 rounded-full" style="width:${(l.nouvelles / maxNouv) * 100}%"></div></div>
+          <span class="text-sm font-bold text-gray-700 w-8 text-right">${fmt(l.nouvelles)}</span>
+        </div>
+      </td>
+      <td class="py-3 text-center text-gray-600">${fmt(l.enLigne)}</td>
+      <td class="py-3 text-center text-gray-600">${fmt(l.vuesMoy)}</td>
+      <td class="py-3 text-center font-semibold text-gray-900">${contactsDispo ? fmt(l.contacts) : '—'}</td>
+      <td class="py-3 text-center">${contactsDispo
+        ? `<span class="px-2 py-0.5 rounded text-xs font-bold ${l.ratio > 0 && l.ratio === maxRatio ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'text-gray-600'}">${l.ratio.toFixed(1).replace('.', ',')}</span>`
+        : '—'}</td>
+      <td class="py-3 text-right pr-2 ${l.encaisse ? 'text-emerald-600 font-bold' : 'text-gray-300'}">${paiementsDispo ? fmt(l.encaisse) + ' F' : '—'}</td>
+    </tr>`).join('');
+}
+
+function renderVilles() {
+  const parVille = {};
+  allAnnonces.filter(a => a.statut === 'active').forEach(a => {
+    const v = (a.ville || 'Non précisée').trim();
+    parVille[v] = (parVille[v] || 0) + 1;
+  });
+  const villes = Object.entries(parVille).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const max = Math.max(1, ...villes.map(v => v[1]));
+  document.getElementById('stats-villes').innerHTML = villes.length === 0
+    ? '<p class="text-xs text-gray-400">Aucune annonce en ligne.</p>'
+    : villes.map(([v, n]) => `
+      <div>
+        <div class="flex justify-between text-sm mb-1"><span class="font-semibold text-gray-700">${esc(v)}</span><span class="font-bold text-gray-900">${fmt(n)}</span></div>
+        <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden"><div class="bg-emerald-500 h-2 rounded-full" style="width:${(n / max) * 100}%"></div></div>
+      </div>`).join('');
+}
+
+function renderTopVendeurs(annoncesPer, contactsPer) {
+  const users = usersParId();
+  const par = {};
+  const v = (id) => par[id] || (par[id] = { id, enLigne: 0, publiees: 0, vues: 0, contacts: 0, paye: 0 });
+  allAnnonces.forEach(a => {
+    if (!a.user_id) return;
+    const x = v(a.user_id);
+    if (a.statut === 'active') x.enLigne++;
+    x.vues += Number(a.nombre_vues || 0);
+  });
+  annoncesPer.forEach(a => { if (a.user_id) v(a.user_id).publiees++; });
+  contactsPer.forEach(c => { if (c.vendeur_id) v(c.vendeur_id).contacts++; });
+  allPaiements.forEach(p => { if (par[p.user_id]) par[p.user_id].paye += Number(p.montant_fcfa || 0); });
+
+  const top = Object.values(par)
+    .filter(x => users[x.id])
+    .sort((a, b) => b.contacts - a.contacts || b.publiees - a.publiees || b.vues - a.vues)
+    .slice(0, 10);
+
+  document.getElementById('table-stats-vendeurs').innerHTML = top.length === 0
+    ? '<tr><td colspan="6" class="py-8 text-center text-gray-400">Aucun vendeur.</td></tr>'
+    : top.map(x => `
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="py-3 pl-2">${cellulePersonne(users[x.id], ' ' + accountBadge(users[x.id].type_compte))}</td>
+        <td class="py-3 text-center text-gray-600">${fmt(x.enLigne)}</td>
+        <td class="py-3 text-center text-gray-600">${fmt(x.publiees)}</td>
+        <td class="py-3 text-center text-gray-600">${fmt(x.vues)}</td>
+        <td class="py-3 text-center font-bold text-gray-900">${contactsDispo ? fmt(x.contacts) : '—'}</td>
+        <td class="py-3 text-right pr-2 ${x.paye ? 'text-emerald-600 font-bold' : 'text-gray-300'}">${fmt(x.paye)} F</td>
+      </tr>`).join('');
+}
+
+// ---- CRM : groupes d'utilisateurs à relancer ----
+let crmSegmentActif = null;
+
+function segmentsCrm() {
+  const maintenant = Date.now();
+  const nbAnnonces = {}, nbActives = {}, derniereAnnonce = {}, nbContacts = {}, payeurs = new Set();
+  allAnnonces.forEach(a => {
+    nbAnnonces[a.user_id] = (nbAnnonces[a.user_id] || 0) + 1;
+    if (a.statut === 'active') nbActives[a.user_id] = (nbActives[a.user_id] || 0) + 1;
+    const t = new Date(a.date_creation).getTime();
+    if (!derniereAnnonce[a.user_id] || t > derniereAnnonce[a.user_id]) derniereAnnonce[a.user_id] = t;
+  });
+  allContacts.forEach(c => nbContacts[c.vendeur_id] = (nbContacts[c.vendeur_id] || 0) + 1);
+  allPaiements.forEach(p => { if (p.user_id) payeurs.add(p.user_id); });
+
+  const age = (u) => (maintenant - new Date(u.date_creation).getTime()) / JOUR;
+  const absence = (u) => u.derniere_connexion ? (maintenant - new Date(u.derniere_connexion).getTime()) / JOUR : age(u);
+  const enrichir = (u) => ({ u, annonces: nbAnnonces[u.id] || 0, contacts: nbContacts[u.id] || 0 });
+
+  const segs = [
+    { id: 'nouveaux', titre: 'Nouveaux (7 j)', icone: 'fa-seedling', couleur: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+      conseil: 'Souhaitez-leur la bienvenue et aidez-les à publier leur première annonce.',
+      liste: allUsers.filter(u => age(u) <= 7) },
+    { id: 'sans_annonce', titre: 'Inscrits sans annonce', icone: 'fa-hourglass-half', couleur: 'text-amber-600 bg-amber-50 border-amber-200',
+      conseil: 'Inscrits depuis plus de 3 jours sans rien publier : une annonce avec une photo suffit pour commencer.',
+      liste: allUsers.filter(u => age(u) > 3 && !nbAnnonces[u.id]) },
+    { id: 'sans_contact', titre: 'Vendeurs sans contact', icone: 'fa-phone-slash', couleur: 'text-red-600 bg-red-50 border-red-200',
+      conseil: 'Annonces en ligne mais aucun contact reçu : conseillez photos, prix ou boost.',
+      liste: contactsDispo ? allUsers.filter(u => nbActives[u.id] && !nbContacts[u.id]) : null },
+    { id: 'endormis', titre: 'Endormis (30 j+)', icone: 'fa-moon', couleur: 'text-slate-600 bg-slate-50 border-slate-200',
+      conseil: "Pas revenus dans l'application depuis plus de 30 jours : rappelez-leur ce qui est nouveau.",
+      liste: allUsers.filter(u => age(u) > 30 && absence(u) > 30) },
+    { id: 'actifs', titre: 'Vendeurs actifs', icone: 'fa-fire', couleur: 'text-violet-600 bg-violet-50 border-violet-200',
+      conseil: "Ont publié dans les 30 derniers jours : remerciez-les, proposez l'accès PRO.",
+      liste: allUsers.filter(u => derniereAnnonce[u.id] && maintenant - derniereAnnonce[u.id] <= 30 * JOUR) },
+    { id: 'payeurs', titre: 'Clients payants', icone: 'fa-wallet', couleur: 'text-blue-600 bg-blue-50 border-blue-200',
+      conseil: 'Ils ont déjà payé : ce sont vos meilleurs clients, soignez-les.',
+      liste: paiementsDispo ? allUsers.filter(u => payeurs.has(u.id)) : null }
+  ];
+  segs.forEach(s => { if (s.liste) s.liste = s.liste.map(enrichir); });
+  return segs;
+}
+
+function renderCrmSegments() {
+  const segs = segmentsCrm();
+  document.getElementById('crm-segments').innerHTML = segs.map(s => `
+    <button type="button" onclick="ouvrirSegment('${s.id}')" ${s.liste ? '' : 'disabled'}
+      class="text-left rounded-2xl border p-4 transition-all ${s.couleur} ${crmSegmentActif === s.id ? 'ring-2 ring-offset-2 ring-emerald-500' : ''} ${s.liste ? 'hover:scale-[1.02] active:scale-95' : 'opacity-50 cursor-not-allowed'}">
+      <i class="fa-solid ${s.icone} text-lg"></i>
+      <span class="block text-2xl font-extrabold text-gray-900 mt-2">${s.liste ? fmt(s.liste.length) : '—'}</span>
+      <span class="block text-xs font-semibold mt-0.5">${s.titre}</span>
+    </button>`).join('');
+
+  const wrap = document.getElementById('crm-liste-wrap');
+  const seg = segs.find(s => s.id === crmSegmentActif);
+  if (!seg || !seg.liste) { wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+  document.getElementById('crm-liste-titre').textContent = `${seg.titre} — ${fmt(seg.liste.length)} personne(s)`;
+  document.getElementById('crm-liste-conseil').textContent = seg.conseil;
+
+  document.getElementById('table-crm').innerHTML = seg.liste.length === 0
+    ? '<tr><td colspan="7" class="py-8 text-center text-gray-400">Personne dans ce groupe.</td></tr>'
+    : seg.liste.map(({ u, annonces, contacts }) => {
+        const wa = lienWhatsApp(u);
+        const tel = telephoneDe(u);
+        return `
+        <tr class="hover:bg-gray-50 transition-colors">
+          <td class="py-2.5 pl-3">${cellulePersonne(u)}</td>
+          <td class="py-2.5">${accountBadge(u.type_compte)}</td>
+          <td class="py-2.5 text-center">${fmt(annonces)}</td>
+          <td class="py-2.5 text-center">${contactsDispo ? fmt(contacts) : '—'}</td>
+          <td class="py-2.5 text-xs text-gray-500">${fmtDate(u.date_creation)}</td>
+          <td class="py-2.5 text-xs text-gray-500">${fmtDate(u.derniere_connexion)}</td>
+          <td class="py-2.5 text-right pr-3 whitespace-nowrap space-x-1">
+            ${wa ? `<a href="${esc(wa)}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>` : ''}
+            ${tel ? `<a href="tel:${esc(tel)}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"><i class="fa-solid fa-phone"></i></a>` : '<span class="text-xs text-gray-300">pas de numéro</span>'}
+          </td>
+        </tr>`;
+      }).join('');
+}
+
+window.ouvrirSegment = function(id) {
+  crmSegmentActif = crmSegmentActif === id ? null : id;
+  renderCrmSegments();
 };

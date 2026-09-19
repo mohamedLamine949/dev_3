@@ -41,6 +41,11 @@ body {
   color: #059669;
 }
 
+/* Sélecteur de période (page Statistiques) */
+.periode-btn { color: #6b7280; transition: all 0.15s ease; }
+.periode-btn:hover { color: #111827; }
+.periode-btn.active { background: #10b981; color: #ffffff; }
+
 /* Tables scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;

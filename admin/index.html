@@ -107,6 +107,10 @@
           <i class="fa-solid fa-chart-line text-sm w-4 text-center"></i>
           <span class="font-semibold text-sm">Dashboard</span>
         </button>
+        <button type="button" data-page="stats" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left">
+          <i class="fa-solid fa-chart-column text-sm w-4 text-center"></i>
+          <span class="font-semibold text-sm">Statistiques</span>
+        </button>
         <button type="button" data-page="users" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left">
           <i class="fa-solid fa-users text-sm w-4 text-center"></i>
           <span class="font-semibold text-sm">Utilisateurs</span>
@@ -327,6 +331,141 @@
         </div>
 
         <!-- ============================================================ -->
+        <!-- =================== PAGE : STATISTIQUES ==================== -->
+        <!-- ============================================================ -->
+        <div id="page-stats" class="page hidden space-y-8">
+
+          <!-- Période -->
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <p class="text-sm text-gray-500">Chaque chiffre est comparé à la période précédente de même durée.</p>
+            <div id="stats-periode" class="inline-flex bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
+              <button type="button" data-jours="7" class="periode-btn px-4 py-2 text-sm font-semibold rounded-lg">7 jours</button>
+              <button type="button" data-jours="30" class="periode-btn px-4 py-2 text-sm font-semibold rounded-lg">30 jours</button>
+              <button type="button" data-jours="90" class="periode-btn px-4 py-2 text-sm font-semibold rounded-lg">3 mois</button>
+              <button type="button" data-jours="365" class="periode-btn px-4 py-2 text-sm font-semibold rounded-lg">12 mois</button>
+            </div>
+          </div>
+
+          <!-- KPI avec évolution -->
+          <section id="stats-kpis" class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4"></section>
+
+          <!-- Évolution -->
+          <section class="glass-card border border-gray-200 rounded-2xl p-6">
+            <div class="mb-6">
+              <h3 class="text-sm font-bold uppercase tracking-wider text-gray-500">Évolution</h3>
+              <p class="text-xs text-gray-400 mt-0.5">Nouveaux inscrits et nouvelles annonces sur la période (barres), total des comptes (ligne)</p>
+            </div>
+            <div class="h-80 w-full"><canvas id="growthChart"></canvas></div>
+          </section>
+
+          <!-- Entonnoir + types de contacts -->
+          <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="glass-card border border-gray-200 rounded-2xl p-6 lg:col-span-2">
+              <div class="mb-6">
+                <h3 class="text-sm font-bold uppercase tracking-wider text-gray-500">Parcours des utilisateurs</h3>
+                <p class="text-xs text-gray-400 mt-0.5">Depuis le lancement : combien d'inscrits vont jusqu'au bout</p>
+              </div>
+              <div id="stats-funnel" class="space-y-4"></div>
+            </div>
+            <div class="glass-card border border-gray-200 rounded-2xl p-6">
+              <div class="mb-6">
+                <h3 class="text-sm font-bold uppercase tracking-wider text-gray-500">Mises en relation</h3>
+                <p class="text-xs text-gray-400 mt-0.5">Par canal, sur la période</p>
+              </div>
+              <div class="h-64 w-full flex items-center justify-center"><canvas id="contactsChart"></canvas></div>
+              <p id="contacts-vide" class="hidden text-xs text-gray-400 text-center mt-2"></p>
+            </div>
+          </section>
+
+          <!-- Catégories -->
+          <section class="glass-card border border-gray-200 rounded-2xl p-6">
+            <div class="mb-6">
+              <h3 class="text-sm font-bold uppercase tracking-wider text-gray-500">Performance des catégories</h3>
+              <p class="text-xs text-gray-400 mt-0.5">Une catégorie performante n'est pas celle qui a le plus d'annonces, mais celle dont les annonces reçoivent des contacts</p>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-gray-200 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                    <th class="pb-3 pl-2">Catégorie</th>
+                    <th class="pb-3 w-48">Nouvelles annonces</th>
+                    <th class="pb-3 text-center">En ligne</th>
+                    <th class="pb-3 text-center">Vues / annonce</th>
+                    <th class="pb-3 text-center">Contacts</th>
+                    <th class="pb-3 text-center">Contacts / annonce</th>
+                    <th class="pb-3 text-right pr-2">Encaissé</th>
+                  </tr>
+                </thead>
+                <tbody id="table-stats-categories" class="divide-y divide-gray-100 text-sm text-gray-700"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- Villes + meilleurs vendeurs -->
+          <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="glass-card border border-gray-200 rounded-2xl p-6">
+              <div class="mb-6">
+                <h3 class="text-sm font-bold uppercase tracking-wider text-gray-500">Villes</h3>
+                <p class="text-xs text-gray-400 mt-0.5">Annonces en ligne par ville</p>
+              </div>
+              <div id="stats-villes" class="space-y-3"></div>
+            </div>
+            <div class="glass-card border border-gray-200 rounded-2xl p-6 lg:col-span-2">
+              <div class="mb-6">
+                <h3 class="text-sm font-bold uppercase tracking-wider text-gray-500">Meilleurs vendeurs</h3>
+                <p class="text-xs text-gray-400 mt-0.5">Classés par contacts reçus sur la période</p>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="border-b border-gray-200 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      <th class="pb-3 pl-2">Vendeur</th>
+                      <th class="pb-3 text-center">Annonces en ligne</th>
+                      <th class="pb-3 text-center">Publiées (période)</th>
+                      <th class="pb-3 text-center">Vues totales</th>
+                      <th class="pb-3 text-center">Contacts (période)</th>
+                      <th class="pb-3 text-right pr-2">A payé</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-stats-vendeurs" class="divide-y divide-gray-100 text-sm text-gray-700"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- CRM : segments à contacter -->
+          <section class="glass-card border border-gray-200 rounded-2xl p-6">
+            <div class="mb-6">
+              <h3 class="text-sm font-bold uppercase tracking-wider text-gray-500">Qui contacter</h3>
+              <p class="text-xs text-gray-400 mt-0.5">Groupes d'utilisateurs à relancer. Cliquez sur un groupe pour voir la liste, puis sur WhatsApp pour écrire.</p>
+            </div>
+            <div id="crm-segments" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4"></div>
+            <div id="crm-liste-wrap" class="hidden mt-6">
+              <div class="flex items-center justify-between mb-3">
+                <p class="text-sm font-bold text-gray-900" id="crm-liste-titre"></p>
+                <p class="text-xs text-gray-400" id="crm-liste-conseil"></p>
+              </div>
+              <div class="overflow-x-auto max-h-[480px] overflow-y-auto border border-gray-100 rounded-xl">
+                <table class="w-full text-left border-collapse">
+                  <thead class="sticky top-0 bg-white">
+                    <tr class="border-b border-gray-200 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      <th class="py-3 pl-3">Nom</th>
+                      <th class="py-3">Compte</th>
+                      <th class="py-3 text-center">Annonces</th>
+                      <th class="py-3 text-center">Contacts reçus</th>
+                      <th class="py-3">Inscrit le</th>
+                      <th class="py-3">Dernière visite</th>
+                      <th class="py-3 text-right pr-3">Contacter</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-crm" class="divide-y divide-gray-100 text-sm text-gray-700"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- ============================================================ -->
         <!-- =================== PAGE : UTILISATEURS =================== -->
         <!-- ============================================================ -->
         <div id="page-users" class="page hidden space-y-6">
@@ -501,6 +640,47 @@
             </div>
           </section>
 
+          <!-- Clients : qui paie, combien -->
+          <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="space-y-6">
+              <div class="glass-card border border-gray-200 rounded-2xl p-6">
+                <span class="block text-xs font-bold text-gray-500 uppercase tracking-widest">Clients payants</span>
+                <span class="block text-3xl font-extrabold text-gray-900 mt-3" id="fin-payeurs">—</span>
+                <p class="text-xs text-gray-400 mt-2" id="fin-payeurs-sub">—</p>
+              </div>
+              <div class="glass-card border border-gray-200 rounded-2xl p-6">
+                <span class="block text-xs font-bold text-gray-500 uppercase tracking-widest">Panier moyen</span>
+                <span class="block text-3xl font-extrabold text-gray-900 mt-3" id="fin-panier">—</span>
+                <p class="text-xs text-gray-400 mt-2" id="fin-panier-sub">—</p>
+              </div>
+              <div class="glass-card border border-gray-200 rounded-2xl p-6">
+                <span class="block text-xs font-bold text-gray-500 uppercase tracking-widest">Ce mois-ci</span>
+                <span class="block text-3xl font-extrabold text-emerald-600 mt-3" id="fin-mois">—</span>
+                <p class="text-xs text-gray-400 mt-2" id="fin-mois-sub">—</p>
+              </div>
+            </div>
+            <div class="glass-card border border-gray-200 rounded-2xl p-6 lg:col-span-2">
+              <div class="mb-6">
+                <h3 class="text-sm font-bold uppercase tracking-wider text-gray-500">Meilleurs clients</h3>
+                <p class="text-xs text-gray-400 mt-0.5">Classés par montant réellement payé</p>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="border-b border-gray-200 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      <th class="pb-3 pl-2">Client</th>
+                      <th class="pb-3 text-center">Paiements</th>
+                      <th class="pb-3">Achats</th>
+                      <th class="pb-3">Dernier paiement</th>
+                      <th class="pb-3 text-right pr-2">Total payé</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-fin-clients" class="divide-y divide-gray-100 text-sm text-gray-700"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
           <!-- Détail : une ligne = un encaissement -->
           <section class="glass-card border border-gray-200 rounded-2xl p-6 flex flex-col">
             <div class="mb-6">
@@ -571,6 +751,167 @@
         <!-- =================== PAGE : PARRAINAGE ====================== -->
         <!-- ============================================================ -->
         <div id="page-parrainage" class="page hidden space-y-8">
+
+          <!-- ================= PROGRAMME OUVERT (en vigueur) ================= -->
+          <div id="inv-not-ready" class="hidden rounded-2xl border border-amber-300 bg-amber-50 p-5">
+            <div class="flex items-start gap-3">
+              <i class="fa-solid fa-triangle-exclamation text-amber-600 mt-0.5"></i>
+              <div>
+                <p class="text-sm font-bold text-amber-800">Suivi du parrainage illisible</p>
+                <p class="text-xs text-amber-700 mt-1 leading-relaxed">
+                  La console n'a pas le droit de lire les parrainages. Exécutez
+                  <code class="font-mono font-semibold">supabase/migration_admin_pilotage.sql</code>
+                  dans le SQL Editor Supabase (après <code class="font-mono">migration_invitations.sql</code>), puis rechargez.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div id="inv-content" class="space-y-8">
+
+            <!-- Rappel des règles -->
+            <section class="glass-card border border-gray-200 rounded-2xl p-5 flex flex-wrap items-center gap-x-8 gap-y-3 text-sm text-gray-600">
+              <span class="flex items-center gap-2"><span class="w-7 h-7 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-700">1</span> Le filleul saisit le code (compte neuf)</span>
+              <i class="fa-solid fa-arrow-right text-gray-300 text-xs"></i>
+              <span class="flex items-center gap-2"><span class="w-7 h-7 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-700">2</span> Il publie sa 1re annonce</span>
+              <i class="fa-solid fa-arrow-right text-gray-300 text-xs"></i>
+              <span class="flex items-center gap-2"><span class="w-7 h-7 rounded-lg bg-violet-50 border border-violet-200 flex items-center justify-center text-xs text-violet-600"><i class="fa-solid fa-rocket"></i></span> Le parrain gagne 1 boost 48 h</span>
+              <i class="fa-solid fa-arrow-right text-gray-300 text-xs"></i>
+              <span class="flex items-center gap-2"><span class="w-7 h-7 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-xs text-amber-600"><i class="fa-solid fa-trophy"></i></span> 5 validés = au tirage</span>
+            </section>
+
+            <!-- KPI -->
+            <section class="grid grid-cols-2 lg:grid-cols-4 gap-6">
+              <div class="glass-card border border-gray-200 rounded-2xl p-6">
+                <span class="block text-xs font-bold text-gray-500 uppercase tracking-widest">Filleuls rattachés</span>
+                <span class="block text-3xl font-extrabold text-gray-900 mt-3" id="inv-total">0</span>
+                <p class="text-xs text-gray-400 mt-2"><span id="inv-parrains-actifs">0</span> parrain(s) · <span id="inv-codes">0</span> code(s) distribué(s)</p>
+              </div>
+              <div class="glass-card border border-gray-200 rounded-2xl p-6">
+                <span class="block text-xs font-bold text-gray-500 uppercase tracking-widest">Validés (ont publié)</span>
+                <span class="block text-3xl font-extrabold text-emerald-600 mt-3" id="inv-validees">0</span>
+                <p class="text-xs text-gray-400 mt-2"><span id="inv-conversion" class="font-semibold text-gray-600">0 %</span> des filleuls · <span id="inv-attente">0</span> en attente</p>
+              </div>
+              <div class="glass-card border border-gray-200 rounded-2xl p-6">
+                <span class="block text-xs font-bold text-gray-500 uppercase tracking-widest">Boosts offerts</span>
+                <span class="block text-3xl font-extrabold text-violet-600 mt-3" id="inv-boosts">0</span>
+                <p class="text-xs text-gray-400 mt-2"><span id="inv-boosts-utilises">0</span> utilisé(s) · <span id="inv-boosts-dispo">0</span> en réserve</p>
+              </div>
+              <div class="glass-card border border-gray-200 rounded-2xl p-6">
+                <span class="block text-xs font-bold text-gray-500 uppercase tracking-widest">Au tirage</span>
+                <span class="block text-3xl font-extrabold text-amber-600 mt-3" id="inv-participants">0</span>
+                <p class="text-xs text-gray-400 mt-2"><span id="inv-proches">0</span> parrain(s) à 3 ou 4 validés</p>
+              </div>
+            </section>
+
+            <!-- À trancher : parrainages bloqués (même appareil) -->
+            <section id="inv-bloquees-section" class="hidden rounded-2xl border border-red-200 bg-red-50/60 p-6">
+              <div class="mb-4">
+                <h3 class="text-sm font-bold uppercase tracking-wider text-red-700"><i class="fa-solid fa-hand mr-2"></i>À trancher — <span id="inv-bloquees-count">0</span> parrainage(s) bloqué(s)</h3>
+                <p class="text-xs text-red-600/80 mt-0.5">Parrain et filleul utilisent le même téléphone. Rien n'est accordé tant que vous n'avez pas décidé.</p>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="border-b border-red-200 text-[10px] font-bold text-red-400 uppercase tracking-widest">
+                      <th class="pb-3 pl-2">Parrain</th>
+                      <th class="pb-3">Filleul</th>
+                      <th class="pb-3">Motif</th>
+                      <th class="pb-3">A publié ?</th>
+                      <th class="pb-3">Saisi le</th>
+                      <th class="pb-3 text-right pr-2">Décision</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-inv-bloquees" class="divide-y divide-red-100 text-sm text-gray-700"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <!-- Course au tirage -->
+            <section class="glass-card border border-gray-200 rounded-2xl p-6">
+              <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h3 class="text-sm font-bold uppercase tracking-wider text-gray-500">Classement des parrains</h3>
+                  <p class="text-xs text-gray-400 mt-0.5">Qui a parrainé combien. Seuls les parrainages validés comptent pour le tirage.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                  <select id="inv-classement-filter" class="bg-white border border-gray-300 focus:border-emerald-500 rounded-xl py-2.5 px-4 text-sm text-gray-700 outline-none cursor-pointer transition-all">
+                    <option value="all">Tous les parrains</option>
+                    <option value="tirage">Au tirage (5+)</option>
+                    <option value="proches">Presque (3-4)</option>
+                  </select>
+                  <button type="button" id="inv-tirage-btn" class="px-4 py-2.5 text-sm font-bold rounded-xl bg-amber-500 text-white hover:bg-amber-600 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                    <i class="fa-solid fa-trophy mr-1"></i> Tirer au sort
+                  </button>
+                </div>
+              </div>
+              <div id="inv-gagnant" class="hidden mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800"></div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="border-b border-gray-200 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      <th class="pb-3 pl-2">#</th>
+                      <th class="pb-3">Parrain</th>
+                      <th class="pb-3">Code</th>
+                      <th class="pb-3 w-56">Vers le tirage</th>
+                      <th class="pb-3 text-center">En attente</th>
+                      <th class="pb-3 text-center">Bloqués</th>
+                      <th class="pb-3 text-center">Boosts gagnés / utilisés</th>
+                      <th class="pb-3 text-right pr-2">Dernier validé</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-inv-classement" class="divide-y divide-gray-100 text-sm text-gray-700"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <!-- Qui a parrainé qui -->
+            <section class="glass-card border border-gray-200 rounded-2xl p-6">
+              <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h3 class="text-sm font-bold uppercase tracking-wider text-gray-500">Qui a parrainé qui</h3>
+                  <p class="text-xs text-gray-400 mt-0.5"><span id="inv-liste-count">0</span> lien(s) parrain → filleul</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-3">
+                  <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+                    <input type="text" id="inv-search" placeholder="Nom, numéro ou code..." class="bg-white border border-gray-300 focus:border-emerald-500 rounded-xl py-2.5 pl-9 pr-4 text-sm text-gray-900 placeholder-gray-400 outline-none w-full md:w-64 transition-all">
+                  </div>
+                  <select id="inv-statut-filter" class="bg-white border border-gray-300 focus:border-emerald-500 rounded-xl py-2.5 px-4 text-sm text-gray-700 outline-none cursor-pointer transition-all">
+                    <option value="all">Tous les statuts</option>
+                    <option value="validee">Validés</option>
+                    <option value="en_attente">En attente de 1re annonce</option>
+                    <option value="bloquee">Bloqués</option>
+                    <option value="rejetee">Rejetés</option>
+                  </select>
+                </div>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="border-b border-gray-200 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      <th class="pb-3 pl-2">Parrain</th>
+                      <th class="pb-3">Filleul</th>
+                      <th class="pb-3">Code saisi le</th>
+                      <th class="pb-3">Statut</th>
+                      <th class="pb-3">Annonce qui a validé</th>
+                      <th class="pb-3">Boost du parrain</th>
+                      <th class="pb-3 text-right pr-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-inv-liste" class="divide-y divide-gray-100 text-sm text-gray-700"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <!-- ================= ANCIEN PROGRAMME (inutilisé, conservé) ================= -->
+          <details class="glass-card border border-gray-200 rounded-2xl p-6 group">
+            <summary class="cursor-pointer text-sm font-bold uppercase tracking-wider text-gray-400 list-none flex items-center gap-2">
+              <i class="fa-solid fa-chevron-right text-xs transition-transform group-open:rotate-90"></i>
+              Ancien programme partenaire (1000 F / cycle) — inactif
+            </summary>
+            <div class="mt-6 space-y-8">
 
           <!-- Message si la migration SQL n'est pas encore exécutée -->
           <div id="parrainage-not-ready" class="hidden glass-card border border-amber-200 bg-amber-50 rounded-2xl p-6 text-sm text-amber-700">
@@ -686,6 +1027,8 @@
             </section>
 
           </div>
+            </div>
+          </details>
         </div>
 
       </div>
