@@ -30,6 +30,8 @@ import { SkeletonCard, SkeletonCategories } from '../components/SkeletonLoader';
 import { useDecouverteProPreview } from '../hooks/useDecouvertePro';
 import { useRayons, RayonAffiche } from '../hooks/useRayons';
 import { useInvitations } from '../hooks/useInvitations';
+import { CONCOURS_MONTANT } from '../lib/partageInvitation';
+import MessageCampagne from '../components/MessageCampagne';
 
 
 /** Fenetre du bouton « Nouveautes » de l'accueil : les 3 derniers jours. */
@@ -592,6 +594,67 @@ export default function HomeScreen({ navigation }: Props) {
           </View>
         </View>
 
+        {/* Message de Flash Market (envoyé depuis la console) : en premier,
+            c'est une information adressée à cette personne. */}
+        {!nouveautes && <MessageCampagne userId={session?.user?.id} navigation={navigation} />}
+
+        {/* Concours de parrainage : juste sous la recherche, visible sans
+            faire défiler. Le montant est le titre, en gros : c'est lui qui
+            donne envie. Visible aussi sans compte (l'écran Parrainage propose
+            alors de se connecter) ; masquée en mode « Nouveautés », et tant
+            que le programme n'est pas actif en base. */}
+        {!nouveautes && (invitations || !session) && (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => { hapticLight(); navigation.navigate('Invitations'); }}
+            style={styles.parrainageCta}
+          >
+            <Gradient
+              colors={['#7C2D12', '#B45309', '#D97706']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.parrainageInner}
+            >
+              <Ionicons
+                name="trophy"
+                size={110}
+                color="rgba(255,255,255,0.13)"
+                style={styles.nouveautesWatermark}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.parrainageSurtitre}>Concours de lancement</Text>
+                <Text style={styles.parrainageMontant}>Gagnez {CONCOURS_MONTANT}</Text>
+                <Text style={styles.parrainageTexte}>
+                  {invitations?.concoursParticipe
+                    ? 'Vous participez au tirage !'
+                    : 'Invitez 5 amis qui publient une annonce'}
+                </Text>
+                {invitations && (
+                  <View style={styles.parrainageRonds}>
+                    {Array.from({ length: invitations.concoursRequis }).map((_, i) => (
+                      <View
+                        key={i}
+                        style={[styles.parrainageRond, i < invitations.filleulsValides && styles.parrainageRondPlein]}
+                      />
+                    ))}
+                    {invitations.boostsDisponibles > 0 && (
+                      <View style={styles.parrainageBoost}>
+                        <Ionicons name="flame" size={12} color="#B45309" />
+                        <Text style={styles.parrainageBoostTexte}>
+                          {invitations.boostsDisponibles} boost{invitations.boostsDisponibles > 1 ? 's' : ''} offert{invitations.boostsDisponibles > 1 ? 's' : ''}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+              <View style={styles.parrainageFleche}>
+                <Ionicons name="chevron-forward" size={20} color="#B45309" />
+              </View>
+            </Gradient>
+          </TouchableOpacity>
+        )}
+
         {/* Catégories en cercles */}
         <FlatList
           data={CATEGORIES}
@@ -659,48 +722,6 @@ export default function HomeScreen({ navigation }: Props) {
               contentContainerStyle={styles.recentListContainer}
             />
           </View>
-        )}
-
-        {/* Parrainage : la promesse est concrete (un boost gratuit, puis le
-            concours), donc elle se dit en clair sur l'accueil et pas dans un
-            sous-menu. Masquee tant que la migration n'est pas passee, et en
-            mode « Nouveautes » ou l'ecran doit aller droit aux annonces. */}
-        {!nouveautes && invitations && (
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => { hapticLight(); navigation.navigate('Invitations'); }}
-            style={styles.parrainageCta}
-          >
-            <Gradient
-              colors={['#7C2D12', '#B45309', '#D97706']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.parrainageInner}
-            >
-              <Ionicons
-                name="gift"
-                size={96}
-                color="rgba(255,255,255,0.13)"
-                style={styles.nouveautesWatermark}
-              />
-              <View style={styles.nouveautesIcon}>
-                <Ionicons name="gift" size={20} color="#fff" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.nouveautesTitle}>
-                  {invitations.boostsDisponibles > 0
-                    ? `${invitations.boostsDisponibles} boost${invitations.boostsDisponibles > 1 ? 's' : ''} gratuit${invitations.boostsDisponibles > 1 ? 's' : ''} a utiliser`
-                    : 'Invitez, gagnez un boost gratuit'}
-                </Text>
-                <Text style={styles.nouveautesSubtitle}>
-                  {invitations.concoursParticipe
-                    ? 'Vous participez au tirage de 100 000 F'
-                    : `Encore ${invitations.concoursManque} pour jouer les 100 000 F`}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#fff" />
-            </Gradient>
-          </TouchableOpacity>
         )}
 
         {/* Nouveautés : un seul appui pour ne voir que les annonces publiées
@@ -1477,6 +1498,58 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     paddingVertical: SPACING.lg,
     borderRadius: RADIUS.lg,
     overflow: 'hidden',
+  },
+  parrainageSurtitre: {
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.bold,
+    color: 'rgba(255,255,255,0.9)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  parrainageMontant: {
+    fontSize: FONTS.xxl + 2,
+    fontWeight: FONTS.extrabold,
+    color: '#fff',
+    marginTop: 2,
+  },
+  parrainageTexte: {
+    fontSize: FONTS.sm,
+    fontWeight: FONTS.semibold,
+    color: 'rgba(255,255,255,0.95)',
+    marginTop: 2,
+  },
+  parrainageRonds: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: SPACING.sm,
+  },
+  parrainageRond: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.8)',
+  },
+  parrainageRondPlein: { backgroundColor: '#fff', borderColor: '#fff' },
+  parrainageBoost: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginLeft: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderRadius: RADIUS.full,
+    backgroundColor: '#fff',
+  },
+  parrainageBoostTexte: { fontSize: FONTS.xs, fontWeight: FONTS.bold, color: '#B45309' },
+  parrainageFleche: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tendanceTitreLigne: {
     flexDirection: 'row',

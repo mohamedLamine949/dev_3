@@ -29,6 +29,8 @@ import { useEntitlements } from '../hooks/useEntitlements';
 import { sauverBrouillon, lireBrouillon, effacerBrouillon, BROUILLON_ANNONCE } from '../lib/brouillon';
 import { useTabBarSpace } from '../hooks/useTabBarSpace';
 import { formatPrix } from '../lib/format';
+import { useInvitations } from '../hooks/useInvitations';
+import { CONCOURS_MONTANT, partagerSurWhatsApp } from '../lib/partageInvitation';
 
 const MAX_IMAGES = 10;
 
@@ -70,6 +72,12 @@ export default function PostAnnonceScreen({ navigation }: any) {
   const [paymentError, setPaymentError] = useState('');
   const [isFreePublish, setIsFreePublish] = useState(false); // publication gratuite (paiement désactivé)
   const isProcessingRef = React.useRef(false);
+
+  // Parrainage : proposé juste après la PREMIÈRE annonce, moment où la
+  // personne vient de voir que ça marche et où elle a le plus envie d'en
+  // parler. `invitations` est nul tant que le programme n'est pas actif.
+  const { stats: invitations } = useInvitations(session?.user?.id);
+  const [inviterApres, setInviterApres] = useState(false);
 
   // User current plan definition — plan EFFECTIF : un abonnement expiré (J+30)
   // retombe automatiquement sur 'particulier' → le paywall se réaffiche.
@@ -251,13 +259,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
       return;
     }
 
-    setPaymentStep('success');
-
-    setTimeout(() => {
-      setPaymentModalVisible(false);
-      resetForm();
-      if (!signalerPhotosManquantes(annonce, photosEchouees)) navigation.navigate('Accueil');
-    }, 2500);
+    finirPublication(annonce, photosEchouees, 2500);
   };
 
   // Initiate Mobile Money payment flow (Unit Ad, Vendeur or PRO subscription)
@@ -398,12 +400,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
       return;
     }
 
-    setPaymentStep('success');
-    setTimeout(() => {
-      setPaymentModalVisible(false);
-      resetForm();
-      if (!signalerPhotosManquantes(annonce, photosEchouees)) navigation.navigate('Accueil');
-    }, 3000);
+    finirPublication(annonce, photosEchouees, 3000);
   };
 
   const handlePaymentSuccess = async () => {
@@ -468,13 +465,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
       return;
     }
 
-    setPaymentStep('success');
-
-    setTimeout(() => {
-      setPaymentModalVisible(false);
-      resetForm();
-      if (!signalerPhotosManquantes(annonce, photosEchouees)) navigation.navigate('Accueil');
-    }, 2500);
+    finirPublication(annonce, photosEchouees, 2500);
   };
 
   const handlePaymentFailure = (message: string) => {
@@ -532,6 +523,50 @@ export default function PostAnnonceScreen({ navigation }: any) {
       ]
     );
     return true;
+  };
+
+  /**
+   * Fin commune des trois parcours de publication (gratuit, quota, payé).
+   * D'habitude la fenêtre « Annonce publiée » se ferme seule ; pour une
+   * première annonce, elle reste ouverte et propose d'inviter des amis.
+   */
+  const finirPublication = async (annonce: any, photosEchouees: number, delai: number) => {
+    setPaymentStep('success');
+
+    if (!photosEchouees && invitations?.code && session?.user?.id) {
+      const { count } = await supabase
+        .from('annonces')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', session.user.id);
+      if (count === 1) {
+        setInviterApres(true);
+        return;
+      }
+    }
+
+    setTimeout(() => {
+      setPaymentModalVisible(false);
+      resetForm();
+      if (!signalerPhotosManquantes(annonce, photosEchouees)) navigation.navigate('Accueil');
+    }, delai);
+  };
+
+  const quitterApresInvitation = () => {
+    setInviterApres(false);
+    setPaymentModalVisible(false);
+    resetForm();
+    navigation.navigate('Accueil');
+  };
+
+  // Toute fermeture de la fenêtre passe par ici. Quand l'invitation est
+  // affichée, fermer = « Plus tard » : on vide le formulaire et on revient à
+  // l'accueil, sinon l'annonce publiée resterait dans le formulaire.
+  const fermerModal = () => {
+    if (inviterApres) {
+      quitterApresInvitation();
+      return;
+    }
+    if (paymentStep !== 'processing' && paymentStep !== 'init_payment') setPaymentModalVisible(false);
   };
 
   const isFormValid = titre && prix && selectedCategory && selectedSousCategorie && images.length > 0;
@@ -764,15 +799,11 @@ export default function PostAnnonceScreen({ navigation }: any) {
         visible={isPaymentModalVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => {
-          if (paymentStep !== 'processing' && paymentStep !== 'init_payment') setPaymentModalVisible(false);
-        }}
+        onRequestClose={fermerModal}
       >
         <KeyboardAvoidingView style={styles.modalContainer} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           {paymentStep !== 'webview' && (
-            <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => {
-              if (paymentStep !== 'processing' && paymentStep !== 'init_payment') setPaymentModalVisible(false);
-            }} />
+            <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={fermerModal} />
           )}
           
           <View style={[
@@ -785,7 +816,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
                 {paymentStep === 'quota_choice' ? 'Quota mensuel atteint' : paymentStep === 'webview' ? 'Portail de Paiement Mobile Money' : 'Publication & Paiement'}
               </Text>
               {(paymentStep !== 'processing' && paymentStep !== 'init_payment') && (
-                <TouchableOpacity onPress={() => setPaymentModalVisible(false)}>
+                <TouchableOpacity onPress={fermerModal}>
                   <Ionicons name="close-circle" size={28} color={theme.textMuted} />
                 </TouchableOpacity>
               )}
@@ -930,16 +961,38 @@ export default function PostAnnonceScreen({ navigation }: any) {
             )}
 
             {paymentStep === 'success' && (
-              <View style={styles.processingContainer}>
-                <Ionicons name="checkmark-circle" size={80} color={theme.success} />
-                <Text style={[styles.processingTitle, { color: theme.success }]}>Annonce Publiée !</Text>
-                <Text style={styles.processingText}>
+              <View style={[styles.processingContainer, inviterApres && { paddingVertical: 0 }]}>
+                <Ionicons name="checkmark-circle" size={inviterApres ? 48 : 80} color={theme.success} />
+                <Text style={[styles.processingTitle, { color: theme.success }, inviterApres && { marginTop: SPACING.sm }]}>Annonce Publiée !</Text>
+                <Text style={[styles.processingText, inviterApres && { display: 'none' }]}>
                   {paymentType === 'subscription_pro'
                     ? "Félicitations ! Votre abonnement PRO est actif : annonces illimitées, vitrine boutique et badge Pro."
                     : paymentType === 'subscription_vendeur'
                     ? "Félicitations ! Votre abonnement Vendeur est actif et votre annonce est en ligne !"
                     : "Votre annonce est maintenant en ligne et visible par tous les acheteurs."}
                 </Text>
+
+                {inviterApres && invitations?.code && (
+                  <View style={styles.inviteBloc}>
+                    <Ionicons name="trophy" size={28} color="#B45309" />
+                    <Text style={styles.inviteMontant}>Gagnez {CONCOURS_MONTANT}</Text>
+                    <Text style={styles.inviteTexte}>
+                      Invitez 5 amis qui publient une annonce et participez au tirage. Chaque ami vous offre aussi un boost gratuit.
+                    </Text>
+                    <Text style={styles.inviteCode}>{invitations.code}</Text>
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      style={styles.inviteWhatsApp}
+                      onPress={() => partagerSurWhatsApp(invitations.code)}
+                    >
+                      <Ionicons name="logo-whatsapp" size={22} color="#fff" />
+                      <Text style={styles.inviteWhatsAppTexte}>Inviter sur WhatsApp</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity activeOpacity={0.7} style={styles.invitePlusTard} onPress={quitterApresInvitation}>
+                      <Text style={styles.invitePlusTardTexte}>Plus tard</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             )}
 
@@ -1021,6 +1074,26 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   paymentSummaryLabel: { fontSize: FONTS.xs, color: theme.textMuted, textTransform: 'uppercase', marginBottom: 4 },
   paymentSummaryTitle: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: theme.textPrimary },
   processingContainer: { paddingVertical: SPACING.xxl, alignItems: 'center', justifyContent: 'center' },
+  inviteBloc: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    marginTop: SPACING.xl,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    backgroundColor: isDark ? 'rgba(180,83,9,0.14)' : '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+  },
+  inviteMontant: { fontSize: FONTS.xxl, fontWeight: FONTS.extrabold, color: '#B45309', marginTop: SPACING.xs },
+  inviteTexte: { fontSize: FONTS.md, color: theme.textSecondary, textAlign: 'center', lineHeight: 21, marginTop: SPACING.sm },
+  inviteCode: { fontSize: 28, fontWeight: FONTS.bold, letterSpacing: 4, color: theme.textPrimary, marginTop: SPACING.md },
+  inviteWhatsApp: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm,
+    alignSelf: 'stretch', height: 56, marginTop: SPACING.md, borderRadius: RADIUS.lg, backgroundColor: '#25D366',
+  },
+  inviteWhatsAppTexte: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
+  invitePlusTard: { alignSelf: 'stretch', height: 48, alignItems: 'center', justifyContent: 'center', marginTop: SPACING.xs },
+  invitePlusTardTexte: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: theme.textMuted },
   processingTitle: { fontSize: FONTS.xl, fontWeight: FONTS.bold, color: theme.textPrimary, marginTop: SPACING.xl, marginBottom: SPACING.sm, textAlign: 'center' },
   processingText: { fontSize: FONTS.md, color: theme.textSecondary, textAlign: 'center', lineHeight: 24, paddingHorizontal: SPACING.lg },
 });

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Share,
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,9 +16,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useInvitations } from '../hooks/useInvitations';
 import { useTabBarSpace } from '../hooks/useTabBarSpace';
 import { hapticLight } from '../lib/haptics';
-
-/** Montant du concours de lancement, en FCFA. */
-const CONCOURS_MONTANT = '100 000 F';
+import { CONCOURS_MONTANT, partagerSurWhatsApp, partagerAutrement } from '../lib/partageInvitation';
 
 /**
  * Parrainage ouvert : mon code, mes filleuls, mes boosts gagnés, et ma
@@ -42,15 +39,16 @@ export default function InvitationsScreen({ navigation }: { navigation: any }) {
     return unsubscribe;
   }, [navigation, refetch]);
 
-  const partager = async () => {
+  const partagerWhatsApp = () => {
     if (!stats?.code) return;
     hapticLight();
-    await Share.share({
-      message:
-        `Rejoins-moi sur Flash Market ! Achete et vends pres de chez toi.\n\n` +
-        `Mon code de parrainage : ${stats.code}\n` +
-        `Saisis-le a l'inscription.`,
-    });
+    partagerSurWhatsApp(stats.code);
+  };
+
+  const partagerAilleurs = () => {
+    if (!stats?.code) return;
+    hapticLight();
+    partagerAutrement(stats.code);
   };
 
   if (!session) {
@@ -84,8 +82,6 @@ export default function InvitationsScreen({ navigation }: { navigation: any }) {
     );
   }
 
-  const progression = Math.min(stats.filleulsValides / stats.concoursRequis, 1);
-
   return (
     <ScrollView
       style={styles.ecran}
@@ -99,25 +95,53 @@ export default function InvitationsScreen({ navigation }: { navigation: any }) {
         <Text style={styles.enteteTitre}>Parrainage</Text>
       </View>
 
-      {/* 1. Le code — l'élément le plus gros de l'écran : c'est ce qu'on
-          vient chercher, et il doit se lire à voix haute sans hésiter. */}
+      {/* 1. Le concours, en tête : 100 000 F est ce qui donne envie
+          d'inviter. Le boost vient ensuite. Les cinq ronds se comptent
+          d'un coup d'œil, sans avoir à lire. */}
+      <Gradient
+        colors={['#7C2D12', '#B45309', '#D97706']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.concours}
+      >
+        <Ionicons name="trophy" size={120} color="rgba(255,255,255,0.12)" style={styles.concoursFiligrane} />
+        <Text style={styles.concoursSurtitre}>Concours de lancement</Text>
+        <Text style={styles.concoursMontant}>Gagnez {CONCOURS_MONTANT}</Text>
+        <Text style={styles.concoursTexte}>
+          {stats.concoursParticipe
+            ? 'Vous participez au tirage. Continuez d\'inviter !'
+            : `Invitez ${stats.concoursRequis} amis qui publient une annonce, et participez au tirage.`}
+        </Text>
+        <View style={styles.ronds}>
+          {Array.from({ length: stats.concoursRequis }).map((_, i) => (
+            <View key={i} style={[styles.rond, i < stats.filleulsValides && styles.rondPlein]}>
+              {i < stats.filleulsValides && <Ionicons name="checkmark" size={18} color="#B45309" />}
+            </View>
+          ))}
+        </View>
+        <Text style={styles.concoursCompte}>
+          {stats.concoursParticipe
+            ? 'Vous êtes inscrit au tirage'
+            : `${Math.min(stats.filleulsValides, stats.concoursRequis)} sur ${stats.concoursRequis} — encore ${stats.concoursManque}`}
+        </Text>
+      </Gradient>
+
+      {/* 2. Le code, gros et lisible à voix haute, avec le partage WhatsApp
+          juste dessous : c'est là que les gens s'envoient tout. */}
       <View style={styles.carteCode}>
         <Text style={styles.carteCodeLabel}>Votre code</Text>
         <Text style={styles.code}>{stats.code}</Text>
-        <TouchableOpacity activeOpacity={0.9} onPress={partager}>
-          <Gradient
-            colors={['#0b4023', '#15803d', '#1f9450']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.boutonPartage}
-          >
-            <Ionicons name="share-social" size={20} color="#fff" />
-            <Text style={styles.boutonPartageTexte}>Partager mon code</Text>
-          </Gradient>
+        <TouchableOpacity activeOpacity={0.9} onPress={partagerWhatsApp} style={styles.boutonWhatsApp}>
+          <Ionicons name="logo-whatsapp" size={22} color="#fff" />
+          <Text style={styles.boutonPartageTexte}>Envoyer sur WhatsApp</Text>
+        </TouchableOpacity>
+        <TouchableOpacity activeOpacity={0.7} onPress={partagerAilleurs} style={styles.boutonAutre}>
+          <Ionicons name="share-social-outline" size={18} color={theme.textSecondary} />
+          <Text style={styles.boutonAutreTexte}>Partager autrement</Text>
         </TouchableOpacity>
       </View>
 
-      {/* 2. La règle, en une phrase et en image. */}
+      {/* 3. La règle du boost, en une phrase et en image. */}
       <View style={styles.bloc}>
         <View style={styles.regleLigne}>
           <View style={styles.regleIcone}>
@@ -136,7 +160,7 @@ export default function InvitationsScreen({ navigation }: { navigation: any }) {
         </View>
       </View>
 
-      {/* 3. Ce que ça a donné. */}
+      {/* 4. Ce que ça a donné. */}
       <View style={styles.compteurs}>
         <View style={styles.compteur}>
           <Text style={styles.compteurValeur}>{stats.filleulsValides}</Text>
@@ -165,28 +189,6 @@ export default function InvitationsScreen({ navigation }: { navigation: any }) {
           <Ionicons name="chevron-forward" size={18} color="#fff" />
         </TouchableOpacity>
       )}
-
-      {/* 4. Le concours. */}
-      <View style={styles.concours}>
-        <View style={styles.concoursEntete}>
-          <Ionicons name="trophy" size={22} color="#B45309" />
-          <Text style={styles.concoursTitre}>Concours de lancement</Text>
-        </View>
-        <Text style={styles.concoursTexte}>
-          {stats.concoursParticipe
-            ? `Vous participez au tirage. Vous pouvez remporter ${CONCOURS_MONTANT}.`
-            : `Parrainez ${stats.concoursRequis} personnes pour participer au tirage et tenter de remporter ${CONCOURS_MONTANT}.`}
-        </Text>
-
-        <View style={styles.jauge}>
-          <View style={[styles.jaugeRemplie, { width: `${progression * 100}%` }]} />
-        </View>
-        <Text style={styles.jaugeTexte}>
-          {stats.concoursParticipe
-            ? 'Vous êtes inscrit au tirage'
-            : `${stats.filleulsValides} sur ${stats.concoursRequis} — encore ${stats.concoursManque}`}
-        </Text>
-      </View>
     </ScrollView>
   );
 }
@@ -206,7 +208,8 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   enteteTitre: { ...TYPOGRAPHY.h3, color: theme.textPrimary },
 
   carteCode: {
-    margin: SPACING.lg,
+    marginHorizontal: SPACING.lg,
+    marginBottom: SPACING.lg,
     padding: SPACING.xl,
     borderRadius: RADIUS.xl,
     backgroundColor: theme.surface,
@@ -237,6 +240,29 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     borderRadius: RADIUS.lg,
   },
   boutonPartageTexte: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
+  boutonWhatsApp: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    height: 56,
+    alignSelf: 'stretch',
+    borderRadius: RADIUS.lg,
+    backgroundColor: '#25D366',
+  },
+  boutonAutre: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    height: 48,
+    alignSelf: 'stretch',
+    marginTop: SPACING.sm,
+    borderRadius: RADIUS.lg,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  boutonAutreTexte: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: theme.textSecondary },
 
   bloc: {
     marginHorizontal: SPACING.lg,
@@ -292,35 +318,61 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
   utiliserBoostTexte: { flex: 1, fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
 
   concours: {
-    marginHorizontal: SPACING.lg,
-    padding: SPACING.lg,
-    borderRadius: RADIUS.lg,
-    backgroundColor: isDark ? 'rgba(180,83,9,0.12)' : '#FFFBEB',
-    borderWidth: 1,
-    borderColor: '#FCD34D',
+    margin: SPACING.lg,
+    marginTop: SPACING.sm,
+    padding: SPACING.xl,
+    borderRadius: RADIUS.xl,
+    alignItems: 'center',
+    overflow: 'hidden',
+    ...SHADOWS.md,
   },
-  concoursEntete: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  concoursTitre: { fontSize: FONTS.lg, fontWeight: FONTS.bold, color: theme.textPrimary },
+  concoursFiligrane: {
+    position: 'absolute',
+    right: -18,
+    bottom: -22,
+    transform: [{ rotate: '12deg' }],
+  },
+  concoursSurtitre: {
+    fontSize: FONTS.sm,
+    fontWeight: FONTS.bold,
+    color: 'rgba(255,255,255,0.9)',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  concoursMontant: {
+    fontSize: 36,
+    fontWeight: FONTS.extrabold,
+    color: '#fff',
+    marginTop: SPACING.xs,
+    textAlign: 'center',
+  },
   concoursTexte: {
     fontSize: FONTS.md,
-    color: theme.textSecondary,
+    color: 'rgba(255,255,255,0.95)',
     lineHeight: 21,
     marginTop: SPACING.sm,
-  },
-  jauge: {
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: isDark ? 'rgba(255,255,255,0.12)' : '#FDE68A',
-    marginTop: SPACING.lg,
-    overflow: 'hidden',
-  },
-  jaugeRemplie: { height: '100%', borderRadius: 5, backgroundColor: '#B45309' },
-  jaugeTexte: {
-    fontSize: FONTS.sm,
-    fontWeight: FONTS.semibold,
-    color: theme.textPrimary,
-    marginTop: SPACING.sm,
     textAlign: 'center',
+  },
+  ronds: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: SPACING.lg,
+  },
+  rond: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rondPlein: { backgroundColor: '#fff', borderColor: '#fff' },
+  concoursCompte: {
+    fontSize: FONTS.sm,
+    fontWeight: FONTS.bold,
+    color: '#fff',
+    marginTop: SPACING.md,
   },
 
   videTitre: { ...TYPOGRAPHY.h3, color: theme.textPrimary, marginTop: SPACING.lg },

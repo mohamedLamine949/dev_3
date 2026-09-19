@@ -22,9 +22,10 @@ import { hapticLight } from '../lib/haptics';
 import { marquerGuideVu } from '../lib/tutoriel';
 import { supabase, Annonce } from '../lib/supabase';
 import { formatPrixCompact } from '../lib/format';
+import { CONCOURS_MONTANT } from '../lib/partageInvitation';
 
 /**
- * Guide d'accueil — cinq écrans, une idée par écran.
+ * Guide d'accueil — sept écrans, une idée par écran.
  *
  * À quoi il sert, concrètement : deux boosts seulement ont été vendus depuis
  * l'ouverture, et beaucoup de vendeurs rangent leurs annonces au hasard
@@ -218,6 +219,45 @@ export default function TutorielScreen({ onTermine, navigation }: Props) {
     </View>
   );
 
+  // Vraie photo contre image copiée sur Internet. Les images de Google
+  // (photo de catalogue, fond blanc parfait) font fuir les acheteurs : ils
+  // veulent voir l'article qu'ils vont réellement recevoir.
+  const illustrationPhotos = (
+    <View style={{ width: '100%', alignItems: 'center', gap: SPACING.md }}>
+      <View style={[styles.choixLigne, styles.choixBon]}>
+        <Ionicons name="camera" size={24} color="#16A34A" />
+        <Text style={[styles.choixTexte, { flex: 1 }]}>Votre photo, prise par vous</Text>
+        <Ionicons name="checkmark-circle" size={24} color="#16A34A" />
+      </View>
+      <View style={[styles.choixLigne, styles.choixMauvais]}>
+        <Ionicons name="globe-outline" size={24} color="#DC2626" />
+        <Text style={[styles.choixTexte, styles.choixTexteMauvais, { flex: 1 }]}>Image trouvée sur Internet</Text>
+        <Ionicons name="close-circle" size={24} color="#DC2626" />
+      </View>
+    </View>
+  );
+
+  // Le concours : le montant en très grand, et cinq ronds pour « 5 amis ».
+  const illustrationConcours = (
+    <Gradient
+      colors={['#7C2D12', '#B45309', '#D97706']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.concoursCarte}
+    >
+      <Ionicons name="trophy" size={40} color="#fff" />
+      <Text style={styles.concoursMontant}>{CONCOURS_MONTANT}</Text>
+      <View style={styles.concoursRonds}>
+        {[0, 1, 2, 3, 4].map(i => (
+          <View key={i} style={styles.concoursRond}>
+            <Ionicons name="person" size={16} color="#B45309" />
+          </View>
+        ))}
+      </View>
+      <Text style={styles.concoursLegende}>5 amis = 1 ticket pour le tirage</Text>
+    </Gradient>
+  );
+
   // ── Contenu ──────────────────────────────────────────────────────────────
 
   const ETAPES: Etape[] = [
@@ -245,6 +285,12 @@ export default function TutorielScreen({ onTermine, navigation }: Props) {
       illustration: illustrationPublier,
     },
     {
+      cle: 'photos',
+      titre: 'Montrez le vrai article',
+      texte: 'Prenez vous-même la photo de ce que vous vendez. Les images copiées sur Google font fuir les acheteurs : ils veulent voir ce qu\'ils vont recevoir.',
+      illustration: illustrationPhotos,
+    },
+    {
       cle: 'categorie',
       titre: 'Choisissez la bonne catégorie',
       texte: 'Une montre va dans Mode & Beauté, pas dans Téléphonie. Bien rangée, votre annonce est trouvée par les acheteurs.',
@@ -257,6 +303,12 @@ export default function TutorielScreen({ onTermine, navigation }: Props) {
         ? `Pour ${formatPrix(BOOST_PRIX)}, votre annonce passe dans « Tendances », tout en haut de l'accueil, pendant ${BOOST_DURATION_HOURS} heures.`
         : `Votre annonce passe dans « Tendances », tout en haut de l'accueil, pendant ${BOOST_DURATION_HOURS} heures. C'est offert en ce moment.`,
       illustration: illustrationBoost,
+    },
+    {
+      cle: 'concours',
+      titre: `Gagnez ${CONCOURS_MONTANT}`,
+      texte: 'Donnez votre code à vos amis. Chaque ami qui publie une annonce vous offre un boost gratuit. À 5 amis, vous participez au tirage.',
+      illustration: illustrationConcours,
     },
   ];
 
@@ -564,6 +616,41 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     fontSize: FONTS.lg,
     fontWeight: FONTS.bold,
     color: theme.textPrimary,
+  },
+
+  // Concours
+  concoursCarte: {
+    width: '100%',
+    alignItems: 'center',
+    paddingVertical: SPACING.xl,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.xl,
+    ...SHADOWS.md,
+  },
+  concoursMontant: {
+    fontSize: 40,
+    fontWeight: FONTS.extrabold,
+    color: '#fff',
+    marginTop: SPACING.sm,
+  },
+  concoursRonds: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginTop: SPACING.md,
+  },
+  concoursRond: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  concoursLegende: {
+    fontSize: FONTS.sm,
+    fontWeight: FONTS.bold,
+    color: '#fff',
+    marginTop: SPACING.md,
   },
 
   // Bas de page

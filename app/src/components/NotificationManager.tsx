@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import * as Notifications from 'expo-notifications';
 import { useNotifications } from '../hooks/useNotifications';
 import { navigationRef } from '../navigation/navigationRef';
+import { ouvrirEcranNotification } from '../lib/ecranNotification';
 
 export default function NotificationManager() {
   const { notification } = useNotifications();
@@ -19,7 +20,11 @@ export default function NotificationManager() {
             titreAnnonce: data.titreAnnonce 
           },
         });
+        return;
       }
+
+      // Messages de la console admin et « boost gagné » : l'écran visé.
+      if (navigationRef.isReady()) ouvrirEcranNotification(navigationRef, undefined, data);
     });
 
     return () => subscription.remove();
