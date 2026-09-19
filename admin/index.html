@@ -445,6 +445,23 @@
                 <p class="text-sm font-bold text-gray-900" id="crm-liste-titre"></p>
                 <p class="text-xs text-gray-400" id="crm-liste-conseil"></p>
               </div>
+
+              <!-- Message WhatsApp du groupe -->
+              <div class="rounded-xl border border-green-200 bg-green-50/50 p-4 mb-4">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
+                  <label for="crm-message" class="text-xs font-bold uppercase tracking-widest text-green-700"><i class="fa-brands fa-whatsapp mr-1"></i> Message envoyé à ce groupe</label>
+                  <span class="text-[11px] text-gray-500">Remplacés pour chaque personne : <code class="font-mono">{prenom}</code> <code class="font-mono">{code}</code> <code class="font-mono">{annonces}</code> <code class="font-mono">{contacts}</code></span>
+                </div>
+                <textarea id="crm-message" rows="4" class="w-full bg-white border border-gray-300 focus:border-green-500 rounded-xl p-3 text-sm text-gray-900 outline-none transition-all"></textarea>
+                <div class="flex flex-wrap items-center justify-between gap-3 mt-2">
+                  <p class="text-xs text-gray-500" id="crm-apercu"></p>
+                  <div class="flex items-center gap-2">
+                    <button type="button" id="crm-reset-msg" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white text-gray-600 border border-gray-200 hover:bg-gray-50">Message d'origine</button>
+                    <button type="button" id="crm-copier-numeros" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"><i class="fa-regular fa-copy mr-1"></i> Copier les numéros</button>
+                    <button type="button" id="crm-suivant" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-green-600 text-white hover:bg-green-700"><i class="fa-brands fa-whatsapp mr-1"></i> Écrire au suivant</button>
+                  </div>
+                </div>
+              </div>
               <div class="overflow-x-auto max-h-[480px] overflow-y-auto border border-gray-100 rounded-xl">
                 <table class="w-full text-left border-collapse">
                   <thead class="sticky top-0 bg-white">

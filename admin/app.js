@@ -1764,21 +1764,42 @@ function renderCategoriesTable(annoncesPer, contactsPer, dansPeriode) {
     </tr>`).join('');
 }
 
+// « Mali » n'est pas un lieu : c'est ce que l'application écrit quand le
+// téléphone ne partage pas sa position (PostAnnonceScreen, repli de
+// `location?.ville`). Ces annonces vont dans « ville inconnue », à part du
+// classement. Les communes de Bamako et les variantes d'écriture sont
+// ramenées à « Bamako ».
+function villeNormalisee(ville) {
+  const v = (ville || '').trim();
+  const bas = v.toLowerCase();
+  if (!v || bas === 'mali' || bas === 'non précisée') return null;
+  if (bas.includes('bamako') || /^commune\s+(i|ii|iii|iv|v|vi|[1-6])\b/.test(bas)) return 'Bamako';
+  return v.charAt(0).toUpperCase() + v.slice(1);
+}
+
 function renderVilles() {
   const parVille = {};
+  let inconnues = 0;
   allAnnonces.filter(a => a.statut === 'active').forEach(a => {
-    const v = (a.ville || 'Non précisée').trim();
+    const v = villeNormalisee(a.ville);
+    if (!v) { inconnues++; return; }
     parVille[v] = (parVille[v] || 0) + 1;
   });
   const villes = Object.entries(parVille).sort((a, b) => b[1] - a[1]).slice(0, 8);
   const max = Math.max(1, ...villes.map(v => v[1]));
-  document.getElementById('stats-villes').innerHTML = villes.length === 0
-    ? '<p class="text-xs text-gray-400">Aucune annonce en ligne.</p>'
-    : villes.map(([v, n]) => `
+  const lignes = villes.map(([v, n]) => `
       <div>
         <div class="flex justify-between text-sm mb-1"><span class="font-semibold text-gray-700">${esc(v)}</span><span class="font-bold text-gray-900">${fmt(n)}</span></div>
         <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden"><div class="bg-emerald-500 h-2 rounded-full" style="width:${(n / max) * 100}%"></div></div>
       </div>`).join('');
+  const inconnu = inconnues === 0 ? '' : `
+      <div class="pt-3 mt-1 border-t border-gray-100 flex justify-between text-xs text-gray-400">
+        <span title="Le téléphone du vendeur n'a pas partagé sa position au moment de publier">Ville inconnue (position non partagée)</span>
+        <span class="font-semibold">${fmt(inconnues)}</span>
+      </div>`;
+  document.getElementById('stats-villes').innerHTML = villes.length === 0 && inconnues === 0
+    ? '<p class="text-xs text-gray-400">Aucune annonce en ligne.</p>'
+    : lignes + inconnu;
 }
 
 function renderTopVendeurs(annoncesPer, contactsPer) {
@@ -1856,6 +1877,73 @@ function segmentsCrm() {
   return segs;
 }
 
+// ---- Messages WhatsApp par groupe ----
+// Un message court et direct par groupe : le public lit peu, une seule
+// idée par message, une seule action demandée. Le concours de 100 000 F et
+// le code de parrainage de la personne reviennent partout où c'est
+// pertinent : c'est aussi le moyen de faire connaître le programme.
+const MESSAGES_CRM = {
+  nouveaux:
+    "Bonjour {prenom} 👋 Bienvenue sur Flash Market !\n\nPour vendre, c'est simple : une photo + un prix, et votre annonce est en ligne en 1 minute. C'est gratuit.\n\n🎁 Invitez vos proches avec votre code {code} : 5 amis qui publient une annonce = vous participez au tirage de *100 000 F* !",
+  sans_annonce:
+    "Bonjour {prenom}, vous êtes inscrit(e) sur Flash Market mais vous n'avez encore rien publié 🙂\n\nTéléphone, habits, meubles, moto… qu'avez-vous à vendre ? Une photo + un prix, c'est gratuit et ça prend 1 minute 📸\n\nDes acheteurs cherchent tous les jours à Bamako !",
+  sans_contact:
+    "Bonjour {prenom}, vos annonces sont bien en ligne sur Flash Market 👍\n\nPour recevoir plus d'appels :\n✅ une photo claire, à la lumière du jour\n✅ un prix juste\n✅ un titre précis (marque, modèle, taille)\n\n🚀 Astuce : invitez un ami avec votre code {code}. Il publie une annonce = vous gagnez un boost gratuit !",
+  endormis:
+    "Bonjour {prenom}, ça fait longtemps ! 👋\n\nDe nouvelles annonces arrivent chaque jour sur Flash Market.\n\n🎁 En ce moment : invitez 5 amis avec votre code {code} et participez au tirage de *100 000 F* !\n\nOuvrez l'appli pour voir 😉",
+  actifs:
+    "Bonjour {prenom}, merci de vendre sur Flash Market 🙏\n\nVos annonces ont déjà reçu {contacts} contact(s) !\n\n🎁 Invitez d'autres vendeurs avec votre code {code} : chaque ami qui publie = 1 boost gratuit pour vous, et 5 amis = tirage de *100 000 F* !",
+  payeurs:
+    "Bonjour {prenom}, merci pour votre confiance sur Flash Market 🙏\n\nVous faites partie de nos meilleurs vendeurs. Une question, une idée pour améliorer l'appli ? Répondez-moi directement ici.\n\n🎁 N'oubliez pas : avec votre code {code}, chaque ami qui publie vous rapporte un boost gratuit."
+};
+
+// Tant qu'une personne n'a jamais ouvert l'écran de parrainage, elle n'a
+// pas encore de code en base : on lui dit où le trouver.
+const CODE_ABSENT = "(il est dans l'appli : Compte › Parrainage et concours)";
+
+// Préférences locales à ce navigateur (messages modifiés, envois faits).
+// Pratique pour ne pas écrire deux fois à la même personne, mais ce n'est
+// pas un journal fiable : un autre ordinateur ne le voit pas.
+function lireLocal(cle, defaut) {
+  try { return JSON.parse(localStorage.getItem(cle)) ?? defaut; } catch { return defaut; }
+}
+function ecrireLocal(cle, valeur) {
+  try { localStorage.setItem(cle, JSON.stringify(valeur)); } catch { /* stockage indisponible */ }
+}
+
+function modeleMessage(segId) {
+  return lireLocal('crm_messages', {})[segId] ?? MESSAGES_CRM[segId] ?? '';
+}
+
+function messagePour(segId, { u, annonces, contacts }) {
+  const code = allInvitationCodes.find(c => c.user_id === u.id)?.code;
+  const prenom = (u.prenom || '').trim();
+  return modeleMessage(segId)
+    .replace(/ ?\{prenom\}/g, prenom ? ' ' + prenom : '')
+    .replace(/\{code\}/g, code ? `*${code}*` : CODE_ABSENT)
+    .replace(/\{annonces\}/g, String(annonces))
+    .replace(/\{contacts\}/g, String(contacts));
+}
+
+function lienWhatsAppMessage(u, texte) {
+  const base = lienWhatsApp(u);
+  return base ? `${base}?text=${encodeURIComponent(texte)}` : '';
+}
+
+function envoisSegment(segId) {
+  return lireLocal('crm_envois', {})[segId] || {};
+}
+
+function noterEnvoi(segId, userId) {
+  const tous = lireLocal('crm_envois', {});
+  tous[segId] = { ...(tous[segId] || {}), [userId]: new Date().toISOString() };
+  ecrireLocal('crm_envois', tous);
+}
+
+function segmentActif() {
+  return segmentsCrm().find(s => s.id === crmSegmentActif && s.liste);
+}
+
 function renderCrmSegments() {
   const segs = segmentsCrm();
   document.getElementById('crm-segments').innerHTML = segs.map(s => `
@@ -1873,13 +1961,29 @@ function renderCrmSegments() {
   document.getElementById('crm-liste-titre').textContent = `${seg.titre} — ${fmt(seg.liste.length)} personne(s)`;
   document.getElementById('crm-liste-conseil').textContent = seg.conseil;
 
+  const zone = document.getElementById('crm-message');
+  if (document.activeElement !== zone) zone.value = modeleMessage(seg.id);
+  renderCrmListe(seg);
+}
+
+function renderCrmListe(seg) {
+  const envois = envoisSegment(seg.id);
+  const joignables = seg.liste.filter(x => lienWhatsApp(x.u));
+  const faits = joignables.filter(x => envois[x.u.id]).length;
+  document.getElementById('crm-apercu').textContent =
+    `${fmt(faits)} / ${fmt(joignables.length)} message(s) envoyé(s) depuis cet ordinateur` +
+    (joignables.length < seg.liste.length ? ` · ${fmt(seg.liste.length - joignables.length)} sans numéro` : '');
+  document.getElementById('crm-suivant').disabled = faits >= joignables.length;
+
   document.getElementById('table-crm').innerHTML = seg.liste.length === 0
     ? '<tr><td colspan="7" class="py-8 text-center text-gray-400">Personne dans ce groupe.</td></tr>'
-    : seg.liste.map(({ u, annonces, contacts }) => {
-        const wa = lienWhatsApp(u);
+    : seg.liste.map(x => {
+        const { u, annonces, contacts } = x;
+        const wa = lienWhatsAppMessage(u, messagePour(seg.id, x));
         const tel = telephoneDe(u);
+        const envoye = envois[u.id];
         return `
-        <tr class="hover:bg-gray-50 transition-colors">
+        <tr class="hover:bg-gray-50 transition-colors ${envoye ? 'opacity-60' : ''}">
           <td class="py-2.5 pl-3">${cellulePersonne(u)}</td>
           <td class="py-2.5">${accountBadge(u.type_compte)}</td>
           <td class="py-2.5 text-center">${fmt(annonces)}</td>
@@ -1887,14 +1991,69 @@ function renderCrmSegments() {
           <td class="py-2.5 text-xs text-gray-500">${fmtDate(u.date_creation)}</td>
           <td class="py-2.5 text-xs text-gray-500">${fmtDate(u.derniere_connexion)}</td>
           <td class="py-2.5 text-right pr-3 whitespace-nowrap space-x-1">
-            ${wa ? `<a href="${esc(wa)}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>` : ''}
+            ${envoye ? `<span class="text-[11px] text-green-700 font-semibold"><i class="fa-solid fa-check"></i> envoyé le ${fmtDate(envoye)}</span>` : ''}
+            ${wa ? `<a href="${esc(wa)}" target="_blank" rel="noopener" onclick="marquerEnvoi('${u.id}')" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"><i class="fa-brands fa-whatsapp"></i> ${envoye ? 'Renvoyer' : 'WhatsApp'}</a>` : ''}
             ${tel ? `<a href="tel:${esc(tel)}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-lg bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"><i class="fa-solid fa-phone"></i></a>` : '<span class="text-xs text-gray-300">pas de numéro</span>'}
           </td>
         </tr>`;
       }).join('');
 }
 
+window.marquerEnvoi = function(userId) {
+  noterEnvoi(crmSegmentActif, userId);
+  // Laisser le lien s'ouvrir avant de redessiner la ligne.
+  setTimeout(() => { const seg = segmentActif(); if (seg) renderCrmListe(seg); }, 50);
+};
+
 window.ouvrirSegment = function(id) {
   crmSegmentActif = crmSegmentActif === id ? null : id;
   renderCrmSegments();
 };
+
+// Le message se modifie librement ; la version modifiée est gardée pour ce
+// groupe, sur cet ordinateur. Les liens WhatsApp se mettent à jour aussitôt.
+document.getElementById('crm-message').addEventListener('input', (e) => {
+  if (!crmSegmentActif) return;
+  const tous = lireLocal('crm_messages', {});
+  tous[crmSegmentActif] = e.target.value;
+  ecrireLocal('crm_messages', tous);
+  const seg = segmentActif();
+  if (seg) renderCrmListe(seg);
+});
+
+document.getElementById('crm-reset-msg').addEventListener('click', () => {
+  if (!crmSegmentActif) return;
+  const tous = lireLocal('crm_messages', {});
+  delete tous[crmSegmentActif];
+  ecrireLocal('crm_messages', tous);
+  document.getElementById('crm-message').value = MESSAGES_CRM[crmSegmentActif] || '';
+  const seg = segmentActif();
+  if (seg) renderCrmListe(seg);
+});
+
+// Pour une liste de diffusion WhatsApp Business : un numéro par ligne.
+document.getElementById('crm-copier-numeros').addEventListener('click', async (e) => {
+  const seg = segmentActif();
+  if (!seg) return;
+  const numeros = seg.liste.map(x => lienWhatsApp(x.u).replace('https://wa.me/', '+')).filter(n => n.length > 1);
+  const bouton = e.currentTarget;
+  try {
+    await navigator.clipboard.writeText(numeros.join('\n'));
+    bouton.textContent = `${numeros.length} numéro(s) copié(s)`;
+  } catch {
+    prompt('Copiez les numéros :', numeros.join(', '));
+  }
+});
+
+// Enchaîner les envois : ouvre WhatsApp sur la prochaine personne à qui ce
+// message n'a pas encore été envoyé.
+document.getElementById('crm-suivant').addEventListener('click', () => {
+  const seg = segmentActif();
+  if (!seg) return;
+  const envois = envoisSegment(seg.id);
+  const suivant = seg.liste.find(x => lienWhatsApp(x.u) && !envois[x.u.id]);
+  if (!suivant) return;
+  window.open(lienWhatsAppMessage(suivant.u, messagePour(seg.id, suivant)), '_blank', 'noopener');
+  noterEnvoi(seg.id, suivant.u.id);
+  renderCrmListe(seg);
+});
