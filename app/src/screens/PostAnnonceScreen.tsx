@@ -977,7 +977,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
                     <Ionicons name="trophy" size={28} color="#B45309" />
                     <Text style={styles.inviteMontant} numberOfLines={1} adjustsFontSizeToFit>Gagnez {CONCOURS_MONTANT}</Text>
                     <Text style={styles.inviteTexte}>
-                      Invitez 5 amis qui publient une annonce et participez au tirage. Chaque ami vous offre aussi un boost gratuit.
+                      Invitez 5 amis qui publient une annonce et participez au tirage. Dès 3 amis, vous gagnez un boost gratuit.
                     </Text>
                     <Text style={styles.inviteCode}>{invitations.code}</Text>
                     <TouchableOpacity

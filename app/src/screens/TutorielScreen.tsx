@@ -22,7 +22,7 @@ import { hapticLight } from '../lib/haptics';
 import { marquerGuideVu } from '../lib/tutoriel';
 import { supabase, Annonce } from '../lib/supabase';
 import { formatPrixCompact } from '../lib/format';
-import { CONCOURS_MONTANT } from '../lib/partageInvitation';
+import { CONCOURS_MONTANT, PALIERS_BOOST } from '../lib/partageInvitation';
 
 /**
  * Guide d'accueil — sept écrans, une idée par écran.
@@ -250,11 +250,11 @@ export default function TutorielScreen({ onTermine, navigation }: Props) {
       <View style={styles.concoursRonds}>
         {[0, 1, 2, 3, 4].map(i => (
           <View key={i} style={styles.concoursRond}>
-            <Ionicons name="person" size={16} color="#B45309" />
+            <Ionicons name={PALIERS_BOOST.includes(i + 1) ? 'flame' : 'person'} size={16} color="#B45309" />
           </View>
         ))}
       </View>
-      <Text style={styles.concoursLegende}>5 amis = 1 ticket pour le tirage</Text>
+      <Text style={styles.concoursLegende}>3 amis = 1 boost · 5 amis = le tirage</Text>
     </Gradient>
   );
 
@@ -307,7 +307,7 @@ export default function TutorielScreen({ onTermine, navigation }: Props) {
     {
       cle: 'concours',
       titre: `Gagnez ${CONCOURS_MONTANT}`,
-      texte: 'Donnez votre code à vos amis. Chaque ami qui publie une annonce vous offre un boost gratuit. À 5 amis, vous participez au tirage.',
+      texte: 'Donnez votre code à vos amis. À 3 amis qui publient une annonce, vous gagnez un boost gratuit. À 5, un 2e boost et vous participez au tirage.',
       illustration: illustrationConcours,
     },
   ];

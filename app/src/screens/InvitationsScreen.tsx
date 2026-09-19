@@ -16,7 +16,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useInvitations } from '../hooks/useInvitations';
 import { useTabBarSpace } from '../hooks/useTabBarSpace';
 import { hapticLight } from '../lib/haptics';
-import { CONCOURS_MONTANT, partagerSurWhatsApp, partagerAutrement } from '../lib/partageInvitation';
+import { CONCOURS_MONTANT, PALIERS_BOOST, prochainObjectif, partagerSurWhatsApp, partagerAutrement } from '../lib/partageInvitation';
 
 /**
  * Parrainage ouvert : mon code, mes filleuls, mes boosts gagnés, et ma
@@ -115,14 +115,16 @@ export default function InvitationsScreen({ navigation }: { navigation: any }) {
         <View style={styles.ronds}>
           {Array.from({ length: stats.concoursRequis }).map((_, i) => (
             <View key={i} style={[styles.rond, i < stats.filleulsValides && styles.rondPlein]}>
-              {i < stats.filleulsValides && <Ionicons name="checkmark" size={18} color="#B45309" />}
+              {i < stats.filleulsValides
+                ? <Ionicons name="checkmark" size={18} color="#B45309" />
+                : PALIERS_BOOST.includes(i + 1) && <Ionicons name="flame" size={16} color="#fff" />}
             </View>
           ))}
         </View>
         <Text style={styles.concoursCompte}>
           {stats.concoursParticipe
             ? 'Vous êtes inscrit au tirage'
-            : `${Math.min(stats.filleulsValides, stats.concoursRequis)} sur ${stats.concoursRequis} — encore ${stats.concoursManque}`}
+            : `${stats.filleulsValides} sur ${stats.concoursRequis} — ${prochainObjectif(stats.filleulsValides).toLowerCase()}`}
         </Text>
       </Gradient>
 
@@ -141,22 +143,28 @@ export default function InvitationsScreen({ navigation }: { navigation: any }) {
         </TouchableOpacity>
       </View>
 
-      {/* 3. La règle du boost, en une phrase et en image. */}
+      {/* 3. La règle, en trois lignes et en images. Un ami ne compte que
+          lorsqu'il a publié sa première annonce. */}
       <View style={styles.bloc}>
         <View style={styles.regleLigne}>
           <View style={styles.regleIcone}>
             <Ionicons name="person-add" size={20} color={theme.primary} />
           </View>
           <Text style={styles.regleTexte}>
-            Une personne s'inscrit avec votre code et publie sa première annonce
+            Un ami compte quand il s'inscrit avec votre code et publie sa première annonce
           </Text>
         </View>
-        <Ionicons name="arrow-down" size={20} color={theme.textMuted} style={{ alignSelf: 'center' }} />
         <View style={styles.regleLigne}>
           <View style={[styles.regleIcone, { backgroundColor: 'rgba(234,88,12,0.12)' }]}>
             <Ionicons name="flame" size={20} color="#EA580C" />
           </View>
-          <Text style={styles.regleTexte}>Vous gagnez un boost gratuit de 48 h</Text>
+          <Text style={styles.regleTexte}><Text style={styles.regleGras}>3 amis</Text> : un boost gratuit de 48 h</Text>
+        </View>
+        <View style={styles.regleLigne}>
+          <View style={[styles.regleIcone, { backgroundColor: 'rgba(180,83,9,0.14)' }]}>
+            <Ionicons name="trophy" size={20} color="#B45309" />
+          </View>
+          <Text style={styles.regleTexte}><Text style={styles.regleGras}>5 amis</Text> : un 2e boost et le tirage de {CONCOURS_MONTANT}</Text>
         </View>
       </View>
 
@@ -280,6 +288,7 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   regleTexte: { flex: 1, fontSize: FONTS.md, color: theme.textPrimary, lineHeight: 21 },
+  regleGras: { fontWeight: FONTS.extrabold },
 
   compteurs: {
     flexDirection: 'row',

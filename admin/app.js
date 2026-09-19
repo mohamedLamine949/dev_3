@@ -1272,9 +1272,10 @@ window.dismissSignalement = async function(sigId) {
 };
 
 // ================= PARRAINAGE OUVERT (programme en vigueur) =================
-// Règles (migration_invitations.sql) : le parrainage est VALIDÉ quand le
-// filleul publie sa première annonce ; chaque validation offre au parrain un
-// boost de 48 h ; cinq validations le font entrer au tirage.
+// Règles (migration_invitations.sql + migration_parrainage_paliers.sql) : le
+// parrainage est VALIDÉ quand le filleul publie sa première annonce ; le 3e
+// et le 5e validés rapportent chacun un boost de 48 h (deux au plus) ; cinq
+// validations font entrer au tirage.
 const CONCOURS_REQUIS = 5;
 
 const INV_BADGES = {
@@ -1886,7 +1887,7 @@ function segmentsCrm() {
 const MESSAGES_CRM = {
   tous: {
     titre: 'Gagnez 100 000 FCFA avec Flash Market',
-    texte: "{prenom}, le concours est lancé : invitez 5 amis qui publient une annonce et participez au tirage de 100 000 FCFA. Chaque ami vous offre aussi un boost gratuit.\nVotre code : {code}",
+    texte: "{prenom}, le concours est lancé : invitez 5 amis qui publient une annonce et participez au tirage de 100 000 FCFA. Dès 3 amis, vous gagnez aussi un boost gratuit.\nVotre code : {code}",
     ecran: 'Invitations'
   },
   nouveaux: {
@@ -1911,12 +1912,12 @@ const MESSAGES_CRM = {
   },
   actifs: {
     titre: 'Merci {prenom} !',
-    texte: "Vos annonces ont reçu {contacts} contact(s). Invitez d'autres vendeurs avec votre code {code} : chaque ami qui publie vous offre un boost gratuit, et 5 amis = tirage de 100 000 FCFA.",
+    texte: "Vos annonces ont reçu {contacts} contact(s). Invitez d'autres vendeurs avec votre code {code} : 3 amis qui publient = un boost gratuit, 5 amis = un 2e boost et le tirage de 100 000 FCFA.",
     ecran: 'Invitations'
   },
   payeurs: {
     titre: 'Merci pour votre confiance, {prenom}',
-    texte: "Vous faites partie de nos meilleurs vendeurs. Avec votre code {code}, chaque ami qui publie une annonce vous offre un boost gratuit.",
+    texte: "Vous faites partie de nos meilleurs vendeurs. Avec votre code {code}, invitez 3 amis qui publient une annonce et gagnez un boost gratuit ; à 5, vous participez au tirage de 100 000 FCFA.",
     ecran: 'Invitations'
   }
 };

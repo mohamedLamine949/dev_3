@@ -68,8 +68,8 @@ export default function SaisirCodeInvitationScreen({ navigation, route }: any) {
 
         <Text style={styles.titre}>Quelqu'un vous a invité ?</Text>
         <Text style={styles.texte}>
-          Saisissez son code. Quand vous publierez votre première annonce, cette
-          personne recevra un boost gratuit.
+          Saisissez son code. Quand vous publierez votre première annonce, vous
+          l'aiderez à gagner un boost gratuit et le tirage de 100 000 FCFA.
         </Text>
 
         <TextInput

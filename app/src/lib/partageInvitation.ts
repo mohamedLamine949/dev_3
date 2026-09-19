@@ -11,6 +11,21 @@ import { Linking, Share } from 'react-native';
 /** Montant du concours de lancement. */
 export const CONCOURS_MONTANT = '100 000 FCFA';
 
+/**
+ * Filleuls validés qui rapportent un boost gratuit (règle du 2026-09-19,
+ * migration_parrainage_paliers.sql) : un boost au 3e, un second au 5e — qui
+ * ouvre aussi le tirage. Au plus deux boosts par parrain. La base décide ;
+ * l'application ne fait que l'afficher.
+ */
+export const PALIERS_BOOST = [3, 5];
+
+/** « Encore N pour… » : le prochain objectif, en clair. */
+export function prochainObjectif(valides: number): string {
+  if (valides < 3) return `Encore ${3 - valides} pour votre boost gratuit`;
+  if (valides < 5) return `Encore ${5 - valides} pour le tirage et un 2e boost`;
+  return 'Vous participez au tirage';
+}
+
 /** Page d'accueil du site : elle renvoie vers le bon magasin d'applications. */
 const LIEN_APPLI = 'https://app-flashmarket.com';
 
