@@ -34,8 +34,13 @@ import { formatPrix } from '../lib/format';
 import { libellePrix } from '../constants/theme';
 import { enregistrerContact } from '../lib/contactTracking';
 import { isBoostActif, aDejaEteBoostee } from '../hooks/useBoost';
+import { useAnnonces } from '../hooks/useAnnonces';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+// Grille 2 colonnes des « produits similaires », dans la largeur disponible
+// une fois retiré le padding horizontal de detailContainer (SPACING.xl de
+// chaque côté) et l'espace entre les deux colonnes (SPACING.md).
+const SIMILAIRE_CARD_WIDTH = (SCREEN_WIDTH - SPACING.xl * 2 - SPACING.md) / 2;
 
 
 interface Props {
@@ -214,6 +219,19 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
         : undefined,
     });
   };
+
+  // Produits similaires : même sous-catégorie (retombe sur la catégorie si
+  // l'annonce n'en a pas), pour proposer des alternatives à qui scrolle
+  // jusqu'en bas sans avoir contacté le vendeur — comme sur Shein.
+  const { annonces: similairesBrutes } = useAnnonces({
+    categorie: annonce.categorie,
+    sousCategorie: annonce.sous_categorie || null,
+    limit: 13,
+  });
+  const similaires = React.useMemo(
+    () => similairesBrutes.filter(a => a.id !== annonce.id).slice(0, 12),
+    [similairesBrutes, annonce.id]
+  );
 
   const styles = React.useMemo(() => createStyles(theme, isDark), [theme, isDark]);
 
@@ -448,6 +466,42 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
             <Ionicons name="flag-outline" size={16} color={theme.textMuted} />
             <Text style={styles.reportBtnText}>Signaler cette annonce</Text>
           </TouchableOpacity>
+
+          {/* Produits similaires */}
+          {similaires.length > 0 && (
+            <>
+              <View style={styles.divider} />
+              <Text style={styles.sectionTitle}>Produits similaires</Text>
+              <View style={styles.similairesGrid}>
+                {similaires.map((item, i) => {
+                  const imageUrl = item.images?.[0]?.image_url || null;
+                  return (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={[styles.similaireCard, { marginLeft: i % 2 === 0 ? 0 : SPACING.md }]}
+                      activeOpacity={0.85}
+                      // `push` (plutôt que `navigate`) empile un nouvel écran :
+                      // le retour redéroule les produits consultés un par un,
+                      // au lieu de sauter directement à l'annonce de départ.
+                      onPress={() => navigation.push('AnnonceDetail', { annonce: item })}
+                    >
+                      <View style={styles.similaireImageContainer}>
+                        {imageUrl ? (
+                          <Image source={{ uri: imageUrl }} style={styles.similaireImage} />
+                        ) : (
+                          <View style={[styles.similaireImage, styles.similaireImagePlaceholder]}>
+                            <Ionicons name="image-outline" size={26} color={theme.border} />
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.similaireTitle} numberOfLines={2}>{item.titre}</Text>
+                      <Text style={styles.similairePrice}>{formatPrix(item.prix)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
 
           {/* Espacement pour le CTA sticky */}
           <View style={{ height: 120 }} />
@@ -913,6 +967,44 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     fontSize: FONTS.sm,
     color: theme.textMuted,
     fontWeight: FONTS.semibold,
+  },
+
+  // Produits similaires
+  similairesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  similaireCard: {
+    width: SIMILAIRE_CARD_WIDTH,
+    marginBottom: SPACING.lg,
+  },
+  similaireImageContainer: {
+    width: '100%',
+    height: SIMILAIRE_CARD_WIDTH * 0.85,
+    borderRadius: RADIUS.lg,
+    overflow: 'hidden',
+    marginBottom: SPACING.sm,
+  },
+  similaireImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: theme.surfaceMuted,
+  },
+  similaireImagePlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  similaireTitle: {
+    fontSize: FONTS.sm,
+    fontWeight: FONTS.semibold,
+    color: theme.textPrimary,
+    lineHeight: 18,
+    marginBottom: 2,
+  },
+  similairePrice: {
+    ...TYPOGRAPHY.price,
+    fontSize: FONTS.md,
+    color: theme.primary,
   },
 
   // Modal avis
