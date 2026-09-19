@@ -8,6 +8,9 @@ Site statique : vitrine + pages légales (obligatoires pour Google Play & Apple)
 - `cgu.html` — conditions générales d'utilisation
 - `cgv.html` — conditions générales de vente
 - `support.html` — page de support / contact (**URL de support Apple**)
+- `concours.html` — règlement du jeu-concours de parrainage (100 000 FCFA)
+- `testeurs.html` — ancienne page testeurs, conservée comme simple redirection vers l'accueil
+- `og-image.png` — image d'aperçu des liens partagés (WhatsApp, Facebook) ; `favicon.png`, `apple-touch-icon.png`
 - `style.css` — styles partagés
 
 ## Déploiement sur Render
