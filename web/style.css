@@ -948,3 +948,38 @@ img, svg { display: block; max-width: 100%; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--slate-300); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ===== Concours ===== */
+.concours-band {
+  display: flex; align-items: center; justify-content: space-between; gap: 32px;
+  padding: 44px 48px; border-radius: 28px; color: #fff; position: relative; overflow: hidden;
+  background: linear-gradient(135deg, #7C2D12 0%, #B45309 55%, #D97706 100%);
+  box-shadow: 0 24px 60px -24px rgba(180, 83, 9, .55);
+}
+.concours-eyebrow { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; opacity: .9; }
+.concours-band h2 { font-size: 44px; font-weight: 800; letter-spacing: -1px; margin: 6px 0 12px; color: #fff; }
+.concours-band p { font-size: 17px; line-height: 1.6; max-width: 560px; opacity: .95; }
+.concours-lien { display: inline-block; margin-top: 18px; padding: 12px 22px; border-radius: 12px; background: #fff; color: #B45309; font-weight: 700; }
+.concours-lien:hover { transform: translateY(-1px); }
+.concours-ronds { display: flex; gap: 12px; flex-shrink: 0; }
+.concours-ronds span {
+  width: 52px; height: 52px; border-radius: 50%; border: 3px solid rgba(255,255,255,.75);
+  display: flex; align-items: center; justify-content: center; font-size: 22px;
+}
+.concours-ronds span.palier { background: #fff; border-color: #fff; }
+@media (max-width: 820px) {
+  .concours-band { flex-direction: column; align-items: flex-start; padding: 32px 24px; }
+  .concours-band h2 { font-size: 34px; }
+  .concours-ronds span { width: 42px; height: 42px; font-size: 18px; }
+}
+
+/* Règlement : les trois étapes en tête de page */
+.concours-resume { display: grid; gap: 10px; margin: 0 0 36px; }
+.concours-etape {
+  display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-radius: 14px;
+  background: #FFFBEB; border: 1px solid #FCD34D; color: var(--ink-soft); font-weight: 600;
+}
+.concours-etape span {
+  width: 30px; height: 30px; border-radius: 50%; background: #B45309; color: #fff; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-weight: 800;
+}

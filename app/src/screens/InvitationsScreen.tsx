@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -126,6 +127,15 @@ export default function InvitationsScreen({ navigation }: { navigation: any }) {
             ? 'Vous êtes inscrit au tirage'
             : `${stats.filleulsValides} sur ${stats.concoursRequis} — ${prochainObjectif(stats.filleulsValides).toLowerCase()}`}
         </Text>
+        {/* Règlement public : exigé par les stores pour tout concours dans une
+            application, et c'est la preuve que les 100 000 FCFA sont réels. */}
+        <TouchableOpacity
+          onPress={() => Linking.openURL('https://app-flashmarket.com/concours.html')}
+          style={styles.reglement}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.reglementTexte}>Lire le règlement</Text>
+        </TouchableOpacity>
       </Gradient>
 
       {/* 2. Le code, gros et lisible à voix haute, avec le partage WhatsApp
@@ -377,6 +387,8 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     justifyContent: 'center',
   },
   rondPlein: { backgroundColor: '#fff', borderColor: '#fff' },
+  reglement: { marginTop: SPACING.sm, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.lg },
+  reglementTexte: { fontSize: FONTS.sm, fontWeight: FONTS.bold, color: '#fff', textDecorationLine: 'underline' },
   concoursCompte: {
     fontSize: FONTS.sm,
     fontWeight: FONTS.bold,

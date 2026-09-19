@@ -377,6 +377,42 @@
             </div>
           </section>
 
+          <!-- Canaux d'acquisition -->
+          <section class="glass-card border border-gray-200 rounded-2xl p-6">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-2 mb-6">
+              <div>
+                <h3 class="text-sm font-bold uppercase tracking-wider text-gray-500">D'où viennent les utilisateurs</h3>
+                <p class="text-xs text-gray-400 mt-0.5">Réponses à « Comment avez-vous connu Flash Market ? », pour les inscrits de la période. Un bon canal ramène des gens qui <b>publient</b>, pas seulement des inscrits.</p>
+              </div>
+              <p class="text-xs text-gray-500 whitespace-nowrap" id="sources-taux"></p>
+            </div>
+            <div id="sources-not-ready" class="hidden rounded-xl border border-amber-300 bg-amber-50 p-4 text-xs text-amber-800">
+              <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+              Exécutez <code class="font-mono font-semibold">supabase/migration_source_acquisition.sql</code> dans Supabase, puis publiez la mise à jour de l'application : la question apparaîtra sur l'accueil de chaque utilisateur.
+            </div>
+            <div id="sources-content" class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div class="lg:col-span-2 overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="border-b border-gray-200 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      <th class="pb-3 pl-2">Canal</th>
+                      <th class="pb-3 w-48">Inscrits (période)</th>
+                      <th class="pb-3 text-center">Ont publié</th>
+                      <th class="pb-3 text-center">Ont reçu un contact</th>
+                      <th class="pb-3 text-center">Depuis le début</th>
+                    </tr>
+                  </thead>
+                  <tbody id="table-sources" class="divide-y divide-gray-100 text-sm text-gray-700"></tbody>
+                </table>
+              </div>
+              <div>
+                <h4 class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">Influenceurs et « Autre » cités</h4>
+                <div id="sources-details" class="space-y-2"></div>
+                <p class="text-[11px] text-gray-400 mt-4" id="sources-parrainage"></p>
+              </div>
+            </div>
+          </section>
+
           <!-- Catégories -->
           <section class="glass-card border border-gray-200 rounded-2xl p-6">
             <div class="mb-6">

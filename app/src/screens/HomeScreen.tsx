@@ -32,6 +32,7 @@ import { useRayons, RayonAffiche } from '../hooks/useRayons';
 import { useInvitations } from '../hooks/useInvitations';
 import { CONCOURS_MONTANT } from '../lib/partageInvitation';
 import MessageCampagne from '../components/MessageCampagne';
+import QuestionSource from '../components/QuestionSource';
 
 
 /** Fenetre du bouton « Nouveautes » de l'accueil : les 3 derniers jours. */
@@ -597,6 +598,9 @@ export default function HomeScreen({ navigation }: Props) {
         {/* Message de Flash Market (envoyé depuis la console) : en premier,
             c'est une information adressée à cette personne. */}
         {!nouveautes && <MessageCampagne userId={session?.user?.id} navigation={navigation} />}
+
+        {/* « Comment nous avez-vous connu ? » : une seule fois par compte. */}
+        {!nouveautes && <QuestionSource />}
 
         {/* Concours de parrainage : juste sous la recherche, visible sans
             faire défiler. Le montant est le titre, en gros : c'est lui qui

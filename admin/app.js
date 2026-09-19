@@ -1602,6 +1602,7 @@ function renderStatsPage() {
   renderGrowthChart(debut, maintenant);
   renderFunnel();
   renderContactsChart(contactsPer);
+  renderSources(dansPeriode);
   renderCategoriesTable(annoncesPer, contactsPer, dansPeriode);
   renderVilles();
   renderTopVendeurs(annoncesPer, contactsPer);
@@ -1714,6 +1715,83 @@ function renderContactsChart(contactsPer) {
       plugins: { legend: { position: 'bottom', labels: { color: '#6b7280', boxWidth: 12, font: { family: 'Outfit', size: 12 } } }, tooltip: tooltipStyle() }
     }
   });
+}
+
+// Réponses à « Comment avez-vous connu Flash Market ? »
+// (users.source_acquisition, migration_source_acquisition.sql).
+const SOURCES = {
+  tiktok:      ['TikTok', 'fa-brands fa-tiktok', '#111111'],
+  facebook:    ['Facebook', 'fa-brands fa-facebook', '#1877F2'],
+  instagram:   ['Instagram', 'fa-brands fa-instagram', '#D62976'],
+  influenceur: ['Un influenceur', 'fa-solid fa-star', '#D97706'],
+  ami:         ['Un ami, un proche', 'fa-solid fa-user-group', '#15803d'],
+  whatsapp:    ['WhatsApp', 'fa-brands fa-whatsapp', '#25D366'],
+  store:       ['Recherche dans le store', 'fa-solid fa-store', '#0369A1'],
+  autre:       ['Autre', 'fa-solid fa-ellipsis', '#6B7280']
+};
+
+function renderSources(dansPeriode) {
+  // La colonne n'existe qu'après la migration : `undefined` partout avant.
+  const installe = allUsers.some(u => u.source_acquisition !== undefined);
+  document.getElementById('sources-not-ready').classList.toggle('hidden', installe);
+  document.getElementById('sources-content').classList.toggle('hidden', !installe);
+  if (!installe) { document.getElementById('sources-taux').textContent = ''; return; }
+
+  const publie = new Set(allAnnonces.map(a => a.user_id));
+  const contacte = new Set(allContacts.map(c => c.vendeur_id));
+  const periode = allUsers.filter(u => dansPeriode(u.date_creation));
+  const repondu = periode.filter(u => u.source_acquisition && u.source_acquisition !== 'sans_reponse');
+
+  document.getElementById('sources-taux').innerHTML =
+    `<b>${fmt(repondu.length)}</b> réponse(s) sur ${fmt(periode.length)} inscrit(s) de la période (${pct(repondu.length, periode.length)} %)`;
+
+  const lignes = Object.entries(SOURCES).map(([cle, [label, icone, couleur]]) => {
+    const ceux = periode.filter(u => u.source_acquisition === cle);
+    return {
+      label, icone, couleur,
+      n: ceux.length,
+      publie: ceux.filter(u => publie.has(u.id)).length,
+      contacte: ceux.filter(u => contacte.has(u.id)).length,
+      total: allUsers.filter(u => u.source_acquisition === cle).length
+    };
+  }).sort((a, b) => b.n - a.n || b.total - a.total);
+  const max = Math.max(1, ...lignes.map(l => l.n));
+
+  document.getElementById('table-sources').innerHTML = lignes.map(l => `
+    <tr class="hover:bg-gray-50 transition-colors">
+      <td class="py-3 pl-2 font-semibold text-gray-900 whitespace-nowrap"><i class="${l.icone} w-5 text-center mr-1" style="color:${l.couleur}"></i> ${l.label}</td>
+      <td class="py-3">
+        <div class="flex items-center gap-2">
+          <div class="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden"><div class="h-2 rounded-full" style="width:${(l.n / max) * 100}%;background:${l.couleur}"></div></div>
+          <span class="text-sm font-bold text-gray-700 w-8 text-right">${fmt(l.n)}</span>
+        </div>
+      </td>
+      <td class="py-3 text-center">${l.n ? `<b>${fmt(l.publie)}</b> <span class="text-gray-400 text-xs">(${pct(l.publie, l.n)} %)</span>` : '<span class="text-gray-300">—</span>'}</td>
+      <td class="py-3 text-center">${!contactsDispo ? '—' : l.n ? `<b>${fmt(l.contacte)}</b> <span class="text-gray-400 text-xs">(${pct(l.contacte, l.n)} %)</span>` : '<span class="text-gray-300">—</span>'}</td>
+      <td class="py-3 text-center text-gray-500">${fmt(l.total)}</td>
+    </tr>`).join('');
+
+  // Ce que les gens ont écrit après « Un influenceur » ou « Autre », regroupé
+  // sans tenir compte des majuscules : c'est la liste des noms qui ramènent.
+  const details = {};
+  allUsers.filter(u => u.source_detail && ['influenceur', 'autre'].includes(u.source_acquisition)).forEach(u => {
+    const cle = u.source_detail.trim().toLowerCase();
+    const d = details[cle] || (details[cle] = { texte: u.source_detail.trim(), n: 0, type: u.source_acquisition });
+    d.n++;
+  });
+  const listeDetails = Object.values(details).sort((a, b) => b.n - a.n).slice(0, 12);
+  document.getElementById('sources-details').innerHTML = listeDetails.length === 0
+    ? '<p class="text-xs text-gray-400">Aucun nom cité pour le moment.</p>'
+    : listeDetails.map(d => `
+      <div class="flex items-center justify-between text-sm">
+        <span class="text-gray-700 truncate"><i class="${SOURCES[d.type][1]} text-xs mr-1" style="color:${SOURCES[d.type][2]}"></i> ${esc(d.texte)}</span>
+        <span class="font-bold text-gray-900">${fmt(d.n)}</span>
+      </div>`).join('');
+
+  const avecCode = new Set(allInvitations.map(i => i.filleul_id));
+  document.getElementById('sources-parrainage').textContent = invDispo
+    ? `À part : ${fmt(periode.filter(u => avecCode.has(u.id)).length)} inscrit(s) de la période ont saisi un code de parrainage.`
+    : '';
 }
 
 function renderCategoriesTable(annoncesPer, contactsPer, dansPeriode) {
