@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../contexts/ThemeContext';
+import Gradient from './Gradient';
 import { FONTS, SPACING, RADIUS, SHADOWS } from '../constants/theme';
 import { hapticLight } from '../lib/haptics';
 import { ecranDeNotification, ouvrirEcranNotification } from '../lib/ecranNotification';
@@ -71,20 +72,31 @@ export default function MessageCampagne({ userId, navigation }: { userId?: strin
     ranger();
   };
 
+  const icone = ICONES[message.donnees?.ecran] || 'megaphone';
+
   return (
-    <View style={styles.carte}>
+    <Gradient
+      colors={['#0b4023', '#15803d', '#1f9450']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.carte}
+    >
+      <Ionicons name={icone as any} size={110} color="rgba(255,255,255,0.12)" style={styles.filigrane} />
       <View style={styles.entete}>
         <View style={styles.icone}>
-          <Ionicons name="megaphone" size={18} color="#fff" />
+          <Ionicons name={icone as any} size={20} color="#fff" />
         </View>
-        <Text style={styles.titre} numberOfLines={2}>{message.titre}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.surtitre}>Message de Flash Market</Text>
+          <Text style={styles.titre} numberOfLines={2}>{message.titre}</Text>
+        </View>
       </View>
       <Text style={styles.contenu}>{message.contenu}</Text>
       <View style={styles.boutons}>
         {aUnEcran && (
           <TouchableOpacity activeOpacity={0.9} onPress={agir} style={styles.boutonAction}>
             <Text style={styles.boutonActionTexte}>Voir</Text>
-            <Ionicons name="arrow-forward" size={16} color="#fff" />
+            <Ionicons name="arrow-forward" size={16} color="#15803d" />
           </TouchableOpacity>
         )}
         <TouchableOpacity
@@ -95,34 +107,56 @@ export default function MessageCampagne({ userId, navigation }: { userId?: strin
           <Text style={styles.boutonOkTexte}>OK</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </Gradient>
   );
 }
 
-const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
+// L'icône dit d'un coup d'œil de quoi parle le message, avant toute lecture.
+const ICONES: Record<string, string> = {
+  Invitations: 'gift',
+  Publier: 'camera',
+  BoosterMesAnnonces: 'flame',
+  MesAnnonces: 'pricetags',
+};
+
+// Même gabarit que la bannière du concours juste en dessous (dégradé,
+// grande icône en filigrane, texte blanc), dans le vert de l'application
+// pour qu'on distingue les deux cartes.
+const createStyles = (_theme: any, _isDark: boolean) => StyleSheet.create({
   carte: {
     marginBottom: SPACING.lg,
     padding: SPACING.lg,
     borderRadius: RADIUS.lg,
-    backgroundColor: isDark ? 'rgba(22,163,74,0.12)' : '#F0FDF4',
-    borderWidth: 1.5,
-    borderColor: theme.primary,
+    overflow: 'hidden',
     ...SHADOWS.sm,
   },
-  entete: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  filigrane: {
+    position: 'absolute',
+    right: -14,
+    bottom: -20,
+    transform: [{ rotate: '12deg' }],
+  },
+  entete: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   icone: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: theme.primary,
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center', justifyContent: 'center',
   },
-  titre: { flex: 1, fontSize: FONTS.md, fontWeight: FONTS.extrabold, color: theme.textPrimary },
+  surtitre: {
+    fontSize: FONTS.xs,
+    fontWeight: FONTS.bold,
+    color: 'rgba(255,255,255,0.85)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  titre: { fontSize: FONTS.lg, fontWeight: FONTS.extrabold, color: '#fff', marginTop: 2 },
   contenu: {
     fontSize: FONTS.md,
     lineHeight: 22,
-    color: theme.textSecondary,
-    marginTop: SPACING.sm,
+    color: 'rgba(255,255,255,0.95)',
+    marginTop: SPACING.md,
   },
-  boutons: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.md },
+  boutons: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.lg },
   boutonAction: {
     flex: 1,
     flexDirection: 'row',
@@ -131,18 +165,19 @@ const createStyles = (theme: any, isDark: boolean) => StyleSheet.create({
     gap: SPACING.xs,
     height: 48,
     borderRadius: RADIUS.md,
-    backgroundColor: theme.primary,
+    backgroundColor: '#fff',
   },
-  boutonActionTexte: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
+  boutonActionTexte: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#15803d' },
   boutonOk: {
     minWidth: 88,
     height: 48,
     borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: 'rgba(255,255,255,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
   },
-  boutonOkTexte: { fontSize: FONTS.md, fontWeight: FONTS.semibold, color: theme.textSecondary },
+  boutonOkTexte: { fontSize: FONTS.md, fontWeight: FONTS.bold, color: '#fff' },
 });

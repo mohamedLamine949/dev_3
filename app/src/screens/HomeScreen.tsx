@@ -623,7 +623,7 @@ export default function HomeScreen({ navigation }: Props) {
               />
               <View style={{ flex: 1 }}>
                 <Text style={styles.parrainageSurtitre}>Concours de lancement</Text>
-                <Text style={styles.parrainageMontant}>Gagnez {CONCOURS_MONTANT}</Text>
+                <Text style={styles.parrainageMontant} numberOfLines={1} adjustsFontSizeToFit>Gagnez {CONCOURS_MONTANT}</Text>
                 <Text style={styles.parrainageTexte}>
                   {invitations?.concoursParticipe
                     ? 'Vous participez au tirage !'

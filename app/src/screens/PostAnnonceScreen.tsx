@@ -975,7 +975,7 @@ export default function PostAnnonceScreen({ navigation }: any) {
                 {inviterApres && invitations?.code && (
                   <View style={styles.inviteBloc}>
                     <Ionicons name="trophy" size={28} color="#B45309" />
-                    <Text style={styles.inviteMontant}>Gagnez {CONCOURS_MONTANT}</Text>
+                    <Text style={styles.inviteMontant} numberOfLines={1} adjustsFontSizeToFit>Gagnez {CONCOURS_MONTANT}</Text>
                     <Text style={styles.inviteTexte}>
                       Invitez 5 amis qui publient une annonce et participez au tirage. Chaque ami vous offre aussi un boost gratuit.
                     </Text>

@@ -9,7 +9,7 @@ import { Linking, Share } from 'react-native';
  */
 
 /** Montant du concours de lancement. */
-export const CONCOURS_MONTANT = '100 000 F';
+export const CONCOURS_MONTANT = '100 000 FCFA';
 
 /** Page d'accueil du site : elle renvoie vers le bon magasin d'applications. */
 const LIEN_APPLI = 'https://app-flashmarket.com';

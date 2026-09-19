@@ -246,7 +246,7 @@ export default function TutorielScreen({ onTermine, navigation }: Props) {
       style={styles.concoursCarte}
     >
       <Ionicons name="trophy" size={40} color="#fff" />
-      <Text style={styles.concoursMontant}>{CONCOURS_MONTANT}</Text>
+      <Text style={styles.concoursMontant} numberOfLines={1} adjustsFontSizeToFit>{CONCOURS_MONTANT}</Text>
       <View style={styles.concoursRonds}>
         {[0, 1, 2, 3, 4].map(i => (
           <View key={i} style={styles.concoursRond}>

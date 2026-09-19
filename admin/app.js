@@ -1885,13 +1885,13 @@ function segmentsCrm() {
 // pertinent : c'est aussi le moyen de faire connaître le programme.
 const MESSAGES_CRM = {
   tous: {
-    titre: 'Gagnez 100 000 F avec Flash Market',
-    texte: "{prenom}, le concours est lancé : invitez 5 amis qui publient une annonce et participez au tirage de 100 000 F. Chaque ami vous offre aussi un boost gratuit.\nVotre code : {code}",
+    titre: 'Gagnez 100 000 FCFA avec Flash Market',
+    texte: "{prenom}, le concours est lancé : invitez 5 amis qui publient une annonce et participez au tirage de 100 000 FCFA. Chaque ami vous offre aussi un boost gratuit.\nVotre code : {code}",
     ecran: 'Invitations'
   },
   nouveaux: {
     titre: 'Bienvenue {prenom} !',
-    texte: "Vendre ici, c'est une photo et un prix : votre annonce est en ligne en 1 minute, gratuitement.\nEt avec votre code {code}, invitez vos amis pour jouer les 100 000 F.",
+    texte: "Vendre ici, c'est une photo et un prix : votre annonce est en ligne en 1 minute, gratuitement.\nEt avec votre code {code}, invitez vos amis pour jouer les 100 000 FCFA.",
     ecran: 'Publier'
   },
   sans_annonce: {
@@ -1906,12 +1906,12 @@ const MESSAGES_CRM = {
   },
   endormis: {
     titre: '{prenom}, ça fait longtemps !',
-    texte: "De nouvelles annonces arrivent chaque jour. Et le concours est lancé : invitez 5 amis et jouez les 100 000 F.\nVotre code : {code}",
+    texte: "De nouvelles annonces arrivent chaque jour. Et le concours est lancé : invitez 5 amis et jouez les 100 000 FCFA.\nVotre code : {code}",
     ecran: 'Invitations'
   },
   actifs: {
     titre: 'Merci {prenom} !',
-    texte: "Vos annonces ont reçu {contacts} contact(s). Invitez d'autres vendeurs avec votre code {code} : chaque ami qui publie vous offre un boost gratuit, et 5 amis = tirage de 100 000 F.",
+    texte: "Vos annonces ont reçu {contacts} contact(s). Invitez d'autres vendeurs avec votre code {code} : chaque ami qui publie vous offre un boost gratuit, et 5 amis = tirage de 100 000 FCFA.",
     ecran: 'Invitations'
   },
   payeurs: {

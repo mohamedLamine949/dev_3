@@ -95,7 +95,7 @@ export default function InvitationsScreen({ navigation }: { navigation: any }) {
         <Text style={styles.enteteTitre}>Parrainage</Text>
       </View>
 
-      {/* 1. Le concours, en tête : 100 000 F est ce qui donne envie
+      {/* 1. Le concours, en tête : 100 000 FCFA est ce qui donne envie
           d'inviter. Le boost vient ensuite. Les cinq ronds se comptent
           d'un coup d'œil, sans avoir à lire. */}
       <Gradient
@@ -106,7 +106,7 @@ export default function InvitationsScreen({ navigation }: { navigation: any }) {
       >
         <Ionicons name="trophy" size={120} color="rgba(255,255,255,0.12)" style={styles.concoursFiligrane} />
         <Text style={styles.concoursSurtitre}>Concours de lancement</Text>
-        <Text style={styles.concoursMontant}>Gagnez {CONCOURS_MONTANT}</Text>
+        <Text style={styles.concoursMontant} numberOfLines={1} adjustsFontSizeToFit>Gagnez {CONCOURS_MONTANT}</Text>
         <Text style={styles.concoursTexte}>
           {stats.concoursParticipe
             ? 'Vous participez au tirage. Continuez d\'inviter !'
