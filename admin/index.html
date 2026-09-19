@@ -433,36 +433,76 @@
             </div>
           </section>
 
-          <!-- CRM : segments à contacter -->
+          <!-- CRM : groupes à relancer, par message dans l'application -->
           <section class="glass-card border border-gray-200 rounded-2xl p-6">
             <div class="mb-6">
-              <h3 class="text-sm font-bold uppercase tracking-wider text-gray-500">Qui contacter</h3>
-              <p class="text-xs text-gray-400 mt-0.5">Groupes d'utilisateurs à relancer. Cliquez sur un groupe pour voir la liste, puis sur WhatsApp pour écrire.</p>
+              <h3 class="text-sm font-bold uppercase tracking-wider text-gray-500">Qui relancer</h3>
+              <p class="text-xs text-gray-400 mt-0.5">Choisissez un groupe, relisez le message, envoyez. Chaque personne le reçoit dans l'application : en notification sur son téléphone, et en carte sur l'accueil.</p>
             </div>
-            <div id="crm-segments" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4"></div>
+            <div id="crm-segments" class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4"></div>
             <div id="crm-liste-wrap" class="hidden mt-6">
               <div class="flex items-center justify-between mb-3">
                 <p class="text-sm font-bold text-gray-900" id="crm-liste-titre"></p>
                 <p class="text-xs text-gray-400" id="crm-liste-conseil"></p>
               </div>
 
-              <!-- Message WhatsApp du groupe -->
-              <div class="rounded-xl border border-green-200 bg-green-50/50 p-4 mb-4">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
-                  <label for="crm-message" class="text-xs font-bold uppercase tracking-widest text-green-700"><i class="fa-brands fa-whatsapp mr-1"></i> Message envoyé à ce groupe</label>
-                  <span class="text-[11px] text-gray-500">Remplacés pour chaque personne : <code class="font-mono">{prenom}</code> <code class="font-mono">{code}</code> <code class="font-mono">{annonces}</code> <code class="font-mono">{contacts}</code></span>
+              <div id="crm-not-ready" class="hidden rounded-xl border border-amber-300 bg-amber-50 p-4 mb-4 text-xs text-amber-800">
+                <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+                Pour envoyer des messages, exécutez <code class="font-mono font-semibold">supabase/migration_campagnes_notifications.sql</code> dans le SQL Editor Supabase, puis rechargez.
+              </div>
+
+              <!-- Message dans l'application -->
+              <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 rounded-xl border border-emerald-200 bg-emerald-50/40 p-5 mb-4">
+                <div class="lg:col-span-3 space-y-3">
+                  <div class="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                    <span class="text-xs font-bold uppercase tracking-widest text-emerald-700"><i class="fa-solid fa-bullhorn mr-1"></i> Message à ce groupe</span>
+                    <span class="text-[11px] text-gray-500">Remplacés pour chacun : <code class="font-mono">{prenom}</code> <code class="font-mono">{code}</code> <code class="font-mono">{annonces}</code> <code class="font-mono">{contacts}</code></span>
+                  </div>
+                  <div>
+                    <label for="crm-titre" class="block text-[11px] font-semibold text-gray-500 mb-1">Titre (court)</label>
+                    <input id="crm-titre" maxlength="80" class="w-full bg-white border border-gray-300 focus:border-emerald-500 rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-900 outline-none">
+                  </div>
+                  <div>
+                    <label for="crm-message" class="block text-[11px] font-semibold text-gray-500 mb-1">Texte</label>
+                    <textarea id="crm-message" rows="4" maxlength="600" class="w-full bg-white border border-gray-300 focus:border-emerald-500 rounded-xl p-3 text-sm text-gray-900 outline-none"></textarea>
+                  </div>
+                  <div class="flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                      <label for="crm-ecran" class="block text-[11px] font-semibold text-gray-500 mb-1">Le bouton « Voir » ouvre</label>
+                      <select id="crm-ecran" class="bg-white border border-gray-300 focus:border-emerald-500 rounded-xl py-2 px-3 text-sm text-gray-700 outline-none cursor-pointer">
+                        <option value="Invitations">Parrainage et concours</option>
+                        <option value="Publier">Publier une annonce</option>
+                        <option value="BoosterMesAnnonces">Booster une annonce</option>
+                        <option value="MesAnnonces">Mes annonces</option>
+                        <option value="">Aucun écran (juste « OK »)</option>
+                      </select>
+                    </div>
+                    <button type="button" id="crm-reset-msg" class="px-3 py-2 text-xs font-semibold rounded-lg bg-white text-gray-600 border border-gray-200 hover:bg-gray-50">Message d'origine</button>
+                  </div>
+                  <p class="text-xs text-gray-500" id="crm-historique"></p>
+                  <button type="button" id="crm-envoyer" class="w-full py-3 text-sm font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.99] transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                    <i class="fa-solid fa-paper-plane mr-1"></i> <span id="crm-envoyer-label">Envoyer</span>
+                  </button>
                 </div>
-                <textarea id="crm-message" rows="4" class="w-full bg-white border border-gray-300 focus:border-green-500 rounded-xl p-3 text-sm text-gray-900 outline-none transition-all"></textarea>
-                <div class="flex flex-wrap items-center justify-between gap-3 mt-2">
-                  <p class="text-xs text-gray-500" id="crm-apercu"></p>
-                  <div class="flex items-center gap-2">
-                    <button type="button" id="crm-reset-msg" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white text-gray-600 border border-gray-200 hover:bg-gray-50">Message d'origine</button>
-                    <button type="button" id="crm-copier-numeros" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"><i class="fa-regular fa-copy mr-1"></i> Copier les numéros</button>
-                    <button type="button" id="crm-suivant" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-green-600 text-white hover:bg-green-700"><i class="fa-brands fa-whatsapp mr-1"></i> Écrire au suivant</button>
+
+                <!-- Aperçu : ce que verra la première personne du groupe -->
+                <div class="lg:col-span-2">
+                  <span class="block text-[11px] font-semibold text-gray-500 mb-2">Aperçu sur l'accueil de <span id="crm-apercu-nom" class="text-gray-800"></span></span>
+                  <div class="rounded-2xl bg-white border-[1.5px] border-emerald-600 p-4 shadow-sm">
+                    <div class="flex items-center gap-2">
+                      <span class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs shrink-0"><i class="fa-solid fa-bullhorn"></i></span>
+                      <span id="crm-apercu-titre" class="font-extrabold text-gray-900 text-sm"></span>
+                    </div>
+                    <p id="crm-apercu-texte" class="text-sm text-gray-600 mt-2 whitespace-pre-line leading-relaxed"></p>
+                    <div class="flex gap-2 mt-3">
+                      <span id="crm-apercu-voir" class="flex-1 text-center py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold">Voir →</span>
+                      <span class="px-5 py-2 rounded-lg border border-gray-200 text-gray-500 text-sm font-semibold">OK</span>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div class="overflow-x-auto max-h-[480px] overflow-y-auto border border-gray-100 rounded-xl">
+
+              <div class="overflow-x-auto max-h-[420px] overflow-y-auto border border-gray-100 rounded-xl">
                 <table class="w-full text-left border-collapse">
                   <thead class="sticky top-0 bg-white">
                     <tr class="border-b border-gray-200 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
@@ -471,8 +511,7 @@
                       <th class="py-3 text-center">Annonces</th>
                       <th class="py-3 text-center">Contacts reçus</th>
                       <th class="py-3">Inscrit le</th>
-                      <th class="py-3">Dernière visite</th>
-                      <th class="py-3 text-right pr-3">Contacter</th>
+                      <th class="py-3 pr-3">Dernière visite</th>
                     </tr>
                   </thead>
                   <tbody id="table-crm" class="divide-y divide-gray-100 text-sm text-gray-700"></tbody>
