@@ -34,9 +34,9 @@ import { formatPrix } from '../lib/format';
 import { libellePrix } from '../constants/theme';
 import { enregistrerContact } from '../lib/contactTracking';
 import { isBoostActif, aDejaEteBoostee } from '../hooks/useBoost';
-import { useAnnonces } from '../hooks/useAnnonces';
+import { SELECT_CARTE } from '../hooks/useAnnonces';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 // Grille 2 colonnes des « produits similaires », dans la largeur disponible
 // une fois retiré le padding horizontal de detailContainer (SPACING.xl de
 // chaque côté) et l'espace entre les deux colonnes (SPACING.md).
@@ -223,11 +223,31 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
   // Produits similaires : même sous-catégorie (retombe sur la catégorie si
   // l'annonce n'en a pas), pour proposer des alternatives à qui scrolle
   // jusqu'en bas sans avoir contacté le vendeur — comme sur Shein.
-  const { annonces: similairesBrutes } = useAnnonces({
-    categorie: annonce.categorie,
-    sousCategorie: annonce.sous_categorie || null,
-    limit: 13,
-  });
+  // La requête (et donc le téléchargement des images) n'est déclenchée que
+  // lorsque l'utilisateur approche réellement du bas de la fiche : sans ça,
+  // chaque ouverture de fiche téléchargerait jusqu'à 12 images en plus,
+  // meme pour quelqu'un qui ne descend jamais jusque-là (§ egress).
+  const [similairesBrutes, setSimilairesBrutes] = useState<Annonce[]>([]);
+  const similairesLancees = useRef(false);
+  const declencherSimilaires = React.useCallback(() => {
+    if (similairesLancees.current) return;
+    similairesLancees.current = true;
+    let requete = supabase
+      .from('annonces')
+      .select(SELECT_CARTE)
+      .eq('statut', 'active')
+      .eq('est_payee', true)
+      .eq('categorie', annonce.categorie)
+      .order('boost_expire_le', { ascending: false, nullsFirst: false })
+      .order('date_creation', { ascending: false })
+      .limit(13);
+    if (annonce.sous_categorie) {
+      requete = requete.eq('sous_categorie', annonce.sous_categorie);
+    }
+    requete.then(({ data }: { data: Annonce[] | null }) => {
+      if (data) setSimilairesBrutes(data);
+    });
+  }, [annonce.categorie, annonce.sous_categorie]);
   const similaires = React.useMemo(
     () => similairesBrutes.filter(a => a.id !== annonce.id).slice(0, 12),
     [similairesBrutes, annonce.id]
@@ -239,7 +259,25 @@ export default function AnnonceDetailScreen({ route, navigation }: Props) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+        scrollEventThrottle={200}
+        onScroll={(e) => {
+          const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+          const distanceDuBas = contentSize.height - contentOffset.y - layoutMeasurement.height;
+          // Marge large : le temps que la requête réponde avant que la
+          // section soit réellement visible, pour éviter un « saut » de mise
+          // en page sous les yeux de l'utilisateur.
+          if (distanceDuBas < 800) declencherSimilaires();
+        }}
+        // Si la fiche tient déjà dans l'écran (peu de description, pas
+        // d'avis), aucun évènement de scroll ne se déclenche jamais : sans
+        // ce filet, la section resterait invisible pour toujours.
+        onContentSizeChange={(_largeur, hauteur) => {
+          if (hauteur <= SCREEN_HEIGHT) declencherSimilaires();
+        }}
+      >
         {/* Carrousel d'images */}
         <View style={styles.imageCarousel}>
           {images.length === 0 ? (
