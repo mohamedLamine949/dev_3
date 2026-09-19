@@ -232,6 +232,19 @@ export default function HomeScreen({ navigation }: Props) {
     setSelectedSousCategorie(sousCategorie);
   }, []);
 
+  // Retaper sur l'onglet Accueil pendant qu'on y est déjà actualise le fil et
+  // remonte en haut, au lieu de forcer un scroll manuel jusqu'en haut pour
+  // pouvoir tirer-pour-rafraîchir.
+  const listeRef = useRef<FlatList>(null);
+  useEffect(() => {
+    const unsubscribe = navigation.getParent()?.addListener('tabPress', () => {
+      if (!navigation.isFocused()) return;
+      listeRef.current?.scrollToOffset({ offset: 0, animated: true });
+      refetch();
+    });
+    return unsubscribe;
+  }, [navigation, refetch]);
+
   const { location } = useLocation();
   const { session, user } = useAuth();
   // Parrainage : la banniere n'existe que si le programme est en place en
@@ -930,6 +943,7 @@ export default function HomeScreen({ navigation }: Props) {
         />
       ) : (
         <FlatList
+          ref={listeRef}
           data={filAffiche}
           renderItem={renderAnnonceCard}
           keyExtractor={(item) => item.id}
